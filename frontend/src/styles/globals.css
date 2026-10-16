@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #f3ead9;
+  background-image: url("/patterns/henna-bg.svg");
+  background-repeat: repeat;
+  background-size: 220px 220px;
+  color: #2b1712;
+  font-family: var(--font-manrope), -apple-system, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-petrona), Georgia, serif;
+}
+
+/* Toran / bunting strip - a nod to the garlands hung for mehndi ceremonies,
+   run along the very top of the page above the header. */
+.toran-strip {
+  height: 34px;
+  background-image: url("/patterns/toran-strip.svg");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-color: #fbf6ec;
+  border-bottom: 1px solid #e1d2b8;
+}
+
+.card {
+  position: relative;
+  background: #fbf6ec;
+  border: 1px solid #e1d2b8;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(43, 23, 18, 0.06), 0 6px 20px rgba(43, 23, 18, 0.06);
+}
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(to right, transparent, #a9761e, transparent);
+}
+
+/* Wedding-invitation style frame: double gold border + paisley corner
+   flourishes, used for the homepage hero and the login card. */
+.invitation-frame {
+  position: relative;
+  border: 1px solid #a9761e;
+  outline: 1px solid #a9761e;
+  outline-offset: 5px;
+  border-radius: 4px;
+  background: #fbf6ec;
+}
+.invitation-frame .corner-tl,
+.invitation-frame .corner-tr,
+.invitation-frame .corner-bl,
+.invitation-frame .corner-br {
+  content: "";
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  background-image: url("/patterns/corner-motif.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+}
+.invitation-frame .corner-tl {
+  top: 6px;
+  left: 6px;
+}
+.invitation-frame .corner-tr {
+  top: 6px;
+  right: 6px;
+  transform: scaleX(-1);
+}
+.invitation-frame .corner-bl {
+  bottom: 6px;
+  left: 6px;
+  transform: scaleY(-1);
+}
+.invitation-frame .corner-br {
+  bottom: 6px;
+  right: 6px;
+  transform: scale(-1, -1);
+}
+
+/* Ornamental section divider: a small paisley between two thin gold rules. */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #a9761e;
+}
+.section-divider::before,
+.section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #a9761e, transparent);
+}
+.section-divider svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.btn-primary {
+  background: #5c1a21;
+  color: #fbf6ec;
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  transition: opacity 0.15s ease;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #eadfc3;
+  color: #5c1a21;
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+}
+
+.input {
+  border: 1px solid #e1d2b8;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: #fbf6ec;
+  width: 100%;
+}
+
+.chip {
+  background: #eadfc3;
+  color: #a9761e;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

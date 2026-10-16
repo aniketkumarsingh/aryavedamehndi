@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" width="120" height="40">
+  <line x1="0" y1="3" x2="120" y2="3" stroke="#A9761E" stroke-width="1.5" />
+  <path transform="translate(15,3)" d="M0,0 C5,9 5,20 0,27 C-5,20 -5,9 0,0 Z" fill="#5C1A21" />
+  <path transform="translate(45,3)" d="M0,0 C5,9 5,20 0,27 C-5,20 -5,9 0,0 Z" fill="#A9761E" />
+  <path transform="translate(75,3)" d="M0,0 C5,9 5,20 0,27 C-5,20 -5,9 0,0 Z" fill="#4E5F3B" />
+  <path transform="translate(105,3)" d="M0,0 C5,9 5,20 0,27 C-5,20 -5,9 0,0 Z" fill="#5C1A21" />
+  <circle cx="15" cy="33" r="1.6" fill="#A9761E" />
+  <circle cx="45" cy="33" r="1.6" fill="#5C1A21" />
+  <circle cx="75" cy="33" r="1.6" fill="#A9761E" />
+  <circle cx="105" cy="33" r="1.6" fill="#4E5F3B" />
+</svg>

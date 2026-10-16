@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /artist
+Disallow: /customer
+Disallow: /my-bookings
+Disallow: /booking
+Disallow: /booking-detail
+
+# Replace with the real production domain once one is chosen.
+Sitemap: https://www.aryavedamehndi.com/sitemap.xml
