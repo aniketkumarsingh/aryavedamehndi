@@ -62,6 +62,25 @@ Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | Select ProcessId, 
 Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | % { Stop-Process -Id $_.ProcessId -Force }
 ```
 
+## Run in production
+
+Never use `--reload` on a server - it's a file watcher for development only.
+Run behind a reverse proxy (nginx/Caddy) that terminates HTTPS:
+
+```
+venv/bin/alembic upgrade head
+venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers
+```
+
+**Keep `--workers 1` for now:** the chat WebSocket tracks live connections
+in process memory (`app/services/chat_manager.py`), so with several workers
+two users connected to different processes would never receive each other's
+messages. Move chat fan-out to Redis pub/sub before scaling to more workers.
+
+Before the first production boot, set `APP_ENV=production` and fill in the
+real values in `.env` - the app refuses to start if `JWT_SECRET` is still a
+placeholder, `OTP_DEV_MODE` is true, or `CORS_ORIGINS` allows `*`.
+
 ## Running tests
 
 A dedicated `aryamehndi_test` database (same `aryamehndi_app` role) keeps
