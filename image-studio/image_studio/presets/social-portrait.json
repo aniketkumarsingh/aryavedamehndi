@@ -1,0 +1,6 @@
+{
+  "name": "social-portrait",
+  "description": "4:5 portrait (1080x1350) for social feeds, softened background.",
+  "extends": "natural-soft",
+  "output": { "width": 1080, "height": 1350, "format": "jpeg", "quality": 90 }
+}

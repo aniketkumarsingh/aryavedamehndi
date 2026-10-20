@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Studio</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; background: #f6f2ec; color: #1f1a17; font-family: system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    p { color: #6b625b; margin: 0 0 20px; line-height: 1.5; }
+    pre { background: #fff; border: 1px solid #e3d9cc; border-radius: 10px; padding: 12px; overflow-x: auto; font-size: .8rem; }
+    h2 { font-size: 1rem; margin: 28px 0 8px; }
+  </style>
+  <script type="module" src="/widget/image-studio.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Image Studio</h1>
+    <p>Upload a photo to see it analysed, colour-corrected and framed with the chosen style.</p>
+    <image-studio></image-studio>
+
+    <h2>Add it to your website</h2>
+    <pre>&lt;script type="module" src="https://YOUR-STUDIO-HOST/widget/image-studio.js"&gt;&lt;/script&gt;
+&lt;image-studio endpoint="https://YOUR-STUDIO-HOST" preset="studio-warm" target="#photo"&gt;&lt;/image-studio&gt;
+&lt;input type="file" id="photo" name="photo" hidden&gt;</pre>
+  </main>
+</body>
+</html>

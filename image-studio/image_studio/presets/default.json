@@ -1,0 +1,5 @@
+{
+  "name": "default",
+  "description": "General web photo: automatic white balance, exposure, local contrast and sharpening. Keeps the original framing and background.",
+  "framing": { "mode": "center" }
+}
