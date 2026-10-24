@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class ShopProduct(Base):
@@ -18,7 +19,7 @@ class ShopProduct(Base):
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0)
     image_urls: Mapped[str] = mapped_column(Text, nullable=True)  # comma-separated, like Package.sample_image_urls
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 # "pending" (created, awaiting payment) -> "paid" -> "shipped" -> "delivered"
@@ -43,7 +44,7 @@ class ShopOrder(Base):
     razorpay_payment_id: Mapped[str] = mapped_column(String(100), nullable=True)
     razorpay_signature: Mapped[str] = mapped_column(String(200), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     paid_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     shipped_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 

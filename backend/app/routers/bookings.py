@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -9,6 +8,7 @@ from app.core.deps import get_current_user, require_role
 from app.database import get_db
 from app.models.availability import ArtistAvailability
 from app.models.booking import Booking, NegotiationOffer
+from app.models.catalog import ArtistDesign, Design
 from app.models.design import DesignUpload
 from app.models.package import Package
 from app.models.user import ArtistProfile, User
@@ -24,13 +24,15 @@ from app.schemas.booking import (
 )
 from app.schemas.dashboard import SettlementIn
 from app.schemas.design import ConsumerConfirmIn, DesignUploadOut
-from app.services.geo import estimate_travel_minutes
+from app.services.geo import estimate_travel_minutes, haversine_km
+from app.services.platform_settings import get_platform_settings
 from app.services.pricing import compute_platform_fee
 from app.services.similarity import score_similarity
-from app.services.notifications import notify
+from app.services.notifications import notify, notify_admins
 from app.services.razorpay_client import create_order, refund_payment, verify_payment_signature
 from app.services.storage import save_upload
 from app.services.telephony import provision_masked_number
+from app.core.time import utcnow
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
 settings = get_settings()
@@ -46,18 +48,59 @@ def _provision_call_masking(db: Session, booking: Booking) -> None:
     booking.masked_call_provider_ref = provider_ref
 
 
+def _check_price_in_band(package: Package, amount: float, design: Design | None = None) -> None:
+    """A chosen catalog design has its own price range, which replaces the
+    package's."""
+    band = design or package
+    if not band.price_min <= amount <= band.price_max:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Price must be between ₹{band.price_min:g} and ₹{band.price_max:g} for this {'design' if design else 'package'}",
+        )
+
+
+def _bookable_design(db: Session, design_id: uuid.UUID, package: Package, artist_id: uuid.UUID) -> Design:
+    design = db.get(Design, design_id)
+    if design is None or not design.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Design not found")
+    if design.package_id != package.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That design belongs to a different package")
+    offered = (
+        db.query(ArtistDesign)
+        .filter(ArtistDesign.artist_id == artist_id, ArtistDesign.design_id == design.id, ArtistDesign.status == "approved")
+        .first()
+    )
+    if offered is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This artist doesn't offer that design")
+    return design
+
+
+def _check_negotiable(package: Package) -> None:
+    if not package.negotiable:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This package has a fixed price range and can't be negotiated")
+
+
 def _confirm_booking_at_price(db: Session, booking: Booking, agreed_price: float) -> None:
     """Shared by both acceptance paths: an artist accepting the consumer's
     (or their own) pending offer, and an artist directly accepting a plain
     request that never had an offer attached (see POST /{id}/accept)."""
+    _check_price_in_band(booking.package, agreed_price, booking.design)
     booking.agreed_price = agreed_price
-    booking.platform_fee = compute_platform_fee(agreed_price)
+    booking.platform_fee = compute_platform_fee(db, agreed_price)
     booking.total_amount = booking.agreed_price + booking.platform_fee
     booking.status = "confirmed"
     db.query(NegotiationOffer).filter(
         NegotiationOffer.booking_id == booking.id, NegotiationOffer.status == "pending"
     ).update({"status": "rejected"})
     _provision_call_masking(db, booking)
+
+
+def refund_advance(booking: Booking) -> str:
+    """Refunds a paid advance and returns a consumer-facing note. Shared by
+    early cancellation and an admin cancelling a disputed booking."""
+    refund_payment(booking.advance_razorpay_payment_id, booking.advance_amount)
+    booking.advance_status = "refunded"
+    return f"Your ₹{booking.advance_amount} advance has been refunded."
 
 
 def _get_booking_or_404(db: Session, booking_id: uuid.UUID) -> Booking:
@@ -96,6 +139,18 @@ def create_booking(
             "Artist gender doesn't match your safety preference. Pass gender_preference='any' to override.",
         )
 
+    design = None
+    reference_image_url = payload.reference_design_image_url
+    if payload.design_id is not None:
+        design = _bookable_design(db, payload.design_id, package, payload.artist_id)
+        # The catalog photo is what the finished work is verified against. An
+        # illustration isn't a fair reference, so the consumer confirms instead.
+        reference_image_url = design.image_url if design.image_kind == "photo" else None
+
+    if payload.opening_offer is not None:
+        _check_negotiable(package)
+        _check_price_in_band(package, payload.opening_offer, design)
+
     eta = estimate_travel_minutes(
         artist_profile.base_lat, artist_profile.base_lng, payload.location_lat, payload.location_lng
     )
@@ -115,7 +170,8 @@ def create_booking(
         location_lng=payload.location_lng,
         scheduled_at=payload.scheduled_at,
         gender_preference=payload.gender_preference,
-        reference_design_image_url=payload.reference_design_image_url,
+        reference_design_image_url=reference_image_url,
+        design_id=design.id if design else None,
         eta_minutes=eta,
         status="requested",
         availability_slot_id=slot.id if slot else None,
@@ -173,6 +229,9 @@ def make_offer(
     _ensure_party(booking, user)
     if booking.status not in ("requested", "negotiating"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Booking is no longer negotiable")
+    package = db.get(Package, booking.package_id)
+    _check_negotiable(package)
+    _check_price_in_band(package, payload.amount, booking.design)
 
     proposed_by = "consumer" if user.id == booking.consumer_id else "artist"
     offer = NegotiationOffer(booking_id=booking.id, proposed_by=proposed_by, amount=payload.amount, message=payload.message)
@@ -308,7 +367,7 @@ def verify_advance_payment(
     booking.advance_razorpay_payment_id = payload.razorpay_payment_id
     booking.advance_razorpay_signature = payload.razorpay_signature
     booking.advance_status = "paid"
-    booking.advance_paid_at = datetime.utcnow()
+    booking.advance_paid_at = utcnow()
     notify(
         db,
         booking.artist_id,
@@ -362,7 +421,7 @@ def update_live_location(
 
     booking.artist_current_lat = payload.lat
     booking.artist_current_lng = payload.lng
-    booking.artist_location_updated_at = datetime.utcnow()
+    booking.artist_location_updated_at = utcnow()
     booking.eta_minutes = estimate_travel_minutes(payload.lat, payload.lng, booking.location_lat, booking.location_lng)
     db.commit()
     db.refresh(booking)
@@ -372,18 +431,35 @@ def update_live_location(
 @router.post("/{booking_id}/arrived", response_model=BookingOut)
 def mark_arrived(
     booking_id: uuid.UUID,
-    lat: float,
-    lng: float,
+    lat: float = Query(ge=-90, le=90),
+    lng: float = Query(ge=-180, le=180),
     user: User = Depends(require_role("artist")),
     db: Session = Depends(get_db),
 ):
     booking = _get_booking_or_404(db, booking_id)
     if booking.artist_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your booking")
+    if booking.status != "artist_enroute":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Mark yourself en route before checking in")
     booking.status = "arrived"
-    booking.artist_arrived_at = datetime.utcnow()
+    booking.artist_arrived_at = utcnow()
     booking.artist_arrived_lat = lat
     booking.artist_arrived_lng = lng
+
+    # Geo check-in audit - a check-in far from the booking address doesn't
+    # block the artist (GPS can be off indoors), it's flagged for ops.
+    distance_m = round(haversine_km(lat, lng, booking.location_lat, booking.location_lng) * 1000)
+    booking.arrival_distance_m = distance_m
+    threshold_m = get_platform_settings(db)["checkin_flag_distance_m"]
+    if distance_m > threshold_m:
+        booking.arrival_flagged = True
+        notify_admins(
+            db,
+            "Check-in far from booking address",
+            f"Artist checked in {distance_m / 1000:.1f} km from the booking address (limit {threshold_m} m).",
+            f"/booking-detail/{booking_id}",
+        )
+
     notify(db, booking.consumer_id, "booking", "Your artist has arrived", None, f"/booking-detail/{booking_id}")
     db.commit()
     db.refresh(booking)
@@ -395,6 +471,8 @@ def mark_in_progress(booking_id: uuid.UUID, user: User = Depends(require_role("a
     booking = _get_booking_or_404(db, booking_id)
     if booking.artist_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your booking")
+    if booking.status != "arrived":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Check in as arrived before starting the mehndi")
     booking.status = "in_progress"
     db.commit()
     db.refresh(booking)
@@ -405,7 +483,11 @@ def mark_in_progress(booking_id: uuid.UUID, user: User = Depends(require_role("a
 def cancel_booking(booking_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     booking = _get_booking_or_404(db, booking_id)
     _ensure_party(booking, user)
-    if booking.status in ("in_progress", "design_uploaded", "payment_released", "completed"):
+    if booking.status == "cancelled":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Booking is already cancelled")
+    if booking.status == "disputed":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This booking is under dispute review - our team will resolve it")
+    if booking.status in ("in_progress", "design_uploaded", "completed"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Too late to cancel - raise a report instead")
 
     # Advance-deposit cancellation policy: refundable while the artist
@@ -419,9 +501,7 @@ def cancel_booking(booking_id: uuid.UUID, user: User = Depends(get_current_user)
             booking.advance_status = "forfeited"
             advance_note = f" The ₹{booking.advance_amount} advance is forfeited since the artist had already headed out."
         else:
-            refund_payment(booking.advance_razorpay_payment_id, booking.advance_amount)
-            booking.advance_status = "refunded"
-            advance_note = f" Your ₹{booking.advance_amount} advance has been refunded."
+            advance_note = " " + refund_advance(booking)
 
     if booking.availability_slot_id is not None and booking.advance_status != "forfeited":
         slot = db.get(ArtistAvailability, booking.availability_slot_id)
@@ -453,11 +533,11 @@ def record_settlement(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your booking")
     if payload.mode not in ("upi", "cash", "bank_transfer", "other"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "mode must be upi, cash, bank_transfer or other")
-    if booking.status not in ("design_uploaded", "payment_released", "completed"):
+    if booking.status not in ("design_uploaded", "completed"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Complete the service before recording settlement")
 
     booking.settlement_mode = payload.mode
-    booking.settlement_recorded_at = datetime.utcnow()
+    booking.settlement_recorded_at = utcnow()
     db.commit()
     db.refresh(booking)
     return booking
@@ -469,9 +549,13 @@ def record_settlement(
 async def upload_design(
     booking_id: uuid.UUID,
     file: UploadFile = File(...),
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lng: float | None = Query(default=None, ge=-180, le=180),
     user: User = Depends(require_role("artist")),
     db: Session = Depends(get_db),
 ):
+    """Uploading the finished design is also the artist's check-out - the
+    optional lat/lng is logged alongside the arrival check-in."""
     booking = _get_booking_or_404(db, booking_id)
     if booking.artist_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not your booking")
@@ -487,7 +571,7 @@ async def upload_design(
         try:
             ref_bytes = _load_reference_bytes(booking.reference_design_image_url)
             score = score_similarity(content, ref_bytes)
-            if score >= settings.design_match_threshold:
+            if score >= get_platform_settings(db)["design_match_threshold"]:
                 match_status = "auto_matched"
         except Exception:
             score = None  # reference unreadable - fall back to manual confirmation
@@ -502,7 +586,10 @@ async def upload_design(
     upload.match_status = match_status
 
     booking.status = "design_uploaded"
-    booking.artist_completed_at = datetime.utcnow()
+    booking.artist_completed_at = utcnow()
+    if lat is not None and lng is not None:
+        booking.artist_completed_lat = lat
+        booking.artist_completed_lng = lng
     notify(
         db,
         booking.consumer_id,
@@ -550,10 +637,12 @@ def confirm_design(
     upload = db.query(DesignUpload).filter(DesignUpload.booking_id == booking_id).first()
     if upload is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No design uploaded yet")
+    if booking.status != "design_uploaded" or upload.match_status != "needs_consumer_confirmation":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This design doesn't need your confirmation")
 
     if payload.satisfied:
         upload.match_status = "consumer_confirmed"
-        upload.confirmed_at = datetime.utcnow()
+        upload.confirmed_at = utcnow()
         notify(db, booking.artist_id, "booking", "Design confirmed", "The consumer is happy with the design.", f"/booking-detail/{booking_id}")
     else:
         upload.match_status = "disputed"

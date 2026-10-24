@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class Package(Base):
@@ -13,7 +14,8 @@ class Package(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
-    # "regular" | "bridal" | "party" | "festival" | "feet"
+    # "regular" | "bridal" | "party" | "festival" | "feet" | "kids" | "groom"
+    # (display order/labels: frontend/src/lib/designs.js CATEGORIES)
     package_type: Mapped[str] = mapped_column(String(30), nullable=False, default="regular")
     description: Mapped[str] = mapped_column(Text, nullable=True)
     price_min: Mapped[float] = mapped_column(Float, nullable=False)
@@ -28,4 +30,4 @@ class Package(Base):
     # snapshot and app/routers/bookings.py for the collection/forfeit flow.
     advance_amount: Mapped[float] = mapped_column(Float, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

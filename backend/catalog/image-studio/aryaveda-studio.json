@@ -1,0 +1,49 @@
+{
+  "name": "aryaveda-studio",
+  "description": "AryaVeda catalog: design on the site's ivory backdrop, square 2400px (big enough for the app's zoom copy), colour matched to the reference photos.",
+  "extends": "studio-warm",
+  "output": {
+    "width": 2400,
+    "height": 2400,
+    "format": "jpeg",
+    "quality": 88,
+    "renditions": [
+      {
+        "suffix": "-800",
+        "width": 800,
+        "format": "webp",
+        "quality": 82
+      },
+      {
+        "suffix": "-400",
+        "width": 400,
+        "format": "webp",
+        "quality": 80
+      }
+    ],
+    "_note": "the app keeps a separate full-resolution zoom copy only above 2000px (storage.DISPLAY_PX x 1.25)"
+  },
+  "framing": {
+    "mode": "subject",
+    "margin": 0.05
+  },
+  "background": {
+    "mode": "replace",
+    "color": "#FBF6EC",
+    "color2": "#F3EAD9",
+    "shadow": 0.1
+  },
+  "color": {
+    "_reference_from": "regular-04, regular-05, party-05, party-07 - re-run `image-studio calibrate` if the look should change",
+    "reference": {
+      "L": 74.58,
+      "L_median": 65.05,
+      "L_std": 14.69,
+      "a": 12.29,
+      "b": 11.55,
+      "chroma": 18.38
+    },
+    "exposure": 0.7,
+    "contrast": 0.5
+  }
+}

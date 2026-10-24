@@ -1,0 +1,1036 @@
+{
+  "bridal-01-4399.jpg": {
+    "file": "bridal-01-4399-uea7ba2.jpg",
+    "source": "23c33daa61f6",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-01-6974.jpg": {
+    "file": "bridal-01-6974-u983abb.jpg",
+    "source": "feac97f5e7e1",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-01-9258.jpg": {
+    "file": "bridal-01-9258-ubca7a9.jpg",
+    "source": "fe081d15cc01",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-02-2990.jpg": {
+    "file": "bridal-02-2990-u429971.jpg",
+    "source": "f6398fcb6131",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "low_resolution"
+    ]
+  },
+  "bridal-02-4738.jpg": {
+    "file": "bridal-02-4738-ub37506.jpg",
+    "source": "a6dca0601ca0",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-02-4991.jpg": {
+    "file": "bridal-02-4991-ubd21de.jpg",
+    "source": "b1b406558329",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-03-4867.jpg": {
+    "file": "bridal-03-4867-uab7adb.jpg",
+    "source": "0aca8ab07f8f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-03-7756.jpg": {
+    "file": "bridal-03-7756-u86b0fe.jpg",
+    "source": "57228e00dc36",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "bridal-03-8404.jpg": {
+    "file": "bridal-03-8404-u2ef411.jpg",
+    "source": "92cdd5decc3c",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-03-8974.jpg": {
+    "file": "bridal-03-8974-ud6282d.jpg",
+    "source": "6ba02d58ae71",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "bridal-04-4734.jpg": {
+    "file": "bridal-04-4734-u865e4b.jpg",
+    "source": "bc6e0a8ac26e",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-04-6156.jpg": {
+    "file": "bridal-04-6156-u41621a.jpg",
+    "source": "52ea28303929",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-04-7918.jpg": {
+    "file": "bridal-04-7918-ud23efb.jpg",
+    "source": "9f187f895a0a",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-05-3683.jpg": {
+    "file": "bridal-05-3683-u879017.jpg",
+    "source": "21d183373085",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-05-3877.jpg": {
+    "file": "bridal-05-3877-u7835e6.jpg",
+    "source": "f2fc835786bb",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-05-8966.jpg": {
+    "file": "bridal-05-8966-ucaf3fc.jpg",
+    "source": "999e732e5c02",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-06-1703.jpg": {
+    "file": "bridal-06-1703-ue540b9.jpg",
+    "source": "5e43f8d72b3f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-06-3022.jpg": {
+    "file": "bridal-06-3022-u833b80.jpg",
+    "source": "f14a400c951e",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-07-2501.jpg": {
+    "file": "bridal-07-2501-u2a63cc.jpg",
+    "source": "ca39359cb9b8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "bridal-08-4003.jpg": {
+    "file": "bridal-08-4003-ub6b913.jpg",
+    "source": "07ee147c179d",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-08-7937.jpg": {
+    "file": "bridal-08-7937-uf9e953.jpg",
+    "source": "d59708741d5f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-08-9838.jpg": {
+    "file": "bridal-08-9838-u316487.jpg",
+    "source": "f0df0d70547f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-09-7914.jpg": {
+    "file": "bridal-09-7914-u0df01f.jpg",
+    "source": "210fd5f0cbc6",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "bridal-10-1278.jpg": {
+    "file": "bridal-10-1278-ua89ad8.jpg",
+    "source": "192f7355c9dd",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-10-1434.jpg": {
+    "file": "bridal-10-1434-u4987a5.jpg",
+    "source": "35429517a3a8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-10-6281.jpg": {
+    "file": "bridal-10-6281-uff2d73.jpg",
+    "source": "832d5a33a84e",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-10-9100.jpg": {
+    "file": "bridal-10-9100-uf529ad.jpg",
+    "source": "d4d7b79e40f4",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-11-1107.jpg": {
+    "file": "bridal-11-1107-ue1b0bd.jpg",
+    "source": "fe8fe1598809",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-12-4261.jpg": {
+    "file": "bridal-12-4261-u61b430.jpg",
+    "source": "f2f8e997f071",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-15-5365.jpg": {
+    "file": "bridal-15-5365-ud75034.jpg",
+    "source": "a5d3a815182e",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-16-3760.jpg": {
+    "file": "bridal-16-3760-u694a36.jpg",
+    "source": "a4f166286571",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "bridal-17-2457.jpg": {
+    "file": "bridal-17-2457-udf77bb.jpg",
+    "source": "f49ec9954f58",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "bridal-18-4123.jpg": {
+    "file": "bridal-18-4123-u7c7eb5.jpg",
+    "source": "127a3259bbbd",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-01-1263.jpg": {
+    "file": "feet-01-1263-u692223.jpg",
+    "source": "f8f18d4a2de4",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-02-1341.jpg": {
+    "file": "feet-02-1341-uc31823.jpg",
+    "source": "12db3e800387",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-02-4559.jpg": {
+    "file": "feet-02-4559-u01528e.jpg",
+    "source": "90e82db84ea7",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-02-4929.jpg": {
+    "file": "feet-02-4929-u8a9082.jpg",
+    "source": "51a8fef13ec8",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-02-6649.jpg": {
+    "file": "feet-02-6649-u30f04c.jpg",
+    "source": "84f8b28d446f",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "feet-03-3947.jpg": {
+    "file": "feet-03-3947-u9eec87.jpg",
+    "source": "270e8a0b7ef5",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "feet-04-2189.jpg": {
+    "file": "feet-04-2189-uc8eb87.jpg",
+    "source": "be7ea7b6dd36",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "feet-06-9561.jpg": {
+    "file": "feet-06-9561-u6d5682.jpg",
+    "source": "de66ca7be593",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "feet-07-6250.jpg": {
+    "file": "feet-07-6250-ufac0b2.jpg",
+    "source": "7fb921d60a19",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "festival-01-2572.jpg": {
+    "file": "festival-01-2572-uc0c5f5.jpg",
+    "source": "614c54ba28d5",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "low_resolution"
+    ]
+  },
+  "festival-01-6456.jpg": {
+    "file": "festival-01-6456-u49ccf1.jpg",
+    "source": "c276bbe5fae9",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "festival-01-8125.jpg": {
+    "file": "festival-01-8125-uabc6b5.jpg",
+    "source": "1ca1158ef498",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "festival-01-9325.jpg": {
+    "file": "festival-01-9325-u27e0c7.jpg",
+    "source": "963c03a85779",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "festival-02-9786.jpg": {
+    "file": "festival-02-9786-u67f213.jpg",
+    "source": "d723f6c8b3c1",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-03-5786.jpg": {
+    "file": "festival-03-5786-u224626.jpg",
+    "source": "c0cc70f0d700",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-04-6138.jpg": {
+    "file": "festival-04-6138-u30ccc0.jpg",
+    "source": "22face7b11c1",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-05-6323.jpg": {
+    "file": "festival-05-6323-u4d7dd9.jpg",
+    "source": "8169deb29fd6",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-06-7954.jpg": {
+    "file": "festival-06-7954-u853cee.jpg",
+    "source": "f5794de3bf07",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-07-9318.jpg": {
+    "file": "festival-07-9318-ua9cc8a.jpg",
+    "source": "6b131cba5ffc",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-08-9719.jpg": {
+    "file": "festival-08-9719-u306910.jpg",
+    "source": "4018405dd172",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-09-7017.jpg": {
+    "file": "festival-09-7017-u784475.jpg",
+    "source": "a61053ea1ec8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-10-6590.jpg": {
+    "file": "festival-10-6590-ua085df.jpg",
+    "source": "39b98ad3bae5",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "festival-11-9519.jpg": {
+    "file": "festival-11-9519-u854f31.jpg",
+    "source": "5fe1b3863a03",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "groom-01-6407.jpg": {
+    "file": "groom-01-6407-u0bea4a.jpg",
+    "source": "7c73426d449c",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "color_cast",
+      "upscaled"
+    ]
+  },
+  "kids-02-7186.jpg": {
+    "file": "kids-02-7186-u467439.jpg",
+    "source": "c7310473095f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-01-6266.jpg": {
+    "file": "party-01-6266-ue75d1a.jpg",
+    "source": "035c2b648242",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "party-01-7445.jpg": {
+    "file": "party-01-7445-u5ab076.jpg",
+    "source": "f1784b67e514",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-01-7743.jpg": {
+    "file": "party-01-7743-u5f5748.jpg",
+    "source": "99091cc50bf6",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-02-1998.jpg": {
+    "file": "party-02-1998-u75f994.jpg",
+    "source": "6ddb290b8094",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-02-4891.jpg": {
+    "file": "party-02-4891-uc1d786.jpg",
+    "source": "c9f28e3146fb",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-02-5819.jpg": {
+    "file": "party-02-5819-u6011a2.jpg",
+    "source": "1c8df730d7ff",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-03-2881.jpg": {
+    "file": "party-03-2881-u539ab5.jpg",
+    "source": "abd52a5d8bba",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-03-7744.jpg": {
+    "file": "party-03-7744-ue0431c.jpg",
+    "source": "5b6ffc4c6c19",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-03-8976.jpg": {
+    "file": "party-03-8976-uf2d5a6.jpg",
+    "source": "2d89624f13d1",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-04-7023.jpg": {
+    "file": "party-04-7023-u5dc675.jpg",
+    "source": "423bc561eca0",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-05-3596.jpg": {
+    "file": "party-05-3596-ud01a11.jpg",
+    "source": "656e2d871ef8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-05-3615.jpg": {
+    "file": "party-05-3615-ud0e4fb.jpg",
+    "source": "18b30209f8d6",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-06-1726.jpg": {
+    "file": "party-06-1726-u649d72.jpg",
+    "source": "e542b322562a",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-06-2504.jpg": {
+    "file": "party-06-2504-u2deb29.jpg",
+    "source": "a856dba31c4a",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-06-9007.jpg": {
+    "file": "party-06-9007-u2b432f.jpg",
+    "source": "d29ef3bc251f",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "party-07-4178.jpg": {
+    "file": "party-07-4178-u91aaa4.jpg",
+    "source": "e500b623268b",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-08-3010.jpg": {
+    "file": "party-08-3010-u876985.jpg",
+    "source": "ee2485f193ae",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-09-1514.jpg": {
+    "file": "party-09-1514-ue357e8.jpg",
+    "source": "d2343219ed72",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-10-5928.jpg": {
+    "file": "party-10-5928-ua5501c.jpg",
+    "source": "56e2cf187b68",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-11-5766.jpg": {
+    "file": "party-11-5766-u39ce4f.jpg",
+    "source": "a3611e5bcd89",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-12-1014.jpg": {
+    "file": "party-12-1014-u77d880.jpg",
+    "source": "df6e1cfb8a8b",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 88,
+    "remaining": [
+      "low_resolution",
+      "upscaled"
+    ]
+  },
+  "party-13-2034.jpg": {
+    "file": "party-13-2034-ua89811.jpg",
+    "source": "deabccc4e0e9",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-13-6117.jpg": {
+    "file": "party-13-6117-u6ced04.jpg",
+    "source": "97109ded1ea8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-13-8343.jpg": {
+    "file": "party-13-8343-ubeb2a2.jpg",
+    "source": "7be67eaf11da",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-14-7878.jpg": {
+    "file": "party-14-7878-u15e6ae.jpg",
+    "source": "0b8cdbef9f6c",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-15-3858.jpg": {
+    "file": "party-15-3858-u0da9ec.jpg",
+    "source": "fc318e8ed933",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-15-4651.jpg": {
+    "file": "party-15-4651-uf31845.jpg",
+    "source": "d0706a4afd85",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-16-5918.jpg": {
+    "file": "party-16-5918-u38d723.jpg",
+    "source": "450f703ed0a6",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "party-17-5470.jpg": {
+    "file": "party-17-5470-ud64599.jpg",
+    "source": "a2a0fbcce52f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-17-7340.jpg": {
+    "file": "party-17-7340-u401c15.jpg",
+    "source": "cdf0df193b37",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-18-8726.jpg": {
+    "file": "party-18-8726-u9ac0b2.jpg",
+    "source": "56178793628d",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-18-8741.jpg": {
+    "file": "party-18-8741-u2a0adc.jpg",
+    "source": "5a7b405040ed",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "party-19-6518.jpg": {
+    "file": "party-19-6518-u5a18c3.jpg",
+    "source": "0a5cfc5c72a4",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-20-1371.jpg": {
+    "file": "party-20-1371-ucb77ce.jpg",
+    "source": "35955e5637fb",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-21-5992.jpg": {
+    "file": "party-21-5992-u9a2c3b.jpg",
+    "source": "8273fb6c5094",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-22-8016.jpg": {
+    "file": "party-22-8016-u05972f.jpg",
+    "source": "1e10ff464d9c",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-23-8448.jpg": {
+    "file": "party-23-8448-u1c77fa.jpg",
+    "source": "5c78f7a2faaa",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "party-24-2047.jpg": {
+    "file": "party-24-2047-ue82c02.jpg",
+    "source": "cf8ecb50dff8",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-01-4077.jpg": {
+    "file": "regular-01-4077-uf7daa7.jpg",
+    "source": "4cd84da6b58a",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-01-5698.jpg": {
+    "file": "regular-01-5698-u8891ce.jpg",
+    "source": "6d4f8f5ae8a4",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-02-1056.jpg": {
+    "file": "regular-02-1056-u9ee661.jpg",
+    "source": "889cdb37c70f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-02-1974.jpg": {
+    "file": "regular-02-1974-u37ff7e.jpg",
+    "source": "a2993e50ec3b",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-02-5015.jpg": {
+    "file": "regular-02-5015-u241cca.jpg",
+    "source": "ebf0952ffba2",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-02-7922.jpg": {
+    "file": "regular-02-7922-u884578.jpg",
+    "source": "d7199fbee30a",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-03-3018.jpg": {
+    "file": "regular-03-3018-u2c18c4.jpg",
+    "source": "e59cbee2d661",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-03-6159.jpg": {
+    "file": "regular-03-6159-u25e6f7.jpg",
+    "source": "1060ef362706",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-03-6975.jpg": {
+    "file": "regular-03-6975-u7e82b6.jpg",
+    "source": "e08c0cd6ddfd",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-03-9485.jpg": {
+    "file": "regular-03-9485-u69516f.jpg",
+    "source": "85067e335a19",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-04-2434.jpg": {
+    "file": "regular-04-2434-ued43e8.jpg",
+    "source": "f74bde8977b4",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-04-4759.jpg": {
+    "file": "regular-04-4759-u9e2fd6.jpg",
+    "source": "3920d6125b31",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-04-7516.jpg": {
+    "file": "regular-04-7516-u63e0d9.jpg",
+    "source": "5e875caa2b0c",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-05-6197.jpg": {
+    "file": "regular-05-6197-u6c04d3.jpg",
+    "source": "80153748a284",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-05-6325.jpg": {
+    "file": "regular-05-6325-ubfeac6.jpg",
+    "source": "0436b30b63bd",
+    "preset": "aryaveda-detail",
+    "preset_version": "1185f32a440e",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-05-9526.jpg": {
+    "file": "regular-05-9526-ud05f6d.jpg",
+    "source": "b3fdb99f2e3e",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-06-1872.jpg": {
+    "file": "regular-06-1872-uee0f88.jpg",
+    "source": "5e9813580c94",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-07-1831.jpg": {
+    "file": "regular-07-1831-u1b9fdd.jpg",
+    "source": "aac37b7cf637",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-08-5603.jpg": {
+    "file": "regular-08-5603-uac2f24.jpg",
+    "source": "e7f17cd8e62c",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-09-1236.jpg": {
+    "file": "regular-09-1236-u30aef5.jpg",
+    "source": "a81328d56e6f",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 98,
+    "remaining": [
+      "upscaled"
+    ]
+  },
+  "regular-10-7037.jpg": {
+    "file": "regular-10-7037-u5565c3.jpg",
+    "source": "e561f1a0288b",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  },
+  "regular-11-4668.jpg": {
+    "file": "regular-11-4668-u301c2c.jpg",
+    "source": "0a4914ac9971",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 90,
+    "remaining": [
+      "color_cast"
+    ]
+  },
+  "regular-12-7978.jpg": {
+    "file": "regular-12-7978-u4af9b6.jpg",
+    "source": "7135fde33b4a",
+    "preset": "aryaveda-studio",
+    "preset_version": "b251d6d147fc",
+    "score": 100,
+    "remaining": []
+  }
+}

@@ -11,6 +11,9 @@ class PaymentOrderOut(BaseModel):
     amount: float
     currency: str
     is_full_escrow: bool
+    # True when the paid advance covered the whole in-app amount, so the
+    # booking completed without a Razorpay checkout.
+    already_paid: bool = False
 
 
 class PaymentVerifyIn(BaseModel):
@@ -26,6 +29,8 @@ class PaymentOut(BaseModel):
     is_full_escrow: bool
     artist_share: float | None
     platform_share: float | None
+    advance_credit: float
+    platform_owes_artist: float
     payout_status: str
     currency: str
     status: str

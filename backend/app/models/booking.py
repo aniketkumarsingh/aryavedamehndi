@@ -1,16 +1,18 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.core.time import utcnow
 
 # Booking status progression:
 # requested -> negotiating -> confirmed -> artist_enroute -> arrived ->
-# in_progress -> design_uploaded -> payment_released -> completed
-# side branches: disputed, cancelled
+# in_progress -> design_uploaded -> completed (verified payment completes it)
+# side branches: disputed (admin resolves back to design_uploaded, or
+# cancels), cancelled
 BOOKING_STATUSES = [
     "requested",
     "negotiating",
@@ -19,7 +21,6 @@ BOOKING_STATUSES = [
     "arrived",
     "in_progress",
     "design_uploaded",
-    "payment_released",
     "completed",
     "disputed",
     "cancelled",
@@ -47,6 +48,9 @@ class Booking(Base):
     gender_preference: Mapped[str] = mapped_column(String(10), default="same")
 
     reference_design_image_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    # Catalog design the consumer picked (optional). When set, its price
+    # range is the negotiation band and its image is the reference above.
+    design_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("designs.id"), nullable=True)
 
     agreed_price: Mapped[float] = mapped_column(Float, nullable=True)
     platform_fee: Mapped[float] = mapped_column(Float, nullable=True)
@@ -101,8 +105,73 @@ class Booking(Base):
     artist_completed_lat: Mapped[float] = mapped_column(Float, nullable=True)
     artist_completed_lng: Mapped[float] = mapped_column(Float, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Geo check-in audit: straight-line distance (metres) between where the
+    # artist marked "arrived" and the booking address. Over the admin-set
+    # threshold (PlatformSettings.checkin_flag_distance_m) sets
+    # arrival_flagged so ops can review it - see mark_arrived.
+    arrival_distance_m: Mapped[float] = mapped_column(Float, nullable=True)
+    arrival_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Admin's ruling on a disputed booking - "released" (consumer can pay
+    # and complete as normal) | "cancelled" (no fee, advance refunded).
+    dispute_outcome: Mapped[str] = mapped_column(String(20), nullable=True)
+    dispute_notes: Mapped[str] = mapped_column(Text, nullable=True)
+    dispute_resolved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    # Read-only lookups so BookingOut can show the package duration, the
+    # consumer's rating and the payment split without extra API calls.
+    package: Mapped["Package"] = relationship(viewonly=True)
+    design: Mapped["Design"] = relationship(viewonly=True)
+    consumer: Mapped["User"] = relationship(viewonly=True)
+    artist_profile: Mapped["ArtistProfile"] = relationship(viewonly=True)
+
+    # A chosen catalog design overrides the package's duration and price
+    # band - see app/routers/bookings.py _price_band.
+    @property
+    def package_duration_minutes(self) -> int | None:
+        if self.design:
+            return self.design.duration_minutes
+        return self.package.duration_minutes if self.package else None
+
+    @property
+    def package_price_min(self) -> float | None:
+        if self.design:
+            return self.design.price_min
+        return self.package.price_min if self.package else None
+
+    @property
+    def package_price_max(self) -> float | None:
+        if self.design:
+            return self.design.price_max
+        return self.package.price_max if self.package else None
+
+    @property
+    def design_name(self) -> str | None:
+        return self.design.name if self.design else None
+
+    @property
+    def package_negotiable(self) -> bool:
+        return bool(self.package and self.package.negotiable)
+
+    @property
+    def consumer_rating_avg(self) -> float:
+        return self.consumer.consumer_rating_avg if self.consumer else 0
+
+    @property
+    def consumer_rating_count(self) -> int:
+        return self.consumer.consumer_rating_count if self.consumer else 0
+
+    @property
+    def payment_breakdown(self) -> dict | None:
+        if self.agreed_price is None:
+            return None
+        from app.services.pricing import settlement_breakdown
+
+        full_escrow = bool(self.artist_profile and self.artist_profile.razorpay_linked_account_id)
+        return {"full_escrow": full_escrow, **settlement_breakdown(self, full_escrow)}
 
 
 class NegotiationOffer(Base):
@@ -116,4 +185,4 @@ class NegotiationOffer(Base):
     message: Mapped[str] = mapped_column(Text, nullable=True)
     # "pending" | "accepted" | "rejected" | "countered"
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

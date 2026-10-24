@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class Review(Base):
@@ -17,7 +18,7 @@ class Review(Base):
     by_role: Mapped[str] = mapped_column(String(10), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-5
     comment: Mapped[str] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class Report(Base):
@@ -32,5 +33,5 @@ class Report(Base):
     # "open" | "reviewing" | "resolved" | "dismissed"
     status: Mapped[str] = mapped_column(String(20), default="open")
     resolution_notes: Mapped[str] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     resolved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)

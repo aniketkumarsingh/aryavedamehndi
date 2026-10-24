@@ -238,6 +238,31 @@ def render_png(size, path, supersample=4):
     if Image is None:
         print("Pillow not available - skipping PNG render")
         return
+    render_medallion(size, supersample).save(path, "PNG")
+    print("wrote", path)
+
+
+def render_padded_icon(size, path, medallion_fraction):
+    """The medallion centred on a full-bleed maroon square.
+
+    - Android "maskable" icons get cropped to whatever shape the launcher
+      uses (circle, squircle...), and only the centre 80% circle is
+      guaranteed visible - so the medallion sits at <= 0.8 of the canvas.
+    - iOS apple-touch-icons must be opaque (transparent corners render
+      black) and get rounded corners applied by iOS.
+    """
+    if Image is None:
+        return
+    canvas = Image.new("RGBA", (size, size), hex_to_rgb(MAROON) + (255,))
+    inner = round(size * medallion_fraction)
+    medallion = render_medallion(inner)
+    offset = (size - inner) // 2
+    canvas.alpha_composite(medallion, (offset, offset))
+    canvas.convert("RGB").save(path, "PNG")
+    print("wrote", path)
+
+
+def render_medallion(size, supersample=4):
     big = size * supersample
     scale = big / CANVAS
     img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
@@ -278,13 +303,17 @@ def render_png(size, path, supersample=4):
         fr = 2.6 * scale
         draw.ellipse([fx - fr, fy - fr, fx + fr, fy + fr], fill=hex_to_rgb(INK))
 
-    img = img.resize((size, size), Image.LANCZOS)
-    img.save(path, "PNG")
-    print("wrote", path)
+    return img.resize((size, size), Image.LANCZOS)
 
 
 icons_dir = os.path.join(FRONTEND_PUBLIC, "icons")
 os.makedirs(icons_dir, exist_ok=True)
+# "any" purpose - shown as-is (transparent corners are fine on desktop).
 render_png(192, os.path.join(icons_dir, "icon-192.png"))
 render_png(512, os.path.join(icons_dir, "icon-512.png"))
 render_png(512, os.path.join(FRONTEND_PUBLIC, "logo", "mark.png"))
+# "maskable" purpose - Android launchers crop these to their own shape.
+render_padded_icon(192, os.path.join(icons_dir, "maskable-192.png"), 0.78)
+render_padded_icon(512, os.path.join(icons_dir, "maskable-512.png"), 0.78)
+# iOS home screen icon - opaque, 180x180 is what current iPhones request.
+render_padded_icon(180, os.path.join(icons_dir, "apple-touch-icon.png"), 0.88)

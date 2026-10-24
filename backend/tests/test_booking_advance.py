@@ -41,7 +41,7 @@ def test_booking_with_zero_advance_package_is_not_gated(client, db, consumer, ar
     assert create_res.json()["advance_status"] == "not_required"
     booking_id = create_res.json()["id"]
 
-    _confirm_booking(client, consumer, artist_user, booking_id, amount=500)
+    _confirm_booking(client, consumer, artist_user, booking_id, amount=1500)
     enroute_res = client.post(f"/bookings/{booking_id}/enroute", headers=auth_headers(artist_user))
     assert enroute_res.status_code == 200
     assert enroute_res.json()["status"] == "artist_enroute"

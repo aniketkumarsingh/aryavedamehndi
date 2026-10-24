@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import ArtistDesignsManager from "@/components/ArtistDesignsManager";
+import CameraCapture from "@/components/CameraCapture";
 import FileUpload from "@/components/FileUpload";
 import Lightbox from "@/components/Lightbox";
 
@@ -141,8 +143,10 @@ export default function ArtistProfilePage() {
     try {
       await api.upload(endpoint, file);
       loadProfile();
+      return true;
     } catch (err) {
       setError(err.message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -366,7 +370,7 @@ export default function ArtistProfilePage() {
               previewUrl={profile.kyc_selfie_url}
               onUpload={(f) => uploadFile("/artists/me/kyc-selfie", f)}
               busy={busy}
-              capture="user"
+              liveCamera
             />
 
             <div>
@@ -449,6 +453,8 @@ export default function ArtistProfilePage() {
         </div>
       )}
 
+      {profile && <ArtistDesignsManager />}
+
       <Lightbox
         images={lightbox?.images ?? null}
         index={lightbox?.index ?? 0}
@@ -459,7 +465,7 @@ export default function ArtistProfilePage() {
   );
 }
 
-function DocTile({ title, previewUrl, onUpload, busy, disabled, capture }) {
+function DocTile({ title, previewUrl, onUpload, busy, disabled, liveCamera }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
@@ -470,14 +476,12 @@ function DocTile({ title, previewUrl, onUpload, busy, disabled, capture }) {
         <p className="text-xs text-ink-soft border-2 border-dashed border-line rounded-xl px-6 py-8 text-center">
           Accept the consent form above to unlock this upload.
         </p>
+      ) : liveCamera ? (
+        // A file input's `capture` attribute is ignored on desktop browsers
+        // (it just opens a file picker), so a KYC selfie uses the live camera.
+        <CameraCapture onCapture={onUpload} busy={busy} previewUrl={previewUrl} fileName="kyc-selfie.jpg" />
       ) : (
-        <FileUpload
-          onFile={onUpload}
-          busy={busy}
-          previewUrl={previewUrl}
-          capture={capture}
-          label={capture ? `Take a ${title.toLowerCase()}` : `Upload ${title.toLowerCase()}`}
-        />
+        <FileUpload onFile={onUpload} busy={busy} previewUrl={previewUrl} label={`Upload ${title.toLowerCase()}`} />
       )}
     </div>
   );

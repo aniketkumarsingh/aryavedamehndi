@@ -3,6 +3,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, field_validator
 
+from app.services.storage import sign_media_url
+
 
 class UserOut(BaseModel):
     id: uuid.UUID
@@ -127,6 +129,13 @@ class ArtistProfileOut(BaseModel):
     is_suspended: bool
     user: UserOut
 
+    # Only ever returned to the artist themself and to admins - KYC docs
+    # go out as short-lived signed URLs, never the bare stored path.
+    @field_validator("kyc_selfie_url", "id_proof_doc_url", "pan_doc_url", "address_proof_doc_url")
+    @classmethod
+    def sign_private_document(cls, v):
+        return sign_media_url(v)
+
     class Config:
         from_attributes = True
 
@@ -164,8 +173,20 @@ class ArtistPublicOut(BaseModel):
         from_attributes = True
 
 
+class ArtistDesignSummary(BaseModel):
+    """An approved catalog design an artist offers, as shown on their card."""
+
+    design_id: uuid.UUID
+    name: str
+    category: str | None
+    price_min: float
+    price_max: float
+    proof_image_url: str
+
+
 class ArtistNearbyOut(BaseModel):
     user_id: uuid.UUID
+    designs: list[ArtistDesignSummary] = []
     name: str | None
     gender: str | None
     bio: str | None

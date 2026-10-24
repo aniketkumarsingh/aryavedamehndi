@@ -41,6 +41,7 @@ export default function Layout({ children }) {
   const navLinks = (
     <>
       <Link href="/discover" className="whitespace-nowrap">{t("nav_find_artist")}</Link>
+      <Link href="/designs" className="whitespace-nowrap">{t("nav_designs")}</Link>
       <Link href="/shop" className="whitespace-nowrap">{t("nav_shop")}</Link>
       <Link href="/download" className="whitespace-nowrap">{t("nav_download")}</Link>
       {user?.role === "consumer" && <Link href="/customer" className="whitespace-nowrap">{t("nav_dashboard")}</Link>}
@@ -85,14 +86,15 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex flex-col">
       <div className="toran-strip" aria-hidden="true" />
       <header className="border-b border-line bg-ivory-raised sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-display text-xl font-semibold text-maroon flex-none">
             <img src="/logo/mark.svg" alt="" className="h-9 w-9" />
             <span className="hidden sm:inline">AryaVeda Mehndi</span>
           </Link>
 
-          {/* Full nav - only shown when there's room for it (lg and up) */}
-          <nav className="hidden lg:flex items-center gap-4 text-sm flex-1 justify-end">
+          {/* Full nav - only shown when there's room for it (xl and up). Logged-in
+              users get up to ~1100px of links, which doesn't fit below xl. */}
+          <nav className="hidden xl:flex items-center gap-4 text-sm flex-1 justify-end">
             {navLinks}
             {cartLink}
             {languageSelect}
@@ -117,7 +119,7 @@ export default function Layout({ children }) {
           </nav>
 
           {/* Narrow screens: just the essentials inline, everything else behind the menu toggle */}
-          <div className="flex lg:hidden items-center gap-3 flex-none">
+          <div className="flex xl:hidden items-center gap-3 flex-none">
             {cartLink}
             {user && <NotificationBell />}
             <button
@@ -138,7 +140,7 @@ export default function Layout({ children }) {
         </div>
 
         {menuOpen && (
-          <div className="lg:hidden border-t border-line bg-ivory-raised px-4 py-4 flex flex-col gap-3 text-sm">
+          <div className="xl:hidden border-t border-line bg-ivory-raised px-4 py-4 flex flex-col gap-3 text-sm">
             <div className="flex flex-col gap-3">{navLinks}</div>
             <div className="flex items-center justify-between pt-2 border-t border-line">
               {languageSelect}

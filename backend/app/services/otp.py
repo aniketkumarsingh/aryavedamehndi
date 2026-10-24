@@ -1,12 +1,13 @@
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import httpx
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models.otp import OtpCode
+from app.core.time import utcnow
 
 settings = get_settings()
 
@@ -34,7 +35,7 @@ def issue_otp(db: Session, phone: str) -> tuple[str, bool]:
     Raises OtpRateLimited if this phone number has requested codes too
     often recently.
     """
-    now = datetime.utcnow()
+    now = utcnow()
     recent = db.query(OtpCode).filter(OtpCode.phone == phone, OtpCode.created_at >= now - timedelta(hours=1)).all()
     if recent:
         most_recent = max(o.created_at for o in recent)
@@ -47,7 +48,7 @@ def issue_otp(db: Session, phone: str) -> tuple[str, bool]:
     otp = OtpCode(
         phone=phone,
         code=code,
-        expires_at=datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES),
+        expires_at=utcnow() + timedelta(minutes=OTP_TTL_MINUTES),
     )
     db.add(otp)
     db.commit()
@@ -82,7 +83,7 @@ def verify_otp(db: Session, phone: str, code: str) -> bool:
     )
     if otp is None:
         return False
-    if otp.expires_at < datetime.utcnow():
+    if otp.expires_at < utcnow():
         return False
     if otp.attempts >= MAX_ATTEMPTS:
         return False

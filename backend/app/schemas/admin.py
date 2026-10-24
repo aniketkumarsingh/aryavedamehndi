@@ -1,7 +1,11 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from app.schemas.review import ReportOut
 
 
 class AdminOverviewOut(BaseModel):
@@ -25,7 +29,45 @@ class AdminBookingOut(BaseModel):
     artist_phone: str
     scheduled_at: datetime
     total_amount: float | None
+    arrival_distance_m: float | None = None
+    arrival_flagged: bool = False
     created_at: datetime
+
+
+class AdminDisputeOut(BaseModel):
+    booking: AdminBookingOut
+    reference_image_url: str | None
+    completed_image_url: str | None
+    similarity_score: float | None
+    match_status: str | None
+    advance_amount: float
+    advance_status: str
+    reports: list[ReportOut]
+
+
+class DisputeResolveIn(BaseModel):
+    # "released" - consumer can pay and complete as normal
+    # "cancelled" - no platform fee, paid advance refunded
+    outcome: Literal["released", "cancelled"]
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class PlatformSettingsOut(BaseModel):
+    platform_fee_mode: Literal["percent", "flat"]
+    platform_fee_percent: float
+    platform_fee_flat: float
+    design_match_threshold: int
+    strikes_before_suspension: int
+    checkin_flag_distance_m: int
+
+
+class PlatformSettingsIn(BaseModel):
+    platform_fee_mode: Literal["percent", "flat"] | None = None
+    platform_fee_percent: float | None = Field(default=None, ge=0, le=50)
+    platform_fee_flat: float | None = Field(default=None, ge=0, le=100_000)
+    design_match_threshold: int | None = Field(default=None, ge=0, le=100)
+    strikes_before_suspension: int | None = Field(default=None, ge=1, le=20)
+    checkin_flag_distance_m: int | None = Field(default=None, ge=50, le=50_000)
 
 
 class AdminUserOut(BaseModel):

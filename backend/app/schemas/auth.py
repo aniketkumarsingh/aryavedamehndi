@@ -26,6 +26,10 @@ class VerifyOtpIn(BaseModel):
     gender: str | None = None
 
 
+class RefreshIn(BaseModel):
+    refresh_token: str = Field(..., min_length=1, max_length=2000)
+
+
 class TokenOut(BaseModel):
     access_token: str
     refresh_token: str

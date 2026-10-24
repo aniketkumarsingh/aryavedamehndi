@@ -40,10 +40,14 @@ def create_access_token(user_id: uuid.UUID, role: str) -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(user_id: uuid.UUID) -> str:
+def create_refresh_token(user_id: uuid.UUID) -> tuple[str, str, datetime]:
+    """Returns (token, jti, expires_at). The caller stores the jti as a
+    RefreshToken row so the token can be rotated/revoked - see
+    app/services/auth_tokens.py."""
     expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
-    payload = {"sub": str(user_id), "exp": expire, "type": "refresh"}
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    jti = uuid.uuid4().hex
+    payload = {"sub": str(user_id), "exp": expire, "type": "refresh", "jti": jti}
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti, expire
 
 
 def decode_token(token: str) -> dict:

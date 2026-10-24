@@ -6,20 +6,30 @@ from sqlalchemy.orm import Session
 from app.core.deps import require_role
 from app.database import get_db
 from app.models.booking import Booking
+from app.models.design import DesignUpload
 from app.models.package import Package
 from app.models.payment import Payment
 from app.models.review import Report
 from app.models.user import ArtistProfile, User
 from app.models.shop import ShopOrder
-from app.schemas.admin import AdminArtistOut, AdminBookingOut, AdminOverviewOut, AdminUserOut
+from app.schemas.admin import (
+    AdminArtistOut,
+    AdminBookingOut,
+    AdminDisputeOut,
+    AdminOverviewOut,
+    AdminUserOut,
+    DisputeResolveIn,
+    PlatformSettingsIn,
+    PlatformSettingsOut,
+)
 from app.schemas.review import ReportOut, ReportResolveIn
 from app.schemas.shop import ShopOrderOut, ShopOrderStatusIn
 from app.schemas.user import ArtistProfileOut
 from app.services.notifications import notify
+from app.services.platform_settings import get_platform_settings, update_platform_settings
+from app.core.time import utcnow
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_role("admin"))])
-
-STRIKES_BEFORE_SUSPENSION = 3
 
 
 @router.get("/overview", response_model=AdminOverviewOut)
@@ -53,32 +63,142 @@ def list_all_bookings(
     status_filter: str = "all",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    flagged_only: bool = False,
     db: Session = Depends(get_db),
 ):
     query = db.query(Booking, Package.name).join(Package, Package.id == Booking.package_id).order_by(Booking.created_at.desc())
     if status_filter != "all":
         query = query.filter(Booking.status == status_filter)
+    if flagged_only:
+        query = query.filter(Booking.arrival_flagged.is_(True))
     query = query.offset(offset).limit(limit)
+    return [_admin_booking_out(db, booking, package_name) for booking, package_name in query.all()]
 
+
+def _admin_booking_out(db: Session, booking: Booking, package_name: str) -> AdminBookingOut:
+    consumer = db.get(User, booking.consumer_id)
+    artist_user = db.get(User, booking.artist_id)
+    return AdminBookingOut(
+        id=booking.id,
+        status=booking.status,
+        package_name=package_name,
+        consumer_name=consumer.name if consumer else None,
+        consumer_phone=consumer.phone if consumer else "",
+        artist_name=artist_user.name if artist_user else None,
+        artist_phone=artist_user.phone if artist_user else "",
+        scheduled_at=booking.scheduled_at,
+        total_amount=booking.total_amount,
+        arrival_distance_m=booking.arrival_distance_m,
+        arrival_flagged=booking.arrival_flagged,
+        created_at=booking.created_at,
+    )
+
+
+# ---------------------------------------------------------------- disputes --
+
+@router.get("/disputes", response_model=list[AdminDisputeOut])
+def list_disputes(db: Session = Depends(get_db)):
+    """Disputed bookings with everything needed to rule on them: the
+    reference vs. finished design side by side, the match score, and the
+    reports both sides filed."""
+    rows = (
+        db.query(Booking, Package.name)
+        .join(Package, Package.id == Booking.package_id)
+        .filter(Booking.status == "disputed")
+        .order_by(Booking.updated_at.desc())
+        .all()
+    )
     results = []
-    for booking, package_name in query.all():
-        consumer = db.get(User, booking.consumer_id)
-        artist_user = db.get(User, booking.artist_id)
+    for booking, package_name in rows:
+        upload = db.query(DesignUpload).filter(DesignUpload.booking_id == booking.id).first()
+        reports = db.query(Report).filter(Report.booking_id == booking.id).order_by(Report.created_at).all()
         results.append(
-            AdminBookingOut(
-                id=booking.id,
-                status=booking.status,
-                package_name=package_name,
-                consumer_name=consumer.name if consumer else None,
-                consumer_phone=consumer.phone if consumer else "",
-                artist_name=artist_user.name if artist_user else None,
-                artist_phone=artist_user.phone if artist_user else "",
-                scheduled_at=booking.scheduled_at,
-                total_amount=booking.total_amount,
-                created_at=booking.created_at,
+            AdminDisputeOut(
+                booking=_admin_booking_out(db, booking, package_name),
+                reference_image_url=booking.reference_design_image_url,
+                completed_image_url=upload.completed_image_url if upload else None,
+                similarity_score=upload.similarity_score if upload else None,
+                match_status=upload.match_status if upload else None,
+                advance_amount=booking.advance_amount,
+                advance_status=booking.advance_status,
+                reports=reports,
             )
         )
     return results
+
+
+@router.post("/bookings/{booking_id}/resolve-dispute", response_model=AdminDisputeOut)
+def resolve_dispute(booking_id: uuid.UUID, payload: DisputeResolveIn, db: Session = Depends(get_db)):
+    from app.routers.bookings import refund_advance
+
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
+    if booking.status != "disputed":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Booking isn't disputed")
+
+    upload = db.query(DesignUpload).filter(DesignUpload.booking_id == booking_id).first()
+    link = f"/booking-detail/{booking_id}"
+
+    if payload.outcome == "released":
+        if upload is not None:
+            # Admin overrides the design check, so the consumer can pay.
+            upload.match_status = "consumer_confirmed"
+            upload.confirmed_at = utcnow()
+            booking.status = "design_uploaded"
+            consumer_msg = "Our team reviewed the dispute and released the booking - you can now complete payment."
+        else:
+            # Disputed before a design was uploaded - let the artist finish.
+            booking.status = "in_progress"
+            consumer_msg = "Our team reviewed the dispute - the artist can now finish and upload the design."
+        artist_msg = "Our team resolved the dispute in your favour."
+    else:
+        booking.status = "cancelled"
+        refund_note = refund_advance(booking) if booking.advance_status == "paid" else ""
+        consumer_msg = f"Our team cancelled this booking after reviewing the dispute - no platform fee is due. {refund_note}".strip()
+        artist_msg = "Our team cancelled this booking after reviewing the dispute."
+
+    booking.dispute_outcome = payload.outcome
+    booking.dispute_notes = payload.notes
+    booking.dispute_resolved_at = utcnow()
+
+    for report in db.query(Report).filter(Report.booking_id == booking_id, Report.status.in_(("open", "reviewing"))).all():
+        report.status = "resolved"
+        report.resolution_notes = payload.notes
+        report.resolved_at = utcnow()
+
+    notify(db, booking.consumer_id, "booking", "Dispute resolved", consumer_msg, link)
+    notify(db, booking.artist_id, "booking", "Dispute resolved", artist_msg, link)
+    db.commit()
+
+    package_name = db.get(Package, booking.package_id).name
+    upload = db.query(DesignUpload).filter(DesignUpload.booking_id == booking_id).first()
+    return AdminDisputeOut(
+        booking=_admin_booking_out(db, booking, package_name),
+        reference_image_url=booking.reference_design_image_url,
+        completed_image_url=upload.completed_image_url if upload else None,
+        similarity_score=upload.similarity_score if upload else None,
+        match_status=upload.match_status if upload else None,
+        advance_amount=booking.advance_amount,
+        advance_status=booking.advance_status,
+        reports=db.query(Report).filter(Report.booking_id == booking_id).order_by(Report.created_at).all(),
+    )
+
+
+# ---------------------------------------------------------------- settings --
+
+@router.get("/settings", response_model=PlatformSettingsOut)
+def get_settings_endpoint(db: Session = Depends(get_db)):
+    return get_platform_settings(db)
+
+
+@router.put("/settings", response_model=PlatformSettingsOut)
+def update_settings_endpoint(payload: PlatformSettingsIn, db: Session = Depends(get_db)):
+    """New values apply to bookings confirmed from now on - fees already
+    snapshotted on confirmed bookings aren't rewritten."""
+    values = update_platform_settings(db, payload.model_dump(exclude_none=True))
+    db.commit()
+    return values
 
 
 @router.get("/users", response_model=list[AdminUserOut])
@@ -231,7 +351,6 @@ def list_reports(
 
 @router.post("/reports/{report_id}/resolve", response_model=ReportOut)
 def resolve_report(report_id: uuid.UUID, payload: ReportResolveIn, db: Session = Depends(get_db)):
-    from datetime import datetime
 
     report = db.get(Report, report_id)
     if report is None:
@@ -239,7 +358,7 @@ def resolve_report(report_id: uuid.UUID, payload: ReportResolveIn, db: Session =
 
     report.status = payload.status
     report.resolution_notes = payload.resolution_notes
-    report.resolved_at = datetime.utcnow()
+    report.resolved_at = utcnow()
 
     if payload.strike_artist:
         from app.models.booking import Booking
@@ -249,7 +368,7 @@ def resolve_report(report_id: uuid.UUID, payload: ReportResolveIn, db: Session =
             profile = db.get(ArtistProfile, booking.artist_id)
             if profile is not None:
                 profile.strike_count += 1
-                if profile.strike_count >= STRIKES_BEFORE_SUSPENSION:
+                if profile.strike_count >= get_platform_settings(db)["strikes_before_suspension"]:
                     profile.is_suspended = True
 
     db.commit()
@@ -275,7 +394,6 @@ def list_shop_orders(
 
 @router.post("/shop-orders/{order_id}/status", response_model=ShopOrderOut)
 def update_shop_order_status(order_id: uuid.UUID, payload: ShopOrderStatusIn, db: Session = Depends(get_db)):
-    from datetime import datetime
 
     from app.routers.shop import _order_out
 
@@ -285,7 +403,7 @@ def update_shop_order_status(order_id: uuid.UUID, payload: ShopOrderStatusIn, db
 
     order.status = payload.status
     if payload.status == "shipped" and order.shipped_at is None:
-        order.shipped_at = datetime.utcnow()
+        order.shipped_at = utcnow()
     notify(db, order.consumer_id, "shop", "Order update", f"Your order is now '{payload.status}'.", f"/shop/orders/{order.id}")
     db.commit()
     db.refresh(order)

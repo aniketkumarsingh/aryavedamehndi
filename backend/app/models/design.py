@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class DesignUpload(Base):
@@ -18,5 +19,5 @@ class DesignUpload(Base):
     similarity_score: Mapped[float] = mapped_column(Float, nullable=True)
     # "auto_matched" | "needs_consumer_confirmation" | "consumer_confirmed" | "disputed"
     match_status: Mapped[str] = mapped_column(String(30), default="needs_consumer_confirmation")
-    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     confirmed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
