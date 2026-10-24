@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import Script from "next/script";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
+import { formatTime, serviceWindow } from "@/lib/bookingTime";
+import { formatPriceRange } from "@/lib/designs";
 import FileUpload from "@/components/FileUpload";
 import ChatPanel from "@/components/ChatPanel";
 import LiveMap from "@/components/LiveMap";
 
 const LOCATION_PING_INTERVAL_MS = 15000;
+const STATUS_POLL_INTERVAL_MS = 15000;
+const TERMINAL_STATUSES = ["completed", "cancelled"];
 
 const ADVANCE_LABELS = {
   pending: "Advance due",
@@ -24,7 +29,6 @@ const STATUS_LABELS = {
   arrived: "Artist Arrived",
   in_progress: "Mehndi In Progress",
   design_uploaded: "Design Uploaded — Awaiting Confirmation",
-  payment_released: "Paid",
   completed: "Completed",
   disputed: "Disputed",
   cancelled: "Cancelled",
@@ -59,7 +63,7 @@ export default function BookingDetail() {
       setBooking(b);
       const o = await api.get(`/bookings/${id}/offers`);
       setOffers(o);
-      if (["design_uploaded", "payment_released", "completed", "disputed"].includes(b.status)) {
+      if (["design_uploaded", "completed", "disputed", "cancelled"].includes(b.status)) {
         try {
           setDesign(await api.get(`/bookings/${id}/design`));
         } catch {
@@ -84,13 +88,27 @@ export default function BookingDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking?.artist_id, booking?.status]);
 
-  // Consumer side: while the artist is en route, poll for their live
-  // location every 15s so the map/ETA stay fresh.
+  // Both sides: keep the booking live until it's finished - status changes
+  // made by the other party (accepted, en route, arrived, design uploaded,
+  // paid, dispute resolved) and the artist's live location while en route
+  // show up without a reload. Paused while the tab is hidden, and caught
+  // up immediately when it's shown again.
   useEffect(() => {
-    if (!isConsumer || !booking || booking.status !== "artist_enroute") return;
-    const timer = setInterval(refresh, LOCATION_PING_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [isConsumer, booking?.status, refresh]);
+    if (!booking || TERMINAL_STATUSES.includes(booking.status)) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, STATUS_POLL_INTERVAL_MS);
+    function onVisible() {
+      if (document.visibilityState === "visible") refresh();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // Re-arm only when the status changes, not on every polled update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?.status, refresh]);
 
   // Artist side: while marked en route, share live location every 15s.
   useEffect(() => {
@@ -155,8 +173,22 @@ export default function BookingDetail() {
       );
   }
 
+  // Uploading the finished design doubles as the artist's check-out, so
+  // the location is attached when the browser can provide it - but a
+  // denied/unavailable location never blocks the upload.
   function uploadDesign(file) {
-    act(() => api.upload(`/bookings/${id}/design-upload`, file));
+    act(async () => {
+      const coords = await new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      });
+      const qs = coords ? `?lat=${coords.latitude}&lng=${coords.longitude}` : "";
+      await api.upload(`/bookings/${id}/design-upload${qs}`, file);
+    });
   }
 
   function recordSettlement(mode) {
@@ -172,6 +204,11 @@ export default function BookingDetail() {
     setError("");
     try {
       const order = await api.post(`/bookings/${id}/payment/order`, {});
+      if (order.already_paid) {
+        // The advance already covered everything due in-app.
+        await refresh();
+        return;
+      }
       if (order.razorpay_key_id === "dev_mode_no_key") {
         await api.post(`/bookings/${id}/payment/verify`, {
           razorpay_order_id: order.razorpay_order_id,
@@ -186,7 +223,7 @@ export default function BookingDetail() {
         amount: Math.round(order.amount * 100),
         currency: order.currency,
         name: "AryaVeda Mehndi",
-        description: "Platform fee",
+        description: order.is_full_escrow ? "Mehndi booking" : "Platform fee",
         order_id: order.razorpay_order_id,
         handler: async (response) => {
           await api.post(`/bookings/${id}/payment/verify`, {
@@ -259,6 +296,9 @@ export default function BookingDetail() {
   if (error && !booking) return <p className="text-red-700">{error}</p>;
   if (!booking) return <p className="text-ink-soft">Loading booking…</p>;
 
+  const window_ = !TERMINAL_STATUSES.includes(booking.status) ? serviceWindow(booking) : null;
+  const split = booking.payment_breakdown;
+
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-5">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
@@ -278,14 +318,84 @@ export default function BookingDetail() {
         <p className="text-sm text-ink-soft mt-1">{booking.address_text}</p>
         <p className="text-sm text-ink-soft">Scheduled: {new Date(booking.scheduled_at).toLocaleString()}</p>
         {booking.eta_minutes != null && <p className="text-sm text-ink-soft">Estimated travel time: ~{Math.round(booking.eta_minutes)} min</p>}
-        {booking.agreed_price != null && (
-          <p className="text-sm mt-2 font-semibold text-maroon-soft">
-            Agreed price ₹{booking.agreed_price} + platform fee ₹{booking.platform_fee} = ₹{booking.total_amount} total
-            <br />
-            <span className="font-normal text-ink-soft">The exact payment split (platform fee only, or the full amount) is shown at checkout.</span>
+        {window_ && (
+          <p className="text-sm text-ink-soft">
+            {booking.artist_arrived_at ? "Arrived" : "Expected arrival"} ~{formatTime(window_.arrival)} · Finishes around{" "}
+            {formatTime(window_.finish)} ({booking.package_duration_minutes} min session)
           </p>
         )}
+        {booking.agreed_price != null && (
+          <div className="text-sm mt-2">
+            <p className="font-semibold text-maroon-soft">
+              Agreed price ₹{booking.agreed_price} + platform fee ₹{booking.platform_fee} = ₹{booking.total_amount} total
+            </p>
+            {split && (
+              <ul className="text-ink-soft mt-1 list-disc pl-5">
+                {split.advance_credit > 0 && <li>₹{split.advance_credit} advance already paid — credited below</li>}
+                <li>
+                  {split.full_escrow ? "Pay in the app" : "Platform fee to pay in the app"}: <b>₹{split.in_app_due}</b>
+                </li>
+                {!split.full_escrow && (
+                  <li>
+                    Pay the artist directly (UPI/cash): <b>₹{split.artist_direct_due}</b>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        )}
+        {isArtist && booking.consumer_rating_count > 0 && (
+          <p className="text-xs text-ink-soft mt-2">
+            Customer rating from other artists: ★ {booking.consumer_rating_avg} ({booking.consumer_rating_count})
+          </p>
+        )}
+        {isArtist && booking.consumer_rating_count === 0 && ["requested", "negotiating"].includes(booking.status) && (
+          <p className="text-xs text-ink-soft mt-2">New customer — no ratings from other artists yet.</p>
+        )}
+        {booking.dispute_outcome && (
+          <p className="text-sm mt-2 border-l-2 border-gold pl-2">
+            Dispute {booking.dispute_outcome === "released" ? "resolved — booking released" : "resolved — booking cancelled"}
+            {booking.dispute_notes && <span className="text-ink-soft"> · {booking.dispute_notes}</span>}
+          </p>
+        )}
+        {booking.status === "disputed" && (
+          <p className="text-sm mt-2 text-red-700">Our team is reviewing this booking. You&apos;ll be notified once it&apos;s resolved.</p>
+        )}
       </div>
+
+      {/* The same design card for consumer and artist, until the finished
+          photo replaces it with the side-by-side verification below. */}
+      {(isConsumer || isArtist) && !design && (booking.design_id || booking.reference_design_image_url) && (
+        <div className="card p-4 flex gap-4 items-center">
+          {booking.reference_design_image_url && (
+            <img
+              src={booking.reference_design_image_url}
+              alt="Chosen design"
+              className="h-24 w-24 rounded-lg object-cover border border-line flex-none"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-ink-soft">Chosen design</p>
+            {booking.design_id ? (
+              <Link href={`/designs/${booking.design_id}`} className="font-semibold text-maroon-soft underline">
+                {booking.design_name}
+              </Link>
+            ) : (
+              <p className="font-semibold">Reference photo</p>
+            )}
+            {booking.design_id && (
+              <p className="text-sm">
+                {formatPriceRange(booking.package_price_min, booking.package_price_max)} · ~{booking.package_duration_minutes} min
+              </p>
+            )}
+            <p className="text-xs text-ink-soft mt-1">
+              {isArtist
+                ? "Recreate this design — your finished photo is checked against it before the customer pays."
+                : "Your finished mehndi is checked against this design before you pay."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {isConsumer && artistProfile && (
         <div className="card p-4 flex items-center gap-3">
@@ -355,7 +465,9 @@ export default function BookingDetail() {
             <input
               className="input"
               type="number"
-              placeholder="Amount to confirm at (₹)"
+              min={booking.package_price_min ?? undefined}
+              max={booking.package_price_max ?? undefined}
+              placeholder={`₹${booking.package_price_min}–${booking.package_price_max}`}
               value={acceptAmount}
               onChange={(e) => setAcceptAmount(e.target.value)}
               required
@@ -367,9 +479,13 @@ export default function BookingDetail() {
         </div>
       )}
 
-      {["requested", "negotiating"].includes(booking.status) && (
+      {["requested", "negotiating"].includes(booking.status) && booking.package_negotiable && (
         <div className="card p-5">
-          <h2 className="font-semibold mb-2">Price Negotiation</h2>
+          <h2 className="font-semibold mb-1">Price Negotiation</h2>
+          <p className="text-xs text-ink-soft mb-2">
+            Offers must be within {formatPriceRange(booking.package_price_min, booking.package_price_max)} for this{" "}
+            {booking.design_id ? "design" : "package"}.
+          </p>
           <div className="flex flex-col gap-2 mb-3">
             {offers.map((o) => (
               <div key={o.id} className="flex justify-between items-center text-sm border-b border-line pb-2">
@@ -393,7 +509,16 @@ export default function BookingDetail() {
             {offers.length === 0 && <p className="text-sm text-ink-soft">No offers yet.</p>}
           </div>
           <form onSubmit={submitOffer} className="flex gap-2">
-            <input className="input" type="number" placeholder="Your offer (₹)" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)} required />
+            <input
+              className="input"
+              type="number"
+              min={booking.package_price_min ?? undefined}
+              max={booking.package_price_max ?? undefined}
+              placeholder="Your offer (₹)"
+              value={offerAmount}
+              onChange={(e) => setOfferAmount(e.target.value)}
+              required
+            />
             <input className="input" placeholder="Message (optional)" value={offerMessage} onChange={(e) => setOfferMessage(e.target.value)} />
             <button className="btn-primary" disabled={busy}>
               Propose
@@ -449,12 +574,13 @@ export default function BookingDetail() {
         </div>
       )}
 
-      {isArtist && ["design_uploaded", "payment_released", "completed"].includes(booking.status) && (
+      {isArtist && ["design_uploaded", "completed"].includes(booking.status) && !split?.full_escrow && (
         <div className="card p-5">
           <h2 className="font-semibold mb-2">How Were You Paid?</h2>
           <p className="text-sm text-ink-soft mb-2">
-            Record how the consumer paid you the package amount (₹{booking.agreed_price}) directly — this is separate
-            from the platform fee.
+            Record how the consumer paid you the package amount (₹{split ? split.artist_direct_due : booking.agreed_price}) directly — this is
+            separate from the platform fee.
+            {split?.platform_owes_artist > 0 && ` The remaining ₹${split.platform_owes_artist} of their advance is paid out to you by AryaVeda.`}
           </p>
           {booking.settlement_mode ? (
             <p className="text-sm">
@@ -475,7 +601,22 @@ export default function BookingDetail() {
       {design && (
         <div className="card p-5">
           <h2 className="font-semibold mb-2">Design Verification</h2>
-          <img src={design.completed_image_url} alt="Completed design" className="rounded-lg max-h-64 object-cover mb-2" />
+          <div className={`grid gap-3 mb-2 ${design.reference_image_url ? "grid-cols-2" : "grid-cols-1"}`}>
+            {design.reference_image_url && (
+              <figure className="flex flex-col gap-1">
+                <img src={design.reference_image_url} alt="Chosen design" className="rounded-lg w-full aspect-square object-cover border border-line" />
+                <figcaption className="text-xs text-ink-soft text-center">Chosen{booking.design_name ? `: ${booking.design_name}` : ""}</figcaption>
+              </figure>
+            )}
+            <figure className="flex flex-col gap-1">
+              <img
+                src={design.completed_image_url}
+                alt="Completed design"
+                className={`rounded-lg w-full object-cover border border-line ${design.reference_image_url ? "aspect-square" : "max-h-64"}`}
+              />
+              <figcaption className="text-xs text-ink-soft text-center">Finished</figcaption>
+            </figure>
+          </div>
           {design.similarity_score != null && <p className="text-sm">Match score: {design.similarity_score}%</p>}
           <p className="text-sm mb-2">Status: {design.match_status.replaceAll("_", " ")}</p>
 
@@ -492,15 +633,22 @@ export default function BookingDetail() {
 
           {isConsumer && ["auto_matched", "consumer_confirmed"].includes(design.match_status) && booking.status === "design_uploaded" && (
             <button className="btn-primary mt-2" disabled={busy} onClick={pay}>
-              Pay Platform Fee (₹{booking.platform_fee})
+              {split && split.in_app_due <= 0
+                ? "Complete Booking (covered by your advance)"
+                : `Pay ${split?.full_escrow ? "" : "Platform Fee "}(₹${split ? split.in_app_due : booking.platform_fee})`}
             </button>
           )}
         </div>
       )}
 
-      {["arrived", "in_progress", "design_uploaded", "completed"].includes(booking.status) && (
+      {booking.status !== "requested" && (
         <details className="card p-5">
           <summary className="font-semibold cursor-pointer">Report a Problem</summary>
+          <p className="text-xs text-ink-soft mt-2">
+            {["arrived", "in_progress", "design_uploaded"].includes(booking.status)
+              ? "Reporting now pauses this booking (and payment) until our team reviews it."
+              : "Our team will review your report."}
+          </p>
           <form onSubmit={submitReport} className="flex flex-col gap-2 mt-3">
             <select className="input" value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}>
               <option value="misconduct">Misconduct</option>
@@ -517,7 +665,7 @@ export default function BookingDetail() {
         </details>
       )}
 
-      {booking.status === "completed" && (
+      {["completed", "disputed"].includes(booking.status) && (
         <form onSubmit={submitReview} className="card p-5 flex flex-col gap-2">
           <h2 className="font-semibold">Leave a Review</h2>
           <select className="input" value={reviewRating} onChange={(e) => setReviewRating(e.target.value)}>

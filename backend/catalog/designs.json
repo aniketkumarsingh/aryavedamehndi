@@ -1,0 +1,2291 @@
+{
+  "_comment": "Starter design catalog. Loaded by backend/seed_designs.py (idempotent; matched by name or a previous name in 'aliases'). Every image is a real photograph, named <category>-<design number>-<4 digits>.jpg by catalog/name_images.py and listed in 'image', 'more_images' and 'closeups'; sourced from Pexels under the Pexels License (free commercial use, no attribution required) - see each design's 'photo'. Never imply the people shown endorse AryaVeda or are AryaVeda artists. A design with 'photo_needed' has no good photo yet and stays hidden - see catalog/PHOTO_GUIDE.md. 'style', 'coverage' and 'occasions' use the values in app/schemas/catalog.py.",
+  "packages": [
+    {
+      "package_type": "festival",
+      "name": "Festival Mehndi",
+      "description": "Designs made for one festival - Karwa Chauth, Teej, Eid, Raksha Bandhan, Diwali, Navratri, Gangaur, Ganesh Chaturthi, Lohri and Sankranti.",
+      "price_min": 300,
+      "price_max": 2000,
+      "duration_minutes": 60
+    },
+    {
+      "package_type": "kids",
+      "name": "Kids Mehndi",
+      "description": "Small, quick, playful designs for children - gentle organic henna only.",
+      "price_min": 100,
+      "price_max": 400,
+      "duration_minutes": 15
+    },
+    {
+      "package_type": "groom",
+      "name": "Groom (Dulha) Mehndi",
+      "description": "Understated mehndi for the groom - palm tikki, initials and shagun motifs.",
+      "price_min": 300,
+      "price_max": 2500,
+      "duration_minutes": 45
+    }
+  ],
+  "package_updates": [
+    {
+      "package_type": "feet",
+      "price_min": 250,
+      "price_max": 3500
+    },
+    {
+      "package_type": "bridal",
+      "price_min": 2500,
+      "price_max": 15000
+    },
+    {
+      "package_type": "party",
+      "name": "Party & Festive Mehndi",
+      "price_min": 500,
+      "price_max": 3000
+    },
+    {
+      "package_type": "regular",
+      "name": "Simple & Daily Mehndi",
+      "price_min": 300,
+      "price_max": 1000
+    },
+    {
+      "package_type": "festival",
+      "description": "Designs made for one festival - Karwa Chauth, Teej, Eid, Raksha Bandhan, Diwali, Navratri, Gangaur, Ganesh Chaturthi, Lohri and Sankranti."
+    }
+  ],
+  "designs": [
+    {
+      "slug": "rajasthani-dulhan-full-hand",
+      "category": "bridal",
+      "name": "Rajasthani Dulhan Full Hand",
+      "price_min": 8000,
+      "price_max": 15000,
+      "duration_minutes": 300,
+      "style": "rajasthani",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Rajasthani bridal coverage from fingertips to elbow - figures, arches and dense jaali across both hands.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/36354616/",
+        "license": "Pexels License"
+      },
+      "image": "bridal-01-9258.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.3,
+            0.25,
+            0.45
+          ],
+          "file": "bridal-01-6974.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.72,
+            0.5
+          ],
+          "file": "bridal-01-4399.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "marwari-fine-line-bridal",
+      "category": "bridal",
+      "name": "Marwari Fine-Line Bridal",
+      "price_min": 7000,
+      "price_max": 12000,
+      "duration_minutes": 270,
+      "style": "rajasthani",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Marwari fine-line bridal - hair-fine detailing over both palms and forearms.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/18016523/",
+        "license": "Pexels License"
+      },
+      "image": "bridal-02-4738.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.3,
+            0.3,
+            0.4
+          ],
+          "file": "bridal-02-2990.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.75,
+            0.5
+          ],
+          "file": "bridal-02-4991.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "dulha-dulhan-portrait-bridal",
+      "category": "bridal",
+      "name": "Dulha-Dulhan Portrait Bridal",
+      "price_min": 9000,
+      "price_max": 15000,
+      "duration_minutes": 300,
+      "style": "rajasthani",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Story-telling bridal mehndi with bride and groom figures drawn on the palms and forearms.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/2114229/",
+        "license": "Pexels License"
+      },
+      "image": "bridal-03-4867.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.35,
+            0.55,
+            0.45
+          ],
+          "file": "bridal-03-8974.jpg"
+        },
+        {
+          "at": [
+            0.65,
+            0.55,
+            0.45
+          ],
+          "file": "bridal-03-7756.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.2,
+            0.45
+          ],
+          "file": "bridal-03-8404.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "peacock-lotus-bridal",
+      "category": "bridal",
+      "name": "Paisley & Feather Bridal",
+      "aliases": [
+        "Peacock & Lotus Bridal"
+      ],
+      "price_min": 3500,
+      "price_max": 6000,
+      "duration_minutes": 180,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both palms covered in flowing paisleys, feather fans and fine fill, with banded fingers.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/33452609/",
+        "license": "Pexels License"
+      },
+      "image": "bridal-04-7918.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.38,
+            0.5,
+            0.5
+          ],
+          "file": "bridal-04-6156.jpg"
+        },
+        {
+          "at": [
+            0.6,
+            0.5,
+            0.5
+          ],
+          "file": "bridal-04-4734.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "pakistani-jaal-bridal",
+      "category": "bridal",
+      "name": "Full Palm Jaal Bridal",
+      "aliases": [
+        "Pakistani Jaal Bridal"
+      ],
+      "price_min": 3500,
+      "price_max": 6000,
+      "duration_minutes": 180,
+      "style": "jaal",
+      "coverage": "palm",
+      "occasions": [
+        "wedding",
+        "nikah"
+      ],
+      "description": "Both palms and wrists filled with a fine net (jaal) and floral motifs, fingertips covered.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/38147796/",
+        "license": "Pexels License"
+      },
+      "image": "bridal-05-3877.jpg",
+      "more_images": [
+        {
+          "file": "bridal-05-8966.jpg",
+          "url": "https://www.pexels.com/photo/38147800/"
+        }
+      ],
+      "closeups": [
+        {
+          "at": [
+            0.5,
+            0.62,
+            0.55
+          ],
+          "file": "bridal-05-3683.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "minimal-modern-bride",
+      "category": "bridal",
+      "name": "Minimal Modern Bride",
+      "price_min": 2500,
+      "price_max": 4500,
+      "duration_minutes": 120,
+      "style": "minimal",
+      "coverage": "palm",
+      "occasions": [
+        "wedding",
+        "engagement",
+        "roka"
+      ],
+      "description": "A light modern bridal look - a statement mandala on each palm with small motifs on every finger.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Bridal_mehndi_(henna)_is_a_central_wedding_tradition_11.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Goutam1962"
+      },
+      "image": "bridal-06-3022.jpg",
+      "more_images": [
+        {
+          "file": "bridal-06-1703.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Bridal_mehndi_(henna)_is_a_central_wedding_tradition_10.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "arabic-bridal-full-hand",
+      "category": "bridal",
+      "name": "Arabic Bridal Full Hand",
+      "price_min": 5000,
+      "price_max": 9000,
+      "duration_minutes": 240,
+      "style": "arabic",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding",
+        "nikah"
+      ],
+      "description": "Bold Arabic florals and trails from the fingertips to the elbow on both hands, with open skin between.",
+      "photo_needed": "Back of both hands and arms, fingertips to elbow, Arabic style. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a bride's two hands and forearms held side by side, palms facing the viewer, from fingertips to elbow, exactly five fingers on each hand, palm side so no fingernails are visible. The mehndi design: Bold Arabic florals and trails from the fingertips to the elbow on both hands, with open skin between. Style: arabic mehndi. Rich reddish-brown henna (mehndi) on warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "bridal-07-2501.jpg"
+      }
+    },
+    {
+      "slug": "peacock-bridal-full-hand",
+      "category": "bridal",
+      "name": "Peacock Bridal Full Hand",
+      "price_min": 7000,
+      "price_max": 12000,
+      "duration_minutes": 270,
+      "style": "indian",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Traditional bridal mehndi from the fingertips to below the elbow - a peacock and a row of elephants on the forearm over fine jaal, with banded fingers.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Bridal_mehndi_(henna)_is_a_central_wedding_tradition_04.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Goutam1962"
+      },
+      "image": "bridal-08-7937.jpg",
+      "more_images": [
+        {
+          "file": "bridal-08-9838.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Bridal_mehndi_(henna)_is_a_central_wedding_tradition_13.jpg"
+        },
+        {
+          "file": "bridal-08-4003.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Bridal_mehndi_(henna)_is_a_central_wedding_tradition_14.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "nikah-arabic-jaal-bridal",
+      "category": "bridal",
+      "name": "Nikah Arabic Jaal Bridal",
+      "price_min": 4000,
+      "price_max": 8000,
+      "duration_minutes": 210,
+      "style": "arabic",
+      "coverage": "forearm",
+      "occasions": [
+        "nikah",
+        "wedding"
+      ],
+      "description": "Bold Arabic florals with fine jaal (net) panels flowing past the wrist on both hands - for the nikah or mehndi night.",
+      "photo_needed": "Both hands, fingertips past the wrist, Arabic florals with jaal panels. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's two hands held side by side, palms facing the viewer, from fingertips to just past the wrist, exactly five fingers on each hand, palm side so no fingernails are visible. The mehndi design: Bold Arabic florals with fine jaal (net) panels flowing past the wrist on both hands - for the nikah or mehndi night. Style: arabic mehndi. Rich reddish-brown henna (mehndi) on warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "bridal-09-7914.jpg"
+      }
+    },
+    {
+      "slug": "rose-bridal-hands-feet",
+      "category": "bridal",
+      "name": "Rose Bridal Hands & Feet",
+      "price_min": 6000,
+      "price_max": 12000,
+      "duration_minutes": 240,
+      "style": "floral",
+      "coverage": "forearm",
+      "occasions": [
+        "wedding",
+        "sangeet"
+      ],
+      "description": "Big shaded roses on both palms and wrists with fine-filled fingers, and matching roses on both feet.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:HENNA-56.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Antony Trivet"
+      },
+      "image": "bridal-10-6281.jpg",
+      "more_images": [
+        {
+          "file": "bridal-10-1434.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:HENNA-62.jpg"
+        },
+        {
+          "file": "bridal-10-9100.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:HENNA-61.jpg"
+        },
+        {
+          "file": "bridal-10-1278.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:HENNA-50.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "bridal-back-hand-panels",
+      "category": "bridal",
+      "name": "Bridal Back-Hand Jaal & Panels",
+      "price_min": 6000,
+      "price_max": 11000,
+      "duration_minutes": 240,
+      "style": "indian",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "The back of both hands and forearms in dense bridal panels - checks, jaal and medallions, with a decorated wrist arch.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Art_of_Mehendi.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Phadke09"
+      },
+      "image": "bridal-11-1107.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "geometric-bridal-full-hand",
+      "category": "bridal",
+      "name": "Geometric Bridal Full Hand",
+      "price_min": 6000,
+      "price_max": 12000,
+      "duration_minutes": 270,
+      "style": "indian",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both palms and forearms to the elbow in bold geometric bands - diamonds, grids and stripes - with dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Full_hand_Mehendi_design.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "Manju Thilagavathi"
+      },
+      "image": "bridal-12-4261.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "panelled-bridal-full-hand",
+      "category": "bridal",
+      "name": "Panelled Bridal Full Hand",
+      "price_min": 6000,
+      "price_max": 11000,
+      "duration_minutes": 240,
+      "style": "indian",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "The back of both hands and arms to the elbow in stacked panels - arches, grids and florals - with banded fingers.",
+      "retired_photos": {
+        "reason": "clothing or props fill the frame - the cut-out can't separate them",
+        "files": [
+          "bridal-13-2664.jpg"
+        ],
+        "sources": [
+          "https://commons.wikimedia.org/wiki/File:Mehendi_for_a_hindu_wedding.jpg"
+        ]
+      },
+      "photo_needed": "Back of both hands and arms to the elbow in stacked bridal panels. Plain background - no lehenga or fabric in the frame.",
+      "closeups": []
+    },
+    {
+      "slug": "paisley-bridal-forearms",
+      "category": "bridal",
+      "name": "Paisley Bridal Forearms",
+      "price_min": 5000,
+      "price_max": 9000,
+      "duration_minutes": 210,
+      "style": "indian",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "The back of both hands and forearms in flowing paisleys, florals and fine fill, with patterned fingers.",
+      "retired_photos": {
+        "reason": "clothing or props fill the frame - the cut-out can't separate them",
+        "files": [
+          "bridal-14-7158.jpg"
+        ],
+        "sources": [
+          "https://commons.wikimedia.org/wiki/File:Putting_Mehendi_on_Bride%27s_Hand.jpg"
+        ]
+      },
+      "photo_needed": "Back of both hands and forearms in paisley bridal mehndi. Plain background - no clothing in the frame.",
+      "closeups": []
+    },
+    {
+      "slug": "bridal-figure-full-hand",
+      "category": "bridal",
+      "name": "Bridal Figure Panels Full Hand",
+      "price_min": 8000,
+      "price_max": 14000,
+      "duration_minutes": 300,
+      "style": "rajasthani",
+      "coverage": "elbow",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both hands to the elbow with figure panels framed in arches, over dense traditional fill and dipped fingers.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehendi_01.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Shypoetess"
+      },
+      "image": "bridal-15-5365.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "paisley-medallion-bridal-palms",
+      "category": "bridal",
+      "name": "Paisley Medallion Bridal Palms",
+      "price_min": 3000,
+      "price_max": 5500,
+      "duration_minutes": 150,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "wedding",
+        "engagement"
+      ],
+      "description": "A large paisley medallion on each palm filled with jaal, framed by fine bands and patterned fingers.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Moderate_Mehndi_Design.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Ajmer0927"
+      },
+      "image": "bridal-16-3760.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "bridal-palm-panels",
+      "category": "bridal",
+      "name": "Modern Bridal Palm Panels",
+      "price_min": 3500,
+      "price_max": 6000,
+      "duration_minutes": 150,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both palms divided into fine panels of florals, checks and spirals, with dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehendi_Art_in_India.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Phadke09"
+      },
+      "image": "bridal-17-2457.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "traditional-bridal-palms",
+      "category": "bridal",
+      "name": "Traditional Bridal Palms",
+      "price_min": 3000,
+      "price_max": 5500,
+      "duration_minutes": 150,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both palms filled edge to edge with traditional jaal and florals, fingers dipped - shown in a fresh orange stain that darkens over two days.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Bridal_Mehndi.JPG",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "author": "Iramuthusamy"
+      },
+      "image": "bridal-18-4123.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "indo-arabic-bridal",
+      "category": "party",
+      "name": "Indo-Arabic Engagement",
+      "aliases": [
+        "Indo-Arabic Bridal"
+      ],
+      "price_min": 1500,
+      "price_max": 3000,
+      "duration_minutes": 90,
+      "style": "indo-arabic",
+      "coverage": "forearm",
+      "occasions": [
+        "engagement",
+        "sangeet",
+        "party",
+        "roka"
+      ],
+      "description": "Bold Arabic florals with fine Indian fill on both hands, flowing past the wrist - a favourite for engagements and sangeet.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/27151466/",
+        "license": "Pexels License"
+      },
+      "image": "party-01-7743.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.4,
+            0.7,
+            0.5
+          ],
+          "file": "party-01-7445.jpg"
+        },
+        {
+          "at": [
+            0.6,
+            0.3,
+            0.45
+          ],
+          "file": "party-01-6266.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "arabic-bel",
+      "category": "party",
+      "name": "Arabic Bel",
+      "price_min": 500,
+      "price_max": 900,
+      "duration_minutes": 40,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "eid",
+        "diwali",
+        "teej",
+        "haldi"
+      ],
+      "description": "A single bold Arabic vine running from the fingers down the back of the hand.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/12465309/",
+        "license": "Pexels License"
+      },
+      "image": "party-02-1998.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.55,
+            0.4,
+            0.55
+          ],
+          "file": "party-02-5819.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.75,
+            0.45
+          ],
+          "file": "party-02-4891.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "moroccan-geometric",
+      "category": "party",
+      "name": "Leaf Vine & Jaal Back Hand",
+      "aliases": [
+        "Moroccan Geometric"
+      ],
+      "price_min": 600,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "indo-arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "engagement"
+      ],
+      "description": "Leafy vines down every finger around a jaali (net) panel on the back of the hand, with a cuff at the wrist.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5043971/",
+        "license": "Pexels License"
+      },
+      "image": "party-03-2881.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.5,
+            0.55,
+            0.55
+          ],
+          "file": "party-03-8976.jpg"
+        },
+        {
+          "at": [
+            0.85,
+            0.55,
+            0.45
+          ],
+          "file": "party-03-7744.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "indo-arabic-back-hand",
+      "category": "party",
+      "name": "Indo-Arabic Back Hand",
+      "price_min": 600,
+      "price_max": 1200,
+      "duration_minutes": 50,
+      "style": "indo-arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "eid",
+        "karwa-chauth"
+      ],
+      "description": "A floral column down the back of the hand with fine bands at the wrist.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5602783/",
+        "license": "Pexels License"
+      },
+      "image": "party-04-7023.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "mandala-back-hand",
+      "category": "party",
+      "name": "Mandala Back Hand",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "mandala",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "diwali",
+        "karwa-chauth"
+      ],
+      "description": "A single statement mandala on the back of the hand.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/9199387/",
+        "license": "Pexels License"
+      },
+      "image": "party-05-3596.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.55,
+            0.4,
+            0.6
+          ],
+          "file": "party-05-3615.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "jewellery-haath-phool",
+      "category": "party",
+      "name": "Jewellery (Haath Phool)",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 50,
+      "style": "jewellery",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "sangeet",
+        "engagement"
+      ],
+      "description": "Mehndi drawn as jewellery - arches and hanging chains over the back of the hand.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/4987381/",
+        "license": "Pexels License"
+      },
+      "image": "party-06-2504.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.45,
+            0.65,
+            0.55
+          ],
+          "file": "party-06-1726.jpg"
+        },
+        {
+          "at": [
+            0.55,
+            0.3,
+            0.5
+          ],
+          "file": "party-06-9007.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "eid-crescent-arabic",
+      "category": "festival",
+      "name": "Ramadan & Eid Crescent",
+      "aliases": [
+        "Eid Crescent Arabic"
+      ],
+      "price_min": 500,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "eid"
+      ],
+      "description": "A crescent moon with 'Ramadan Mubarak' calligraphy, a flower bracelet and finger bands.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/7408711/",
+        "license": "Pexels License"
+      },
+      "image": "festival-01-9325.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.55,
+            0.42,
+            0.45
+          ],
+          "file": "festival-01-8125.jpg"
+        },
+        {
+          "at": [
+            0.55,
+            0.2,
+            0.4
+          ],
+          "file": "festival-01-2572.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.72,
+            0.5
+          ],
+          "file": "festival-01-6456.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "karwa-chauth-moon-chalni",
+      "category": "festival",
+      "name": "Karwa Chauth Moon & Chalni",
+      "aliases": [
+        "Karwa Chauth Palm Chakra"
+      ],
+      "price_min": 800,
+      "price_max": 1800,
+      "duration_minutes": 60,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "karwa-chauth"
+      ],
+      "description": "Karwa Chauth palms with the moon, the chalni (sieve) and the karwa pot drawn in.",
+      "photo_needed": "Palm design with a clear moon, chalni and karwa pot. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (not a photograph) of a single woman's open right palm facing the viewer, fingers together and slightly spread, anatomically correct hand with exactly five fingers, drawn in a soft painterly illustration style. The palm is decorated with a traditional Indian Karwa Chauth mehndi (henna) design in rich reddish-brown henna lines: a full moon in the centre of the palm, a chalni (round sieve with a mesh pattern) beside it, a small karwa clay pot with a spout, surrounded by fine paisleys, dots and leaf borders; each finger has delicate henna bands and filled fingertips. Plain warm ivory background (#FBF6EC), soft even light, subtle shadow under the hand, centred composition, no jewellery, no text, no watermark, no face.",
+        "file": "festival-02-9786.jpg"
+      }
+    },
+    {
+      "slug": "teej-jhoola-leaves",
+      "category": "festival",
+      "name": "Teej Jhoola & Leaves",
+      "aliases": [
+        "Teej Leafy Bel"
+      ],
+      "price_min": 600,
+      "price_max": 1500,
+      "duration_minutes": 60,
+      "style": "indian",
+      "coverage": "back",
+      "occasions": [
+        "teej",
+        "gangaur"
+      ],
+      "description": "Monsoon motifs for Teej - a swing (jhoola), leaves and peacock feathers.",
+      "photo_needed": "Hand with a swing (jhoola) and leaves clearly drawn. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: Monsoon motifs for Teej - a swing (jhoola), leaves and peacock feathers. Style: indian mehndi. Rich reddish-brown henna (mehndi) on warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-03-5786.jpg"
+      }
+    },
+    {
+      "slug": "diwali-diya-rangoli",
+      "category": "festival",
+      "name": "Diwali Diya & Rangoli",
+      "aliases": [
+        "Diwali Festive Hands"
+      ],
+      "price_min": 500,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "diwali"
+      ],
+      "description": "Diwali palms with a diya (lamp) and rangoli patterns.",
+      "photo_needed": "Palm with a clear diya and rangoli motifs, hand filling the photo.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: Diwali palms with a diya (oil lamp) drawn in henna outline with a henna flame, surrounded by rangoli patterns. Style: indian mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no yellow, orange or other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-04-6138.jpg"
+      }
+    },
+    {
+      "slug": "navratri-dandiya-garba",
+      "category": "festival",
+      "name": "Navratri Dandiya & Garba",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 60,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "navratri"
+      ],
+      "description": "Garba dancers and crossed dandiya sticks on the palm, with a small diya and festive finger bands.",
+      "photo_needed": "Palm with clear garba dancer figures and crossed dandiya sticks. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: Garba dancers and crossed dandiya sticks on the palm, with a small diya and festive finger bands. Style: indian mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-05-6323.jpg"
+      }
+    },
+    {
+      "slug": "gangaur-isar-gauri",
+      "category": "festival",
+      "name": "Gangaur Isar & Gauri",
+      "price_min": 800,
+      "price_max": 1800,
+      "duration_minutes": 70,
+      "style": "rajasthani",
+      "coverage": "palm",
+      "occasions": [
+        "gangaur",
+        "teej"
+      ],
+      "description": "Rajasthani Gangaur palms - Gauri and Isar figures with a kalash, leaves and fine fill.",
+      "photo_needed": "Palm with Gauri (and Isar) figures and a kalash in Rajasthani style. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: Rajasthani Gangaur palms - Gauri and Isar figures with a kalash, leaves and fine fill. Style: rajasthani mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no extra people.",
+        "file": "festival-06-7954.jpg"
+      }
+    },
+    {
+      "slug": "ganesh-chaturthi-ganesha",
+      "category": "festival",
+      "name": "Ganesha & Modak Palm",
+      "price_min": 600,
+      "price_max": 1400,
+      "duration_minutes": 50,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "ganesh-chaturthi",
+        "diwali"
+      ],
+      "description": "Lord Ganesha drawn in the centre of the palm, framed by a lotus border and modak motifs.",
+      "photo_needed": "Palm with a clear Ganesha figure in the centre. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: Lord Ganesha drawn in the centre of the palm, framed by a lotus border and modak motifs. Style: indian mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no extra people.",
+        "file": "festival-07-9318.jpg"
+      }
+    },
+    {
+      "slug": "eid-ul-adha-lantern",
+      "category": "festival",
+      "name": "Eid Lantern & Crescent",
+      "price_min": 500,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "eid-ul-adha",
+        "eid"
+      ],
+      "description": "A hanging Arabic lantern and crescent on the back of the hand, with a floral trail down to the fingers.",
+      "photo_needed": "Back of hand with a clear hanging lantern and crescent, Arabic style. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: A hanging Arabic lantern and a crescent moon on the back of the hand, with a floral trail down to the fingers. Style: arabic mehndi with bold lines. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-08-9719.jpg"
+      }
+    },
+    {
+      "slug": "raksha-bandhan-rakhi",
+      "category": "festival",
+      "name": "Rakhi Thread & Thali",
+      "price_min": 400,
+      "price_max": 900,
+      "duration_minutes": 35,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "raksha-bandhan"
+      ],
+      "description": "A rakhi drawn around the wrist with a small thali and diya on the palm.",
+      "photo_needed": "Palm and wrist with a rakhi drawn at the wrist and a small thali or diya on the palm. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm and wrist facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: A rakhi (decorative sacred thread with a round flower centre) drawn in henna around the wrist, and a small puja thali with a diya drawn on the palm, with simple finger bands. Style: indian mehndi with bold lines. Everything drawn on the skin is monochrome reddish-brown henna only - no real thread, no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-09-7017.jpg"
+      }
+    },
+    {
+      "slug": "lohri-sankranti-kites",
+      "category": "festival",
+      "name": "Kites & Bonfire",
+      "price_min": 400,
+      "price_max": 900,
+      "duration_minutes": 35,
+      "style": "indian",
+      "coverage": "back",
+      "occasions": [
+        "makar-sankranti",
+        "lohri"
+      ],
+      "description": "Flying kites with trailing strings on the back of the hand, and a small bonfire and sun at the wrist.",
+      "photo_needed": "Back of hand with clear kites and strings, plus a bonfire or sun motif. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: Two or three flying kites with trailing strings on the back of the hand, and a small bonfire and a sun motif at the wrist. Style: indian mehndi with bold lines. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "festival-10-6590.jpg"
+      }
+    },
+    {
+      "slug": "karwa-chauth-deep-stain-palms",
+      "category": "festival",
+      "name": "Karwa Chauth Deep-Stain Palms",
+      "price_min": 800,
+      "price_max": 1800,
+      "duration_minutes": 75,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "karwa-chauth"
+      ],
+      "description": "Both palms in a deep maroon stain - paisleys, checked panels and peacock-feather swirls, with dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Krvachauth_mehandi.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Saloni bhargava"
+      },
+      "image": "festival-11-9519.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "moroccan-geometric-back-hand",
+      "category": "party",
+      "name": "Moroccan Geometric Back Hand",
+      "price_min": 600,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "moroccan",
+      "coverage": "back",
+      "occasions": [
+        "party"
+      ],
+      "description": "Clean Moroccan geometry - bands, triangles and grids on the back of the hand.",
+      "photo_needed": "Back of hand in geometric Moroccan style. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: Clean Moroccan geometric henna - straight bands, triangles, diamonds and grids across the back of the hand and up each finger. Style: moroccan mehndi with bold crisp lines. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "party-07-4178.jpg"
+      }
+    },
+    {
+      "slug": "shaded-rose-back-hand",
+      "category": "party",
+      "name": "Shaded Rose Back Hand",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 50,
+      "style": "floral",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "engagement"
+      ],
+      "description": "Big shaded roses and leaves on the back of the hand.",
+      "photo_needed": "Back of hand with shaded roses. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: Big shaded roses and leaves on the back of the hand. Style: floral mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "party-08-3010.jpg"
+      }
+    },
+    {
+      "slug": "haldi-light-arabic",
+      "category": "party",
+      "name": "Haldi Day Light Arabic",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "haldi",
+        "sangeet",
+        "party"
+      ],
+      "description": "A light Arabic trail with finger tips for the haldi day - quick to apply before the bigger bridal mehndi.",
+      "photo_needed": "Back of hand with a light Arabic floral trail and finger tips. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows the back of a woman's right hand seen from above, fingers relaxed and slightly spread, exactly five fingers. The mehndi design: A light Arabic trail with finger tips for the haldi day - quick to apply before the bigger bridal mehndi. Style: arabic mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "party-09-1514.jpg"
+      }
+    },
+    {
+      "slug": "roka-ring-initials",
+      "category": "party",
+      "name": "Roka Ring & Initials",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 50,
+      "style": "minimal",
+      "coverage": "palm",
+      "occasions": [
+        "roka",
+        "engagement"
+      ],
+      "description": "An engagement ring motif with the couple's initials in a heart on the palm, and a band on the ring finger.",
+      "photo_needed": "Palm with a ring motif and made-up initials in a heart. Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: An engagement ring motif with the couple's initials in a heart on the palm, and a band on the ring finger. The initials are exactly two ornate letters, 'A' and 'R', drawn in henna. Style: minimal mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no other text, no watermark, no face, no extra people.",
+        "file": "party-10-5928.jpg"
+      }
+    },
+    {
+      "slug": "godh-bharai-mother-baby",
+      "category": "party",
+      "name": "Godh Bharai Mom & Baby",
+      "price_min": 800,
+      "price_max": 1800,
+      "duration_minutes": 60,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "godh-bharai"
+      ],
+      "description": "A mother-to-be with a baby bump, tiny baby feet and a cradle (jhula), framed in florals.",
+      "photo_needed": "Palm with a mother-to-be figure and baby motifs (feet or cradle). Finished stain.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: A mother-to-be with a baby bump, tiny baby feet and a cradle (jhula), framed in florals. Style: indian mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "party-11-5766.jpg"
+      }
+    },
+    {
+      "slug": "anniversary-couple-hearts",
+      "category": "party",
+      "name": "Anniversary Couple & Hearts",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 50,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "anniversary",
+        "karwa-chauth"
+      ],
+      "description": "A couple silhouette with entwined hearts in a floral frame.",
+      "photo_needed": "Palm with a couple figure and hearts. Finished stain, no real names.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's open right palm facing the viewer, fingers slightly spread, exactly five fingers, palm side so no fingernails are visible. The mehndi design: A couple silhouette with entwined hearts in a floral frame. Style: indian mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No jewellery, no bangles, no rings, no text, no letters, no watermark, no face, no extra people.",
+        "file": "party-12-1014.jpg"
+      }
+    },
+    {
+      "slug": "palm-medallion-finger-caps",
+      "category": "party",
+      "name": "Palm Medallion & Finger Caps",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "mandala",
+      "coverage": "palm",
+      "occasions": [
+        "sangeet",
+        "party",
+        "engagement"
+      ],
+      "description": "One bold medallion in the centre of the palm with patterned caps on every finger - quick and striking.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:MEHNDI-93.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Antony Trivet"
+      },
+      "image": "party-13-8343.jpg",
+      "more_images": [
+        {
+          "file": "party-13-6117.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:HENNA-73.jpg"
+        },
+        {
+          "file": "party-13-2034.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:HENNA-72.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "rose-arabic-back-hands",
+      "category": "party",
+      "name": "Rose Arabic Back Hands",
+      "price_min": 600,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "sangeet",
+        "eid"
+      ],
+      "description": "Two coordinated back hands - a shaded-rose trail on one, a medallion with finger detail on the other.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:HENNA-90.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Antony Trivet"
+      },
+      "image": "party-14-7878.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "mandala-peacock-front-back",
+      "category": "party",
+      "name": "Mandala & Peacock Front and Back",
+      "price_min": 1200,
+      "price_max": 2500,
+      "duration_minutes": 90,
+      "style": "indo-arabic",
+      "coverage": "palm",
+      "occasions": [
+        "party",
+        "sangeet",
+        "wedding"
+      ],
+      "description": "Palms with a central mandala, checks and florals; the backs carry a mandala and a peacock at the wrist - dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Henna_drawing_on_ventral_side_of_hands.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Ishan Mittal"
+      },
+      "image": "party-15-3858.jpg",
+      "more_images": [
+        {
+          "file": "party-15-4651.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Henna_drawing_on_dorsal_side_of_hands.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "dense-indian-back-hands",
+      "category": "party",
+      "name": "Dense Indian Back Hands",
+      "price_min": 1200,
+      "price_max": 2500,
+      "duration_minutes": 90,
+      "style": "indian",
+      "coverage": "back",
+      "occasions": [
+        "wedding",
+        "sangeet"
+      ],
+      "description": "The back of both hands covered in dense Indian patterns - fans, checks and paisleys - up to the wrist.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_tatoo_for_wedding_in_India.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "DADEVAL"
+      },
+      "image": "party-16-5918.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "lotus-floral-palms",
+      "category": "party",
+      "name": "Lotus Floral Palms",
+      "price_min": 800,
+      "price_max": 1600,
+      "duration_minutes": 60,
+      "style": "floral",
+      "coverage": "palm",
+      "occasions": [
+        "wedding",
+        "party",
+        "sangeet"
+      ],
+      "description": "Lotus flowers and leaves across both palms in a deep maroon stain, with checked bands at the wrist.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Henna_tattoo_(Mehndi)_at_a_wedding_in_India_01.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Kritzolina"
+      },
+      "image": "party-17-7340.jpg",
+      "more_images": [
+        {
+          "file": "party-17-5470.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Henna_tattoo_(Mehndi)_at_a_wedding_in_India_02.jpg"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "arabic-jaal-front-back",
+      "category": "party",
+      "name": "Arabic Jaal Front & Back",
+      "price_min": 900,
+      "price_max": 1800,
+      "duration_minutes": 75,
+      "style": "arabic",
+      "coverage": "palm",
+      "occasions": [
+        "party",
+        "eid",
+        "engagement"
+      ],
+      "description": "Palms with a scalloped jaal half-moon and dotted fingers; the backs carry a bold Arabic trail with finger flowers.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_front.JPG",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "AKS.9955"
+      },
+      "image": "party-18-8726.jpg",
+      "more_images": [
+        {
+          "file": "party-18-8741.jpg",
+          "url": "https://commons.wikimedia.org/wiki/File:Mehndi_02.JPG"
+        }
+      ],
+      "closeups": []
+    },
+    {
+      "slug": "arabic-vine-palm",
+      "category": "party",
+      "name": "Arabic Vine Palm",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "arabic",
+      "coverage": "palm",
+      "occasions": [
+        "party",
+        "eid",
+        "everyday"
+      ],
+      "description": "A flowing Arabic vine from the fingertips across the palm and down past the wrist.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_design.jpg",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "author": "Jyothis"
+      },
+      "image": "party-19-6518.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "moroccan-wedding-bel",
+      "category": "party",
+      "name": "Moroccan Wedding Bel",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "moroccan",
+      "coverage": "back",
+      "occasions": [
+        "wedding",
+        "engagement",
+        "party"
+      ],
+      "description": "A fine Moroccan-style bel from the wrist to the fingers on the back of the hand, with finger bands.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Henna_in_Moroccan_wedding.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Brahim FARAJI"
+      },
+      "image": "party-20-1371.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "indo-arabic-back-panels",
+      "category": "party",
+      "name": "Indo-Arabic Back-Hand Panels",
+      "price_min": 700,
+      "price_max": 1400,
+      "duration_minutes": 50,
+      "style": "indo-arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "sangeet",
+        "engagement"
+      ],
+      "description": "Bold swirls and medallions across the back of the hand into a jaal cuff, with leafy bands on the fingers.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_design,_photography.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "Obusaranya sekar"
+      },
+      "image": "party-21-5992.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "palm-flower-jaal-cuff",
+      "category": "party",
+      "name": "Palm Flower & Jaal Cuff",
+      "price_min": 700,
+      "price_max": 1400,
+      "duration_minutes": 50,
+      "style": "indo-arabic",
+      "coverage": "forearm",
+      "occasions": [
+        "party",
+        "sangeet"
+      ],
+      "description": "A shaded flower in the palm, patterned fingers and a jaal cuff running past the wrist.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_design_photography.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "Obusaranya sekar"
+      },
+      "image": "party-22-8016.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "mandala-chain-back-hand",
+      "category": "party",
+      "name": "Mandala Chain Back Hand",
+      "price_min": 600,
+      "price_max": 1200,
+      "duration_minutes": 45,
+      "style": "mandala",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "engagement",
+        "eid"
+      ],
+      "description": "A chain of three medallions across the back of the hand with dotted finger trails.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mehndi_decoration_on_back_side_of_hands.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Msansari4011"
+      },
+      "image": "party-23-8448.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "rose-palm-dipped-fingers",
+      "category": "party",
+      "name": "Rose Palm & Dipped Fingers",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "floral",
+      "coverage": "palm",
+      "occasions": [
+        "wedding",
+        "sangeet",
+        "party"
+      ],
+      "description": "A full-blown rose in the centre of the palm with leaves, leafy finger bands and dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Indian_Mehndi_Culture_(1)_01.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "AmanAgrahari01"
+      },
+      "image": "party-24-2047.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "raksha-bandhan-wrist-band",
+      "category": "regular",
+      "name": "Bracelet & Finger Caps",
+      "aliases": [
+        "Raksha Bandhan Wrist Band"
+      ],
+      "price_min": 300,
+      "price_max": 700,
+      "duration_minutes": 25,
+      "style": "jewellery",
+      "coverage": "back",
+      "occasions": [
+        "everyday",
+        "raksha-bandhan",
+        "party"
+      ],
+      "description": "A mehndi bracelet at the wrist with a small motif and finger caps - quick and dainty.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5602781/",
+        "license": "Pexels License"
+      },
+      "image": "regular-01-4077.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.4,
+            0.64,
+            0.45
+          ],
+          "file": "regular-01-5698.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "minimal-fingertips",
+      "category": "regular",
+      "name": "Minimal Finger Trails",
+      "aliases": [
+        "Minimal Fingertips"
+      ],
+      "price_min": 300,
+      "price_max": 500,
+      "duration_minutes": 20,
+      "style": "minimal",
+      "coverage": "fingers",
+      "occasions": [
+        "everyday",
+        "party"
+      ],
+      "description": "Delicate trails and medallions on two fingers with tiny nail accents - the rest of the hand bare.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5309021/",
+        "license": "Pexels License"
+      },
+      "image": "regular-02-1056.jpg",
+      "more_images": [
+        {
+          "file": "regular-02-5015.jpg",
+          "url": "https://www.pexels.com/photo/5309020/"
+        },
+        {
+          "file": "regular-02-7922.jpg",
+          "url": "https://www.pexels.com/photo/5309023/"
+        }
+      ],
+      "closeups": [
+        {
+          "at": [
+            0.45,
+            0.6,
+            0.45
+          ],
+          "file": "regular-02-1974.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "simple-floral-trail",
+      "category": "regular",
+      "name": "Simple Floral Trail",
+      "price_min": 300,
+      "price_max": 600,
+      "duration_minutes": 30,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "everyday",
+        "teej",
+        "haldi"
+      ],
+      "description": "A light floral trail from the fingers across the back of the hand.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5602770/",
+        "license": "Pexels License"
+      },
+      "image": "regular-03-3018.jpg",
+      "more_images": [
+        {
+          "file": "regular-03-6159.jpg",
+          "url": "https://www.pexels.com/photo/5602776/"
+        }
+      ],
+      "closeups": [
+        {
+          "at": [
+            0.45,
+            0.35,
+            0.5
+          ],
+          "file": "regular-03-6975.jpg"
+        },
+        {
+          "at": [
+            0.45,
+            0.75,
+            0.5
+          ],
+          "file": "regular-03-9485.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "gol-tikki-palm",
+      "category": "regular",
+      "name": "Gol Tikki Palm",
+      "price_min": 500,
+      "price_max": 1000,
+      "duration_minutes": 40,
+      "style": "mandala",
+      "coverage": "palm",
+      "occasions": [
+        "karwa-chauth",
+        "teej",
+        "diwali",
+        "everyday"
+      ],
+      "description": "The traditional gol tikki - a round medallion in each palm with dipped fingertips.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/11925938/",
+        "license": "Pexels License"
+      },
+      "image": "regular-04-2434.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.4,
+            0.45,
+            0.45
+          ],
+          "file": "regular-04-7516.jpg"
+        },
+        {
+          "at": [
+            0.62,
+            0.45,
+            0.45
+          ],
+          "file": "regular-04-4759.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "single-mandala-palm",
+      "category": "regular",
+      "name": "Single Mandala Palm",
+      "price_min": 400,
+      "price_max": 800,
+      "duration_minutes": 35,
+      "style": "mandala",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "party",
+        "eid"
+      ],
+      "description": "One statement mandala in the palm with delicate patterns on the fingers.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/17416761/",
+        "license": "Pexels License"
+      },
+      "image": "regular-05-9526.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.6,
+            0.55,
+            0.45
+          ],
+          "file": "regular-05-6325.jpg"
+        },
+        {
+          "at": [
+            0.3,
+            0.55,
+            0.5
+          ],
+          "file": "regular-05-6197.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "arabic-floral-palm",
+      "category": "regular",
+      "name": "Arabic Floral Palm",
+      "price_min": 300,
+      "price_max": 700,
+      "duration_minutes": 30,
+      "style": "arabic",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "party",
+        "eid"
+      ],
+      "description": "A big Arabic flower with leaves and dots across the palm, and one jaali-filled finger.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/5484964/",
+        "license": "Pexels License"
+      },
+      "image": "regular-06-1872.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "paisley-flower-fingers",
+      "category": "regular",
+      "name": "Paisley & Flower Fingers",
+      "price_min": 300,
+      "price_max": 700,
+      "duration_minutes": 30,
+      "style": "arabic",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "party",
+        "eid"
+      ],
+      "description": "A bold paisley across the palm with a flower cluster, and small flowers on each finger.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Simple_mehendi_design.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "Manju Thilagavathi"
+      },
+      "image": "regular-07-1831.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "mandala-finger-chevrons",
+      "category": "regular",
+      "name": "Mandala & Finger Chevrons",
+      "price_min": 400,
+      "price_max": 800,
+      "duration_minutes": 35,
+      "style": "mandala",
+      "coverage": "back",
+      "occasions": [
+        "everyday",
+        "party",
+        "diwali"
+      ],
+      "description": "A lace mandala on the back of the hand with a wrist point, and chevron caps on each finger.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Girl_hand_with_mehendi_design,Chitwan,_Nepal_(33046791480).jpg",
+        "license": "CC BY 2.0",
+        "license_url": "https://creativecommons.org/licenses/by/2.0",
+        "author": "Jonny"
+      },
+      "image": "regular-08-5603.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "mandala-wrist-arch",
+      "category": "regular",
+      "name": "Mandala & Wrist Arch",
+      "price_min": 400,
+      "price_max": 800,
+      "duration_minutes": 35,
+      "style": "mandala",
+      "coverage": "back",
+      "occasions": [
+        "everyday",
+        "party"
+      ],
+      "description": "A flower mandala on the back of the hand, a lace arch at the wrist and a single-finger trail.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Mandala_Design.jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Ajmer0927"
+      },
+      "image": "regular-09-1236.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "paisley-jaali-palm",
+      "category": "regular",
+      "name": "Paisley Jaali Palm",
+      "price_min": 300,
+      "price_max": 700,
+      "duration_minutes": 30,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "party"
+      ],
+      "description": "A checked-jaali paisley on the palm with leafy vines running up every finger.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:HennaDecoration.JPG",
+        "license": "CC BY-SA 3.0",
+        "license_url": "http://creativecommons.org/licenses/by-sa/3.0/",
+        "author": "Sundar"
+      },
+      "image": "regular-10-7037.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "classic-gol-tikki-dots",
+      "category": "regular",
+      "name": "Classic Gol Tikki & Dots",
+      "price_min": 200,
+      "price_max": 500,
+      "duration_minutes": 20,
+      "style": "mandala",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "karwa-chauth",
+        "teej"
+      ],
+      "description": "The classic round tikki in the palm ringed with dots, banded fingers and dipped fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:%E0%AE%AE%E0%AE%B0%E0%AF%81%E0%AE%A4%E0%AE%BE%E0%AE%A3%E0%AE%BF_(HENNA).jpg",
+        "license": "CC BY-SA 4.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+        "author": "Ushanandhiniashokkumar"
+      },
+      "image": "regular-11-4668.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "maruthani-dots-fingertips",
+      "category": "regular",
+      "name": "Maruthani Dots & Fingertips",
+      "price_min": 200,
+      "price_max": 500,
+      "duration_minutes": 20,
+      "style": "minimal",
+      "coverage": "palm",
+      "occasions": [
+        "everyday",
+        "party"
+      ],
+      "description": "Traditional South Indian maruthani - dots across both palms with fully coloured fingertips.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Maruthani_design.jpg",
+        "license": "CC0",
+        "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+        "author": "SAHAYA RAJAN S"
+      },
+      "image": "regular-12-7978.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "payal-anklet-feet",
+      "category": "feet",
+      "name": "Arabic Foot Bel",
+      "aliases": [
+        "Foot Bel with Payal",
+        "Payal Anklet"
+      ],
+      "price_min": 300,
+      "price_max": 700,
+      "duration_minutes": 30,
+      "style": "arabic",
+      "coverage": "foot",
+      "occasions": [
+        "wedding",
+        "party",
+        "everyday"
+      ],
+      "description": "A single Arabic bel from the toes, over the top of the foot and up the ankle.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/12529883/",
+        "license": "Pexels License",
+        "note": "cropped to the foot"
+      },
+      "image": "feet-01-1263.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "bridal-full-feet-jaali",
+      "category": "feet",
+      "name": "Bridal Full Feet Jaali",
+      "price_min": 1500,
+      "price_max": 3500,
+      "duration_minutes": 120,
+      "style": "jaal",
+      "coverage": "foot",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Full bridal feet from toe tips to ankle with dense jaali and florals.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/33557619/",
+        "license": "Pexels License"
+      },
+      "image": "feet-02-4559.jpg",
+      "closeups": [
+        {
+          "at": [
+            0.3,
+            0.5,
+            0.5
+          ],
+          "file": "feet-02-1341.jpg"
+        },
+        {
+          "at": [
+            0.7,
+            0.5,
+            0.5
+          ],
+          "file": "feet-02-4929.jpg"
+        },
+        {
+          "at": [
+            0.5,
+            0.85,
+            0.5
+          ],
+          "file": "feet-02-6649.jpg"
+        }
+      ]
+    },
+    {
+      "slug": "side-vine-feet",
+      "category": "feet",
+      "name": "Side Foot Jaali",
+      "aliases": [
+        "Side Vine"
+      ],
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 60,
+      "style": "jaal",
+      "coverage": "foot",
+      "occasions": [
+        "wedding",
+        "sangeet"
+      ],
+      "description": "Dense jaali and florals covering one foot from the toes to the ankle.",
+      "retired_photos": {
+        "reason": "main photo out of focus (wet paste); extra views show the artist and props",
+        "files": [
+          "feet-03-5212.jpg",
+          "feet-03-5665.jpg",
+          "feet-03-3566.jpg"
+        ],
+        "sources": [
+          "https://www.pexels.com/photo/21568652/",
+          "https://www.pexels.com/photo/21568647/",
+          "https://www.pexels.com/photo/21568654/"
+        ]
+      },
+      "photo_needed": "Feet from the side or above, toes to ankle, dense jaali and florals on one foot. Finished stain, sharp photo, no artist or props in the frame.",
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows one woman's bare right foot seen from above, from the toes to the ankle, exactly five toes. The mehndi design: Dense jaali (net) and florals covering the top of the foot from the toes to the ankle, with decorated toes. Style: jaal mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No anklets, no toe rings, no jewellery, no nail polish, no text, no letters, no watermark, no extra people.",
+        "file": "feet-03-3947.jpg"
+      }
+    },
+    {
+      "slug": "minimal-toe-ankle",
+      "category": "feet",
+      "name": "Classic Dipped Toes",
+      "aliases": [
+        "Minimal Toe & Ankle"
+      ],
+      "price_min": 250,
+      "price_max": 500,
+      "duration_minutes": 20,
+      "style": "minimal",
+      "coverage": "toes",
+      "occasions": [
+        "wedding",
+        "everyday"
+      ],
+      "description": "Henna-dipped toe tips - the simplest traditional feet mehndi.",
+      "photo_needed": "Feet with henna-dipped toe tips - henna stain, not alta or nail polish.",
+      "closeups": [],
+      "illustration": {
+        "generator": "Figma AI (gemini-3.1-flash-image)",
+        "prompt": "Elegant digital illustration (clearly not a photograph), soft painterly style with fine clean linework. The image shows a woman's two bare feet seen from above, side by side, toes to ankle, exactly five toes on each foot. The mehndi design: Henna-dipped toe tips - every toe tip fully coloured in henna, the rest of the feet bare - the simplest traditional feet mehndi. Style: minimal mehndi. Everything drawn on the skin is monochrome reddish-brown henna only - no other colours. Warm natural skin. Plain warm ivory background (#FBF6EC), soft even light, subtle soft shadow, centred with space around the subject. No anklets, no toe rings, no jewellery, no nail polish, no text, no letters, no watermark, no extra people.",
+        "file": "feet-04-2189.jpg"
+      }
+    },
+    {
+      "slug": "bridal-feet-jaal-florals",
+      "category": "feet",
+      "name": "Bridal Feet Jaal & Florals",
+      "price_min": 1500,
+      "price_max": 3500,
+      "duration_minutes": 120,
+      "style": "jaal",
+      "coverage": "foot",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Both feet to the ankle in fine jaal and florals, made to match full bridal hands.",
+      "retired_photos": {
+        "reason": "clothing or props fill the frame - the cut-out can't separate them",
+        "files": [
+          "feet-05-6265.jpg"
+        ],
+        "sources": [
+          "https://commons.wikimedia.org/wiki/File:Wedding_Henna.jpg"
+        ]
+      },
+      "photo_needed": "Both feet to the ankle in fine jaal and florals. Plain background - no flowers, dress or hands in the frame.",
+      "closeups": []
+    },
+    {
+      "slug": "bridal-feet-lace-dots",
+      "category": "feet",
+      "name": "Bridal Feet Lace & Dots",
+      "price_min": 1000,
+      "price_max": 2500,
+      "duration_minutes": 90,
+      "style": "jaal",
+      "coverage": "foot",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "Lace-like jaal and dot work over the top of both feet, with decorated toes.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:A_bride_body_art_Hindu_culture_religion_rites_rituals_sights.jpg",
+        "license": "CC BY-SA 2.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+        "author": "kunjan detroja from Mumbai, Maharastra, India"
+      },
+      "image": "feet-06-9561.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "moroccan-floral-foot",
+      "category": "feet",
+      "name": "Moroccan Floral Foot",
+      "price_min": 700,
+      "price_max": 1500,
+      "duration_minutes": 60,
+      "style": "floral",
+      "coverage": "foot",
+      "occasions": [
+        "wedding",
+        "party"
+      ],
+      "description": "Bold floral henna over the top of the foot to the ankle, Moroccan style.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Henna_on_foot_in_Morocco.jpg",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "author": "Bjørn Christian Tørrissen"
+      },
+      "image": "feet-07-6250.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "kids-tiny-flower-dots",
+      "category": "kids",
+      "name": "Little Palm Flower",
+      "aliases": [
+        "Heart Swirl Palm",
+        "Tiny Flower Dots"
+      ],
+      "price_min": 100,
+      "price_max": 250,
+      "duration_minutes": 10,
+      "style": "floral",
+      "coverage": "palm",
+      "occasions": [
+        "party",
+        "eid",
+        "everyday"
+      ],
+      "description": "One small flower in the middle of the palm - done in minutes.",
+      "retired_photos": {
+        "reason": "grainy photo, smudged stain, busy clothing",
+        "files": [
+          "kids-01-8159.jpg"
+        ],
+        "sources": [
+          "https://www.pexels.com/photo/16581362/"
+        ]
+      },
+      "photo_needed": "A child's palm (no face) with one small flower in the middle. Finished stain, no smudges, plain background."
+    },
+    {
+      "slug": "kids-fish-heart",
+      "category": "kids",
+      "name": "Kids Arabic Finger Bel",
+      "aliases": [
+        "Little Feet Flower",
+        "Fish & Heart"
+      ],
+      "price_min": 150,
+      "price_max": 350,
+      "duration_minutes": 15,
+      "style": "arabic",
+      "coverage": "back",
+      "occasions": [
+        "party",
+        "eid",
+        "everyday"
+      ],
+      "description": "A light Arabic bel over the back of a child's hand with a motif on each finger.",
+      "photo": {
+        "source": "Pexels",
+        "url": "https://www.pexels.com/photo/15839888/",
+        "license": "Pexels License",
+        "note": "cropped to the hand"
+      },
+      "image": "kids-02-7186.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "kids-butterfly-star",
+      "category": "kids",
+      "name": "Butterfly & Star",
+      "aliases": [
+        "Chevron Arrow"
+      ],
+      "price_min": 150,
+      "price_max": 300,
+      "duration_minutes": 15,
+      "style": "minimal",
+      "coverage": "back",
+      "occasions": [
+        "party"
+      ],
+      "description": "A butterfly and stars on the back of the hand - a kids' favourite.",
+      "photo_needed": "A child's hand (no face in the photo) with a butterfly design.",
+      "closeups": []
+    },
+    {
+      "slug": "kids-birthday-cake",
+      "category": "kids",
+      "name": "Birthday Cake & Balloons",
+      "price_min": 150,
+      "price_max": 350,
+      "duration_minutes": 15,
+      "style": "minimal",
+      "coverage": "palm",
+      "occasions": [
+        "birthday",
+        "party"
+      ],
+      "description": "A cake with a candle and two balloons on a child's palm - quick and playful.",
+      "photo_needed": "A child's palm (no face) with a cake and balloons. Finished stain.",
+      "closeups": []
+    },
+    {
+      "slug": "groom-minimal-palm-tikki",
+      "category": "groom",
+      "name": "Minimal Palm Tikki",
+      "aliases": [
+        "Minimal Shagun Tikki"
+      ],
+      "price_min": 300,
+      "price_max": 800,
+      "duration_minutes": 20,
+      "style": "mandala",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "A single round tikki in the groom's palm with henna-dipped fingertips - the understated shagun mehndi.",
+      "photo": {
+        "source": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Hand,male-maruthani-TamilNadu205.jpg",
+        "license": "CC BY-SA 3.0",
+        "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+        "author": "தகவலுழவன்"
+      },
+      "image": "groom-01-6407.jpg",
+      "closeups": []
+    },
+    {
+      "slug": "groom-initials-shagun",
+      "category": "groom",
+      "name": "Initials & Shagun",
+      "price_min": 500,
+      "price_max": 1500,
+      "duration_minutes": 30,
+      "style": "minimal",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "The couple's names in a framed medallion on the groom's palm - a personal shagun.",
+      "photo_needed": "A man's palm with the couple's initials in a frame - use made-up initials, not real names.",
+      "closeups": []
+    },
+    {
+      "slug": "groom-sehra-motif",
+      "category": "groom",
+      "name": "Sehra Motif",
+      "aliases": [
+        "Groom Finger & Palm Bel"
+      ],
+      "price_min": 1000,
+      "price_max": 2500,
+      "duration_minutes": 45,
+      "style": "indian",
+      "coverage": "palm",
+      "occasions": [
+        "wedding"
+      ],
+      "description": "A sehra (groom's veil) or doli motif on the groom's palm with simple finger bands.",
+      "photo_needed": "A man's palm with a sehra or doli motif. Finished stain.",
+      "closeups": []
+    }
+  ]
+}

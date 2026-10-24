@@ -14,3 +14,8 @@ frontend/public/sw.js
 frontend/public/workbox-*.js
 frontend/public/sw.js.map
 frontend/public/worker-*.js
+frontend/public/fallback-*.js
+
+.DS_Store
+# Photos taken out of the catalog - kept locally for reference only
+backend/catalog/retired/

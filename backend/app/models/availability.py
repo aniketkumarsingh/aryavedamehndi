@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class ArtistAvailability(Base):
@@ -18,4 +19,4 @@ class ArtistAvailability(Base):
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
     # "open" | "booked" | "blocked"
     status: Mapped[str] = mapped_column(String(20), default="open")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

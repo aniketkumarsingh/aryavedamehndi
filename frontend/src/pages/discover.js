@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { categoryLabel, formatPriceRange } from "@/lib/designs";
 import { useAuth } from "@/lib/useAuth";
 import Lightbox from "@/components/Lightbox";
 
@@ -139,6 +140,25 @@ export default function Discover() {
                         <img src={url} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
+                </div>
+              )}
+              {a.designs?.length > 0 && (
+                <div className="mt-1">
+                  <p className="text-xs font-semibold mb-1">Verified designs</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {a.designs.map((d) => (
+                      <Link
+                        key={d.design_id}
+                        href={`/designs/${d.design_id}`}
+                        className="w-24 flex-none rounded-lg border border-line overflow-hidden text-[11px] leading-tight hover:border-gold"
+                        title={`${d.name} — ${categoryLabel(d.category)}`}
+                      >
+                        <img src={d.proof_image_url} alt={d.name} className="w-full aspect-square object-cover" />
+                        <span className="block px-1 py-0.5 truncate">{d.name}</span>
+                        <span className="block px-1 pb-1 font-semibold text-maroon-soft">{formatPriceRange(d.price_min, d.price_max)}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
               {user?.role === "consumer" ? (

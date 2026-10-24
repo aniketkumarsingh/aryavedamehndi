@@ -8,9 +8,20 @@ export function LanguageProvider({ children }) {
   const [lang, setLang] = useState("en");
 
   useEffect(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem(LANG_STORAGE_KEY) : null;
+    let stored = null;
+    try {
+      stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+    } catch {
+      /* storage disabled - stay on the default */
+    }
     if (stored === "en" || stored === "hi") setLang(stored);
   }, []);
+
+  // Keeps <html lang> truthful for screen readers and the browser's
+  // translate prompt (see _document.js).
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   function changeLang(next) {
     setLang(next);

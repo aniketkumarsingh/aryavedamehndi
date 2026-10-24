@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
@@ -21,6 +20,7 @@ from app.schemas.shop import (
 from app.services.notifications import notify
 from app.services.razorpay_client import create_order, verify_payment_signature
 from app.services.storage import save_upload
+from app.core.time import utcnow
 
 router = APIRouter(prefix="/shop", tags=["shop"])
 settings = get_settings()
@@ -235,7 +235,7 @@ def verify_shop_payment(
     order.razorpay_payment_id = payload.razorpay_payment_id
     order.razorpay_signature = payload.razorpay_signature
     order.status = "paid"
-    order.paid_at = datetime.utcnow()
+    order.paid_at = utcnow()
     notify(db, user.id, "shop", "Order confirmed", f"Your ₹{order.total_amount} order has been paid and will ship soon.", f"/shop/orders/{order.id}")
     db.commit()
     db.refresh(order)

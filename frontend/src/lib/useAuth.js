@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AUTH_CHANGED_EVENT, clearSession, getStoredUser } from "./api";
+import { AUTH_CHANGED_EVENT, getStoredUser, logoutSession } from "./api";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -23,8 +23,8 @@ export function useAuth() {
     };
   }, []);
 
-  function logout() {
-    clearSession();
+  async function logout() {
+    await logoutSession();
     setUser(null);
     window.location.href = "/login";
   }

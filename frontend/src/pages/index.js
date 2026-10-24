@@ -2,20 +2,56 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import DesignCard from "@/components/DesignCard";
+import { categoryLabel, groupByCategory } from "@/lib/designs";
+import { fetchBackend } from "@/lib/serverApi";
 import { useLanguage } from "@/lib/useLanguage";
 import SectionDivider from "@/components/SectionDivider";
 
-export default function Home() {
+/** Rendered on the server (ISR) so search engines get the CMS copy and
+ * packages in the HTML - organic reach is a Blueprint goal. The page is
+ * rebuilt at most every REVALIDATE_SECONDS, and immediately when an admin
+ * saves CMS content (see pages/api/revalidate.js). */
+const REVALIDATE_SECONDS = 300;
+
+export async function getStaticProps() {
+  const results = await Promise.all(
+    ["/cms/home.hero", "/cms/brand.story", "/packages", "/designs"].map((path) => fetchBackend(path).catch(() => undefined))
+  );
+  const [heroRow, storyRow, packages, designs] = results;
+  return {
+    props: {
+      initialHero: heroRow?.content ?? null,
+      initialStory: storyRow?.content ?? null,
+      initialPackages: packages ?? null,
+      initialDesigns: designs ?? null,
+      // Backend unreachable at build time - the browser fetches instead.
+      serverFetched: packages !== undefined,
+    },
+    revalidate: packages !== undefined ? REVALIDATE_SECONDS : 30,
+  };
+}
+
+export default function Home({
+  initialHero = null,
+  initialStory = null,
+  initialPackages = null,
+  initialDesigns = null,
+  serverFetched = false,
+}) {
   const { t } = useLanguage();
-  const [hero, setHero] = useState(null);
-  const [story, setStory] = useState(null);
-  const [packages, setPackages] = useState([]);
+  const [hero, setHero] = useState(initialHero);
+  const [story, setStory] = useState(initialStory);
+  const [packages, setPackages] = useState(initialPackages || []);
+  const [designs, setDesigns] = useState(initialDesigns || []);
 
   useEffect(() => {
+    if (serverFetched) return;
     api.get("/cms/home.hero", null).then((r) => setHero(r.content)).catch(() => {});
     api.get("/cms/brand.story", null).then((r) => setStory(r.content)).catch(() => {});
     api.get("/packages").then(setPackages).catch(() => {});
-  }, []);
+    api.get("/designs").then(setDesigns).catch(() => {});
+  }, [serverFetched]);
 
   return (
     <div className="flex flex-col gap-14">
@@ -62,6 +98,37 @@ export default function Home() {
       )}
 
       <SectionDivider />
+
+      {designs.length > 0 && (
+        <section className="flex flex-col gap-4">
+          <div className="flex justify-between items-end gap-2 flex-wrap">
+            <div>
+              <h2 className="text-xl">{t("home_designs_heading")}</h2>
+              <p className="text-sm text-ink-soft">{t("home_designs_sub")}</p>
+            </div>
+            <Link href="/designs" className="btn-secondary text-sm">
+              {t("home_designs_cta")}
+            </Link>
+          </div>
+          {groupByCategory(designs).map(([cat, items]) => (
+            <div key={cat} className="flex flex-col gap-2">
+              <div className="flex justify-between items-baseline">
+                <h3 className="font-semibold">{categoryLabel(cat)}</h3>
+                {items.length > 4 && (
+                  <Link href={`/designs?category=${cat}`} className="text-sm text-maroon-soft underline">
+                    All {items.length}
+                  </Link>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {items.slice(0, 4).map((d) => (
+                  <DesignCard key={d.id} design={d} href={`/designs/${d.id}`} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section>
         <h2 className="text-xl mb-4">{t("home_packages_heading")}</h2>

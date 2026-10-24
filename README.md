@@ -93,6 +93,39 @@ phone `9999999999` — log in with that number to reach `/admin`.
    (Razorpay isn't configured, so this auto-completes in dev mode), leave
    a review.
 
+## Testing the installable app
+
+The app installs from the browser as a Progressive Web App - there's no
+app-store download. `/download` shows an **Install app** button where the
+browser supports it (Chrome, Edge, Samsung Internet) and step-by-step
+instructions elsewhere (Safari on iPhone/iPad/Mac). Two rules decide
+whether a browser will offer to install at all:
+
+1. **A service worker must be running.** It's disabled under `npm run dev`,
+   so test install against a production build:
+
+   ```
+   cd frontend
+   npm run build && npm start
+   ```
+
+2. **The page must be https** (or `localhost` on the same computer). A
+   phone opening `http://192.168.x.x:3000` won't offer install. To test
+   on a phone, expose your local build over https with a tunnel, e.g.
+   `npx localtunnel --port 3000` or `cloudflared tunnel --url http://localhost:3000`,
+   and open the https URL it prints on the phone.
+
+| Device | Where to test | What to expect |
+|---|---|---|
+| Mac - Chrome/Edge | http://localhost:3000/download | **Install app** button; app opens in its own window, appears in Launchpad |
+| Mac - Safari 17+ (macOS 14+) | same | File → Add to Dock |
+| Android - Chrome | tunnel https URL | **Install app** button, or ⋮ → Add to Home screen → Install |
+| iPhone/iPad - Safari | tunnel https URL | Share → Add to Home Screen |
+
+To check installability in Chrome: DevTools → Application → Manifest
+(shows install errors) and → Service workers. To start over, uninstall the
+app (Chrome: open the app → ⋮ → Uninstall) and clear site data.
+
 ## What's stubbed vs. production-ready
 
 See `backend/README.md` for the full table (OTP/SMS, Razorpay, PostGIS,

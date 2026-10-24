@@ -1,5 +1,31 @@
 import { useRef } from "react";
 
+const SHRINK_ABOVE_BYTES = 3 * 1024 * 1024;
+const MAX_DIMENSION = 2560;
+
+/** Modern phone cameras produce 5-15MB photos, over the API's upload cap
+ * (MAX_UPLOAD_SIZE_MB, 8MB by default). Large photos are re-encoded as a
+ * JPEG no bigger than MAX_DIMENSION on the long edge - still plenty for KYC
+ * documents and design matching. Falls back to the original file if the
+ * browser can't decode it (e.g. HEIC on a desktop browser). */
+async function shrinkIfLarge(file) {
+  if (file.size <= SHRINK_ABOVE_BYTES || !file.type.startsWith("image/") || file.type === "image/gif") return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export default function FileUpload({
   onFile,
   accept = "image/*",
@@ -12,10 +38,10 @@ export default function FileUpload({
 }) {
   const inputRef = useRef(null);
 
-  function handleChange(e) {
+  async function handleChange(e) {
     const file = e.target.files[0];
     e.target.value = "";
-    if (file) onFile(file);
+    if (file) onFile(await shrinkIfLarge(file));
   }
 
   if (variant === "avatar") {

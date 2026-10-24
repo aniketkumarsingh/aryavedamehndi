@@ -1,0 +1,7 @@
+{
+  "name": "natural-soft",
+  "description": "Keeps the real background but blurs, desaturates and tints it so a set of photos looks like one shoot. Square 1600px.",
+  "output": { "width": 1600, "height": 1600 },
+  "framing": { "mode": "subject", "margin": 0.06 },
+  "background": { "mode": "soften", "color": "#F2EEE8" }
+}

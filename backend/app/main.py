@@ -1,10 +1,27 @@
-from fastapi import FastAPI, Request
+import posixpath
+
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import DEFAULT_JWT_SECRET, get_settings
-from app.routers import admin, artists, auth, bookings, chat, cms, favorites, notifications, packages, payments, reviews, shop, users
-from app.services.storage import MEDIA_DIR
+from app.routers import (
+    admin,
+    artists,
+    auth,
+    bookings,
+    chat,
+    cms,
+    designs,
+    favorites,
+    notifications,
+    packages,
+    payments,
+    reviews,
+    shop,
+    users,
+)
+from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
 
 settings = get_settings()
 
@@ -46,7 +63,18 @@ app.add_middleware(
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    response = await call_next(request)
+    # Normalised + lowercased so "/media//kyc/", "/media/./kyc/" or
+    # "/media/KYC/" (case-insensitive disks) can't slip past the check.
+    canonical_path = posixpath.normpath(request.url.path).lower()
+    if canonical_path.startswith(PRIVATE_URL_PREFIX):
+        # KYC documents need a valid, unexpired signature - see
+        # app/services/storage.py sign_media_url.
+        if not verify_media_signature(canonical_path, request.query_params.get("exp"), request.query_params.get("sig")):
+            return Response(status_code=404)
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "private, no-store"
+    else:
+        response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -65,6 +93,9 @@ app.include_router(notifications.router)
 app.include_router(favorites.router)
 app.include_router(artists.router)
 app.include_router(packages.router)
+app.include_router(designs.router)
+app.include_router(designs.artist_router)
+app.include_router(designs.admin_router)
 app.include_router(bookings.router)
 app.include_router(chat.router)
 app.include_router(payments.router)

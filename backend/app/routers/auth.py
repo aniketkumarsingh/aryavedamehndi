@@ -1,14 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.core.security import create_access_token, create_refresh_token, verify_password
+from app.core.security import verify_password
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import AdminLoginIn, RequestOtpIn, RequestOtpOut, TokenOut, VerifyOtpIn
+from app.schemas.auth import AdminLoginIn, RefreshIn, RequestOtpIn, RequestOtpOut, TokenOut, VerifyOtpIn
+from app.services.auth_tokens import InvalidRefreshToken, issue_token_pair, revoke_refresh_token, rotate_refresh_token
 from app.services.otp import OtpRateLimited, issue_otp, verify_otp
+from app.core.time import utcnow
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -39,14 +41,14 @@ def admin_login(payload: AdminLoginIn, db: Session = Depends(get_db)):
     if user is None or not user.password_hash:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, generic_error)
 
-    if user.locked_until and user.locked_until > datetime.utcnow():
-        wait_minutes = max(1, round((user.locked_until - datetime.utcnow()).total_seconds() / 60))
+    if user.locked_until and user.locked_until > utcnow():
+        wait_minutes = max(1, round((user.locked_until - utcnow()).total_seconds() / 60))
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, f"Too many failed attempts - try again in {wait_minutes} min")
 
     if not verify_password(payload.password, user.password_hash):
         user.failed_login_count += 1
         if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
-            user.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
+            user.locked_until = utcnow() + timedelta(minutes=LOCKOUT_MINUTES)
             user.failed_login_count = 0
         db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, generic_error)
@@ -56,10 +58,8 @@ def admin_login(payload: AdminLoginIn, db: Session = Depends(get_db)):
 
     user.failed_login_count = 0
     user.locked_until = None
+    access, refresh = issue_token_pair(db, user)
     db.commit()
-
-    access = create_access_token(user.id, user.role)
-    refresh = create_refresh_token(user.id)
     return TokenOut(access_token=access, refresh_token=refresh, user_id=user.id, role=user.role, is_new_user=False)
 
 
@@ -81,8 +81,8 @@ def verify_otp_and_login(payload: VerifyOtpIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    access = create_access_token(user.id, user.role)
-    refresh = create_refresh_token(user.id)
+    access, refresh = issue_token_pair(db, user)
+    db.commit()
     return TokenOut(
         access_token=access,
         refresh_token=refresh,
@@ -90,3 +90,19 @@ def verify_otp_and_login(payload: VerifyOtpIn, db: Session = Depends(get_db)):
         role=user.role,
         is_new_user=is_new_user,
     )
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh_tokens(payload: RefreshIn, db: Session = Depends(get_db)):
+    """Swaps a refresh token for a new access + refresh pair (rotation -
+    the old refresh token stops working). See app/services/auth_tokens.py."""
+    try:
+        user, access, refresh = rotate_refresh_token(db, payload.refresh_token)
+    except InvalidRefreshToken as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(exc)) from exc
+    return TokenOut(access_token=access, refresh_token=refresh, user_id=user.id, role=user.role, is_new_user=False)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(payload: RefreshIn, db: Session = Depends(get_db)):
+    revoke_refresh_token(db, payload.refresh_token)

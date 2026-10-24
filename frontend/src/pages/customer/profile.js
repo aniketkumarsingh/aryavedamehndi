@@ -95,8 +95,10 @@ export default function CustomerProfilePage() {
     try {
       await api.upload("/users/me/avatar", file);
       load();
+      return true;
     } catch (err) {
       setError(err.message);
+      return false;
     } finally {
       setBusy(false);
     }

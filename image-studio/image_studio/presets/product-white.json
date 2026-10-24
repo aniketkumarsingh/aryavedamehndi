@@ -1,0 +1,7 @@
+{
+  "name": "product-white",
+  "description": "E-commerce: subject centred on pure white, square 2000px, soft contact shadow.",
+  "output": { "width": 2000, "height": 2000 },
+  "framing": { "mode": "subject", "margin": 0.08 },
+  "background": { "mode": "replace", "color": "#FFFFFF", "shadow": 0.12 }
+}

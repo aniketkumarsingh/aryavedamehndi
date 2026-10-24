@@ -13,6 +13,9 @@ class BookingCreateIn(BaseModel):
     scheduled_at: datetime
     gender_preference: str = "same"
     reference_design_image_url: str | None = None
+    # Catalog design to book - must be one the artist has an approved photo
+    # of. Overrides reference_design_image_url with the design's image.
+    design_id: uuid.UUID | None = None
     # optional opening price proposal
     opening_offer: float | None = Field(default=None, gt=0, le=1_000_000)
     # If the consumer picked one of the artist's declared open slots
@@ -45,6 +48,17 @@ class BookingCreateIn(BaseModel):
         return v
 
 
+class PaymentBreakdownOut(BaseModel):
+    """See app/services/pricing.py settlement_breakdown."""
+
+    full_escrow: bool
+    in_app_due: float
+    advance_credit: float
+    artist_transfer: float
+    artist_direct_due: float
+    platform_owes_artist: float
+
+
 class BookingOut(BaseModel):
     id: uuid.UUID
     consumer_id: uuid.UUID
@@ -58,6 +72,8 @@ class BookingOut(BaseModel):
     eta_minutes: float | None
     gender_preference: str
     reference_design_image_url: str | None
+    design_id: uuid.UUID | None
+    design_name: str | None
     agreed_price: float | None
     platform_fee: float | None
     total_amount: float | None
@@ -73,6 +89,17 @@ class BookingOut(BaseModel):
     artist_location_updated_at: datetime | None
     artist_arrived_at: datetime | None
     artist_completed_at: datetime | None
+    arrival_distance_m: float | None
+    arrival_flagged: bool
+    dispute_outcome: str | None
+    dispute_notes: str | None
+    package_duration_minutes: int | None
+    package_price_min: float | None
+    package_price_max: float | None
+    package_negotiable: bool
+    consumer_rating_avg: float
+    consumer_rating_count: int
+    payment_breakdown: PaymentBreakdownOut | None
     created_at: datetime
     updated_at: datetime
 

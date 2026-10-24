@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { api } from "@/lib/api";
+import { formatPriceRange } from "@/lib/designs";
 
 export default function NewBooking() {
   const router = useRouter();
-  const { artistId, package_id: rebookPackageId } = router.query;
+  const { artistId, package_id: rebookPackageId, design_id: queryDesignId } = router.query;
 
   const [packages, setPackages] = useState([]);
   const [packageId, setPackageId] = useState("");
+  // Catalog designs this artist has an approved photo of.
+  const [artistDesigns, setArtistDesigns] = useState([]);
+  const [designId, setDesignId] = useState("");
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState(null);
   const [slots, setSlots] = useState([]);
@@ -31,7 +35,8 @@ export default function NewBooking() {
 
   useEffect(() => {
     if (rebookPackageId) setPackageId(String(rebookPackageId));
-  }, [rebookPackageId]);
+    if (queryDesignId) setDesignId(String(queryDesignId));
+  }, [rebookPackageId, queryDesignId]);
 
   useEffect(() => {
     if (!artistId) return;
@@ -39,10 +44,24 @@ export default function NewBooking() {
       .get(`/artists/${artistId}/availability`, { from_date: new Date().toISOString().slice(0, 10) })
       .then(setSlots)
       .catch(() => {});
+    api
+      .get(`/artists/${artistId}/designs`)
+      .then((rows) => setArtistDesigns(rows.map((r) => ({ ...r.design, proof_image_url: r.proof_image_url }))))
+      .catch(() => {});
   }, [artistId]);
 
   const selectedPackage = packages.find((p) => p.id === packageId);
   const selectedSlot = slots.find((s) => s.id === selectedSlotId);
+  const packageDesigns = artistDesigns.filter((d) => d.package_id === packageId);
+  const selectedDesign = packageDesigns.find((d) => d.id === designId);
+  // A chosen design's own price range replaces the package's.
+  const band = selectedDesign || selectedPackage;
+
+  function choosePackage(id) {
+    setPackageId(id);
+    setDesignId("");
+    setReferenceImage("");
+  }
 
   function pickSlot(slot) {
     setSelectedSlotId(slot.id);
@@ -66,7 +85,8 @@ export default function NewBooking() {
         location_lng: coords.lng,
         scheduled_at: new Date(scheduledAt).toISOString(),
         gender_preference: genderPref,
-        reference_design_image_url: referenceImage || null,
+        design_id: selectedDesign ? selectedDesign.id : null,
+        reference_design_image_url: selectedDesign ? null : referenceImage || null,
         opening_offer: openingOffer ? Number(openingOffer) : null,
         availability_slot_id: selectedSlot ? selectedSlot.id : null,
       });
@@ -83,7 +103,7 @@ export default function NewBooking() {
       <h1 className="text-xl mb-4">Book This Artist</h1>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <label className="text-sm font-semibold">Package</label>
-        <select className="input" value={packageId} onChange={(e) => setPackageId(e.target.value)} required>
+        <select className="input" value={packageId} onChange={(e) => choosePackage(e.target.value)} required>
           <option value="">Select a package</option>
           {packages.map((p) => (
             <option key={p.id} value={p.id}>
@@ -99,7 +119,52 @@ export default function NewBooking() {
           </p>
         )}
 
-        {selectedPackage?.sample_image_urls && (
+        {packageDesigns.length > 0 && (
+          <div>
+            <label className="text-sm font-semibold">Design</label>
+            <p className="text-xs text-ink-soft">Designs this artist has done before — their photos are verified by our team.</p>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {packageDesigns.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setDesignId(designId === d.id ? "" : d.id)}
+                  aria-pressed={designId === d.id}
+                  className={`text-left rounded-lg border-2 overflow-hidden ${designId === d.id ? "border-maroon" : "border-line"}`}
+                >
+                  <img src={d.image_url || d.proof_image_url} alt={d.name} className="w-full aspect-square object-cover" />
+                  <span className="block px-1.5 py-1 text-[11px] leading-tight">
+                    {d.name}
+                    <br />
+                    <b className="text-maroon-soft">{formatPriceRange(d.price_min, d.price_max)}</b>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {selectedDesign ? (
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-center text-ink-soft">
+                <figure>
+                  <img src={selectedDesign.proof_image_url} alt="Artist's own work" className="w-full aspect-square object-cover rounded-lg" />
+                  <figcaption>This artist&apos;s work ✓</figcaption>
+                </figure>
+                {selectedDesign.image_url && (
+                  <figure>
+                    <img src={selectedDesign.image_url} alt="Catalog design" className="w-full aspect-square object-cover rounded-lg" />
+                    <figcaption>
+                      {selectedDesign.image_kind === "illustration"
+                        ? "AI illustration - you confirm the finished mehndi yourself"
+                        : "Your finished mehndi is checked against this"}
+                    </figcaption>
+                  </figure>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-ink-soft mt-1">Optional — skip to book the package at its usual price range.</p>
+            )}
+          </div>
+        )}
+
+        {!selectedDesign && selectedPackage?.sample_image_urls && (
           <div>
             <label className="text-sm font-semibold">Reference design (optional)</label>
             <div className="flex gap-2 mt-1 flex-wrap">
@@ -178,11 +243,14 @@ export default function NewBooking() {
         {selectedPackage?.negotiable && (
           <>
             <label className="text-sm font-semibold">
-              Your opening price offer (optional, band: ₹{selectedPackage.price_min}–₹{selectedPackage.price_max})
+              Your opening price offer (optional, {selectedDesign ? "design" : "package"} range:{" "}
+              {formatPriceRange(band.price_min, band.price_max)})
             </label>
             <input
               className="input"
               type="number"
+              min={band.price_min}
+              max={band.price_max}
               value={openingOffer}
               onChange={(e) => setOpeningOffer(e.target.value)}
               placeholder="Leave blank to accept the listed price"

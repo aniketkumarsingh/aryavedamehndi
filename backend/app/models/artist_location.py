@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 # An artist's profile carries one primary location (base_lat/base_lng).
 # This table holds up to 2 additional service locations (e.g. "Mother's
@@ -23,4 +24,4 @@ class ArtistLocation(Base):
     address_text: Mapped[str] = mapped_column(Text, nullable=True)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

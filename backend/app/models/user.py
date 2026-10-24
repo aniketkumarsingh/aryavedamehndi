@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class User(Base):
@@ -32,7 +33,7 @@ class User(Base):
     consent_given: Mapped[bool] = mapped_column(Boolean, default=False)
     consent_given_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     # Traditional username/password login - only meaningful for role="admin"
     # accounts, as a convenience alternative to phone-OTP (the business
@@ -44,6 +45,11 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200), nullable=True)
     failed_login_count: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    # Two-way ratings: the average of reviews artists have left for this
+    # user as a consumer, shown to artists before they accept a request.
+    consumer_rating_avg: Mapped[float] = mapped_column(Float, default=0)
+    consumer_rating_count: Mapped[int] = mapped_column(Integer, default=0)
 
     artist_profile: Mapped["ArtistProfile"] = relationship(back_populates="user", uselist=False)
 
@@ -101,6 +107,6 @@ class ArtistProfile(Base):
     rating_count: Mapped[int] = mapped_column(Integer, default=0)
     strike_count: Mapped[int] = mapped_column(Integer, default=0)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="artist_profile")

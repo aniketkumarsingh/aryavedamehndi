@@ -1,0 +1,7 @@
+{
+  "name": "studio-warm",
+  "description": "Studio look: subject on a warm off-white gradient, square 1600px, gentle shadow.",
+  "output": { "width": 1600, "height": 1600 },
+  "framing": { "mode": "subject", "margin": 0.06 },
+  "background": { "mode": "replace", "color": "#FAF6F0", "color2": "#EFE7DC", "shadow": 0.12 }
+}

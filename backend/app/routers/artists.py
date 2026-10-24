@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
@@ -9,11 +9,13 @@ from app.database import get_db
 from app.models.artist_location import MAX_EXTRA_LOCATIONS, ArtistLocation
 from app.models.availability import ArtistAvailability
 from app.models.booking import Booking
+from app.models.catalog import ArtistDesign, Design
 from app.models.package import Package
 from app.models.user import ArtistProfile, User
 from app.schemas.availability import AvailabilityIn, AvailabilityOut
 from app.schemas.dashboard import ArtistDashboardOut, SettlementModeBreakdown, TransactionOut
 from app.schemas.user import (
+    ArtistDesignSummary,
     ArtistLocationIn,
     ArtistLocationOut,
     ArtistNearbyOut,
@@ -22,9 +24,11 @@ from app.schemas.user import (
     ArtistPublicOut,
     ConsentIn,
 )
-from app.services.geo import estimate_travel_minutes, haversine_km
+from app.services.artist_search import closest_service_point
+from app.services.geo import estimate_travel_minutes
 from app.services.razorpay_client import create_linked_account
-from app.services.storage import save_upload
+from app.services.storage import save_upload, sign_media_url
+from app.core.time import utcnow
 
 # Fields that carry real personal/financial data - only stored once the
 # artist has given DPDP Act consent.
@@ -96,7 +100,7 @@ def set_consent(
         db.add(profile)
 
     profile.consent_given = payload.agree
-    profile.consent_given_at = datetime.utcnow() if payload.agree else None
+    profile.consent_given_at = utcnow() if payload.agree else None
     db.commit()
     db.refresh(profile)
     return profile
@@ -180,7 +184,7 @@ async def upload_id_proof_doc(
     profile.id_proof_doc_url = save_upload(content, "kyc")
     profile.kyc_status = "pending"
     db.commit()
-    return {"id_proof_doc_url": profile.id_proof_doc_url, "kyc_status": profile.kyc_status}
+    return {"id_proof_doc_url": sign_media_url(profile.id_proof_doc_url), "kyc_status": profile.kyc_status}
 
 
 @router.post("/me/address-proof-doc")
@@ -194,7 +198,7 @@ async def upload_address_proof_doc(
     profile.address_proof_doc_url = save_upload(content, "kyc")
     profile.kyc_status = "pending"
     db.commit()
-    return {"address_proof_doc_url": profile.address_proof_doc_url, "kyc_status": profile.kyc_status}
+    return {"address_proof_doc_url": sign_media_url(profile.address_proof_doc_url), "kyc_status": profile.kyc_status}
 
 
 @router.post("/me/kyc-selfie")
@@ -209,7 +213,7 @@ async def upload_kyc_selfie(
     content = await file.read()
     profile.kyc_selfie_url = save_upload(content, "kyc")
     db.commit()
-    return {"kyc_selfie_url": profile.kyc_selfie_url}
+    return {"kyc_selfie_url": sign_media_url(profile.kyc_selfie_url)}
 
 
 @router.post("/me/pan-doc")
@@ -223,7 +227,7 @@ async def upload_pan_doc(
     profile.pan_doc_url = save_upload(content, "kyc")
     profile.kyc_status = "pending"
     db.commit()
-    return {"pan_doc_url": profile.pan_doc_url, "kyc_status": profile.kyc_status}
+    return {"pan_doc_url": sign_media_url(profile.pan_doc_url), "kyc_status": profile.kyc_status}
 
 
 @router.get("/me/locations", response_model=list[ArtistLocationOut])
@@ -307,15 +311,7 @@ def find_nearby_artists(
 
         # Check the primary location plus any extra service locations, and
         # match on whichever one is closest to the consumer.
-        candidate_points = [(profile.base_lat, profile.base_lng)]
-        extra_locations = db.query(ArtistLocation).filter(ArtistLocation.artist_id == profile.user_id).all()
-        candidate_points += [(loc.lat, loc.lng) for loc in extra_locations]
-
-        best_lat, best_lng, distance = None, None, None
-        for plat, plng in candidate_points:
-            d = haversine_km(lat, lng, plat, plng)
-            if distance is None or d < distance:
-                distance, best_lat, best_lng = d, plat, plng
+        distance, best_lat, best_lng = closest_service_point(db, profile, lat, lng)
 
         if distance > min(radius_km, profile.service_radius_km):
             continue
@@ -334,6 +330,34 @@ def find_nearby_artists(
                 portfolio_urls=profile.portfolio_urls,
             )
         )
+
+    # Approved catalog designs for every matched artist, in one query.
+    by_artist: dict[uuid.UUID, list[ArtistDesignSummary]] = {}
+    if results:
+        offers = (
+            db.query(ArtistDesign)
+            .join(Design, Design.id == ArtistDesign.design_id)
+            .filter(
+                ArtistDesign.artist_id.in_([r.user_id for r in results]),
+                ArtistDesign.status == "approved",
+                Design.is_active.is_(True),
+            )
+            .order_by(Design.sort_order, Design.name)
+            .all()
+        )
+        for o in offers:
+            by_artist.setdefault(o.artist_id, []).append(
+                ArtistDesignSummary(
+                    design_id=o.design_id,
+                    name=o.design.name,
+                    category=o.design.category,
+                    price_min=o.design.price_min,
+                    price_max=o.design.price_max,
+                    proof_image_url=o.proof_image_url,
+                )
+            )
+    for r in results:
+        r.designs = by_artist.get(r.user_id, [])
 
     # Highly-rated artists first (consumers should see the best nearby
     # talent up top), distance as the tiebreaker among similarly-rated ones.

@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -11,6 +10,7 @@ from app.models.user import ArtistProfile, User
 from app.schemas.dashboard import ConsumerDashboardOut, ConsumerRecentBookingOut, ProfileCompletionOut
 from app.schemas.user import AvatarPresetIn, ConsentIn, UserOut, UserUpdateIn
 from app.services.storage import save_upload
+from app.core.time import utcnow
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -53,7 +53,7 @@ def set_consent(payload: ConsentIn, user: User = Depends(get_current_user), db: 
     """Records (or withdraws) DPDP Act consent for storing date of birth,
     anniversary date, guardian name and secondary contact number."""
     user.consent_given = payload.agree
-    user.consent_given_at = datetime.utcnow() if payload.agree else None
+    user.consent_given_at = utcnow() if payload.agree else None
     db.commit()
     db.refresh(user)
     return user
@@ -90,7 +90,7 @@ def get_my_dashboard(user: User = Depends(require_role("consumer")), db: Session
     upcoming_bookings = sum(
         1
         for b in all_bookings
-        if b.status not in ("completed", "cancelled", "disputed") and b.scheduled_at >= datetime.utcnow()
+        if b.status not in ("completed", "cancelled", "disputed") and b.scheduled_at >= utcnow()
     )
 
     completion = ProfileCompletionOut(

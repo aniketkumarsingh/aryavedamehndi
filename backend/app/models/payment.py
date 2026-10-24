@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.core.time import utcnow
 
 
 class Payment(Base):
@@ -32,8 +33,15 @@ class Payment(Base):
     payout_status: Mapped[str] = mapped_column(String(20), default="not_applicable")
     razorpay_transfer_id: Mapped[str] = mapped_column(String(100), nullable=True)
 
+    # The booking's paid advance is credited against this payment (see
+    # app/services/pricing.py settlement_breakdown). When the advance is
+    # larger than what this payment can absorb, the remainder belongs to
+    # the artist and is recorded as platform_owes_artist for ops to pay out.
+    advance_credit: Mapped[float] = mapped_column(Float, default=0)
+    platform_owes_artist: Mapped[float] = mapped_column(Float, default=0)
+
     currency: Mapped[str] = mapped_column(String(10), default="INR")
     # "created" | "paid" | "failed"
     status: Mapped[str] = mapped_column(String(20), default="created")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     paid_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)

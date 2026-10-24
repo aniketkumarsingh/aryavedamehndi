@@ -1,0 +1,29 @@
+{
+  "name": "aryaveda-detail",
+  "description": "AryaVeda close-ups: same colour look as aryaveda-studio, square crop, real background kept (detail shots fill the frame).",
+  "extends": "aryaveda-studio",
+  "mask": {
+    "model": "isnet-general-use"
+  },
+  "framing": {
+    "mode": "center",
+    "aspect": "1:1"
+  },
+  "background": {
+    "mode": "keep"
+  },
+  "quality": {
+    "_note": "close-ups fill the frame on purpose, so background and subject-size checks are switched off",
+    "min_long_side": 1200,
+    "min_fill": 0.0,
+    "max_background_busy": 1.0,
+    "max_background_colorfulness": 1000
+  },
+  "output": {
+    "_note": "close-ups keep their native size (never stretched), square",
+    "width": null,
+    "height": null,
+    "max_side": 2048,
+    "upscale": false
+  }
+}
