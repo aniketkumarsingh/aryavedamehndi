@@ -4,6 +4,27 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 
+def check_reference_image_url(v: str | None) -> str | None:
+    """A consumer-supplied reference image must be a same-origin upload
+    (POST /bookings/reference-image), never an external/absolute URL - the
+    backend fetches it server-side (to score design similarity), so an
+    arbitrary URL would let a consumer make the server issue requests to
+    internal services (SSRF).
+    NOTE: this assumes local-disk storage (S3_BUCKET unset). If S3 storage
+    is turned on, uploaded images get S3 URLs instead of "/media/..." and
+    both this check and the read-back in bookings._load_reference_bytes
+    need updating to match."""
+    if v is None:
+        return v
+    if not v.startswith("/media/") or ".." in v:
+        raise ValueError("reference_design_image_url must be a path under /media/ from an upload, not an external URL")
+    return v
+
+
+class ReferenceImageOut(BaseModel):
+    url: str
+
+
 class BookingCreateIn(BaseModel):
     artist_id: uuid.UUID
     package_id: uuid.UUID
@@ -26,19 +47,7 @@ class BookingCreateIn(BaseModel):
     @field_validator("reference_design_image_url")
     @classmethod
     def check_reference_image(cls, v):
-        # Must be a same-origin uploaded file, never an external/absolute
-        # URL - the backend fetches this server-side (to score design
-        # similarity), so an arbitrary URL here would let a consumer make
-        # the server issue requests to internal services (SSRF).
-        # NOTE: this assumes local-disk storage (S3_BUCKET unset). If S3
-        # storage is turned on, uploaded images get S3 URLs instead of
-        # "/media/..." and both this check and the read-back in
-        # bookings._load_reference_bytes need updating to match.
-        if v is None:
-            return v
-        if not v.startswith("/media/") or ".." in v:
-            raise ValueError("reference_design_image_url must be a path under /media/ from an upload, not an external URL")
-        return v
+        return check_reference_image_url(v)
 
     @field_validator("gender_preference")
     @classmethod

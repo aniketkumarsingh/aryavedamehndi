@@ -9,6 +9,7 @@ export const CATEGORIES = [
   { key: "feet", label: "Feet" },
   { key: "kids", label: "Kids" },
   { key: "groom", label: "Groom (Dulha)" },
+  { key: "men", label: "Men" },
 ];
 
 // Filters across categories - keys match backend/app/schemas/catalog.py.
@@ -58,6 +59,24 @@ export const OCCASIONS = [
   { key: "ganesh-chaturthi", label: "Ganesh Chaturthi" },
   { key: "lohri", label: "Lohri" },
   { key: "makar-sankranti", label: "Makar Sankranti" },
+  { key: "holi", label: "Holi" },
+  { key: "bhai-dooj", label: "Bhai Dooj" },
+  { key: "chhath", label: "Chhath Puja" },
+  { key: "durga-puja", label: "Durga Puja" },
+  { key: "janmashtami", label: "Janmashtami" },
+  { key: "onam", label: "Onam" },
+  { key: "pongal", label: "Pongal" },
+  { key: "christmas", label: "Christmas" },
+  { key: "baisakhi", label: "Baisakhi" },
+  { key: "gurpurab", label: "Gurpurab" },
+  { key: "new-year", label: "New Year" },
+  { key: "bihu", label: "Bihu" },
+  { key: "valentines", label: "Valentine's Day" },
+  { key: "tilak", label: "Tilak Ceremony" },
+  { key: "mayra", label: "Mayra / Bhaat" },
+  { key: "bridal-shower", label: "Bridal Shower" },
+  { key: "kitty-party", label: "Kitty Party" },
+  { key: "housewarming", label: "Housewarming" },
 ];
 
 function labelIn(list, key) {

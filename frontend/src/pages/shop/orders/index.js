@@ -45,7 +45,7 @@ export default function MyOrders() {
           <Link key={o.id} href={`/shop/orders/${o.id}`} className="card p-4 flex items-center justify-between gap-3">
             <div>
               <p className="font-semibold text-sm">
-                {o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", ")}
+                {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
               </p>
               <p className="text-xs text-ink-soft">{new Date(o.created_at).toLocaleDateString()} · ₹{o.total_amount}</p>
             </div>

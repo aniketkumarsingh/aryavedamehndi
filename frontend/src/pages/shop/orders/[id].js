@@ -67,7 +67,7 @@ export default function OrderDetail() {
           {order.items.map((item) => (
             <div key={item.product_id} className="flex justify-between text-sm border-b border-line pb-2 last:border-b-0">
               <span>
-                {item.product_name} × {item.quantity}
+                {item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""} × {item.quantity}
               </span>
               <span>₹{item.subtotal}</span>
             </div>

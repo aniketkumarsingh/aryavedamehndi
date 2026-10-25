@@ -11,6 +11,9 @@ DesignCoverage = Literal["fingers", "palm", "back", "forearm", "elbow", "toes", 
 DesignOccasion = Literal[
     "wedding", "engagement", "roka", "sangeet", "haldi", "nikah", "godh-bharai", "anniversary", "birthday", "party", "everyday",
     "karwa-chauth", "teej", "eid", "eid-ul-adha", "raksha-bandhan", "diwali", "navratri", "gangaur", "ganesh-chaturthi", "lohri", "makar-sankranti",
+    "holi", "bhai-dooj", "chhath", "durga-puja", "janmashtami", "onam", "pongal", "christmas",
+    "baisakhi", "gurpurab", "new-year", "bihu", "valentines",
+    "housewarming", "kitty-party", "bridal-shower", "mayra", "tilak",
 ]
 
 
@@ -74,7 +77,7 @@ class DesignImageOut(BaseModel):
     url: str
     hd_url: str | None = None
     label: str | None
-    # "photo" | "angle" | "detail" | "illustration" | "spin"
+    # "photo" | "angle" | "detail" | "illustration" | "ai_photo" | "spin"
     kind: str
     sort_order: int
     credit: dict | None = None
@@ -108,7 +111,7 @@ class DesignDetailOut(DesignOut):
 
 class DesignImageIn(BaseModel):
     label: str | None = Field(default=None, max_length=80)
-    kind: Literal["photo", "angle", "detail", "illustration", "spin"] = "photo"
+    kind: Literal["photo", "angle", "detail", "illustration", "ai_photo", "spin"] = "photo"
 
 
 class ArtistDesignOut(BaseModel):

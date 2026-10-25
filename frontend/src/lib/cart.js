@@ -26,16 +26,24 @@ function saveCart(items) {
   notifyCartChanged();
 }
 
-export function addToCart(product, quantity = 1) {
+// One cart line per product + pack size.
+export function lineKey(item) {
+  return `${item.product_id}:${item.variant_id || ""}`;
+}
+
+export function addToCart(product, quantity = 1, variant = null) {
   const items = getCart();
-  const existing = items.find((i) => i.product_id === product.id);
+  const key = `${product.id}:${variant?.id || ""}`;
+  const existing = items.find((i) => lineKey(i) === key);
   if (existing) {
     existing.quantity = Math.min(existing.quantity + quantity, 50);
   } else {
     items.push({
       product_id: product.id,
+      variant_id: variant?.id || null,
+      variant_label: variant?.label || null,
       name: product.name,
-      price: product.price,
+      price: variant ? variant.price : product.price,
       image_url: (product.image_urls || "").split(",").filter(Boolean)[0] || null,
       quantity: Math.min(quantity, 50),
     });
@@ -44,20 +52,20 @@ export function addToCart(product, quantity = 1) {
   return items;
 }
 
-export function updateCartQuantity(productId, quantity) {
+export function updateCartQuantity(key, quantity) {
   let items = getCart();
   if (quantity <= 0) {
-    items = items.filter((i) => i.product_id !== productId);
+    items = items.filter((i) => lineKey(i) !== key);
   } else {
-    const existing = items.find((i) => i.product_id === productId);
+    const existing = items.find((i) => lineKey(i) === key);
     if (existing) existing.quantity = Math.min(quantity, 50);
   }
   saveCart(items);
   return items;
 }
 
-export function removeFromCart(productId) {
-  const items = getCart().filter((i) => i.product_id !== productId);
+export function removeFromCart(key) {
+  const items = getCart().filter((i) => lineKey(i) !== key);
   saveCart(items);
   return items;
 }

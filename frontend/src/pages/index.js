@@ -141,6 +141,23 @@ export default function Home({
         <PackageGrid packages={packages.filter((p) => p.package_type === "feet")} t={t} />
       </section>
 
+      <section className="maroon-panel px-6 py-10 sm:px-12 grid md:grid-cols-[1fr_auto] gap-6 items-center">
+        <img src="/patterns/mandala.svg" alt="" aria-hidden="true" className="pointer-events-none absolute -right-20 -bottom-24 w-96 opacity-[0.2]" />
+        <div className="relative flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold-soft/80">{t("home_custom_eyebrow")}</p>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-ivory-raised text-balance">{t("home_custom_heading")}</h2>
+          <p className="text-gold-soft max-w-xl text-sm sm:text-base">{t("home_custom_sub")}</p>
+        </div>
+        <div className="relative flex flex-col sm:flex-row md:flex-col gap-3">
+          <Link href="/custom-order" className="rounded-[10px] bg-ivory-raised text-maroon font-semibold px-5 py-3 text-center hover:bg-gold-soft transition-colors">
+            {t("home_custom_single")}
+          </Link>
+          <Link href="/custom-order?type=bulk" className="rounded-[10px] ring-1 ring-gold-soft text-ivory-raised font-semibold px-5 py-3 text-center hover:bg-ivory-raised/10 transition-colors">
+            {t("home_custom_bulk")}
+          </Link>
+        </div>
+      </section>
+
       <SectionDivider />
 
       <section className="grid sm:grid-cols-3 gap-4 text-sm">

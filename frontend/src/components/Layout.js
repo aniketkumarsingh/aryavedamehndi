@@ -42,6 +42,7 @@ export default function Layout({ children }) {
     <>
       <Link href="/discover" className="whitespace-nowrap">{t("nav_find_artist")}</Link>
       <Link href="/designs" className="whitespace-nowrap">{t("nav_designs")}</Link>
+      {!["artist", "admin"].includes(user?.role) && <Link href="/custom-order" className="whitespace-nowrap">{t("nav_custom_order")}</Link>}
       <Link href="/shop" className="whitespace-nowrap">{t("nav_shop")}</Link>
       <Link href="/download" className="whitespace-nowrap">{t("nav_download")}</Link>
       {user?.role === "consumer" && <Link href="/customer" className="whitespace-nowrap">{t("nav_dashboard")}</Link>}
@@ -94,7 +95,7 @@ export default function Layout({ children }) {
 
           {/* Full nav - only shown when there's room for it (xl and up). Logged-in
               users get up to ~1100px of links, which doesn't fit below xl. */}
-          <nav className="hidden xl:flex items-center gap-4 text-sm flex-1 justify-end">
+          <nav className="hidden xl:flex items-center gap-3 2xl:gap-4 text-sm flex-1 justify-end">
             {navLinks}
             {cartLink}
             {languageSelect}
