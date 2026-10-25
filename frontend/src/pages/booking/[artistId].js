@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { api } from "@/lib/api";
 import { formatPriceRange } from "@/lib/designs";
+import FileUpload from "@/components/FileUpload";
+import PricePromise from "@/components/PricePromise";
 
 export default function NewBooking() {
   const router = useRouter();
-  const { artistId, package_id: rebookPackageId, design_id: queryDesignId } = router.query;
+  const { artistId, package_id: rebookPackageId, design_id: queryDesignId, reference: queryReference } = router.query;
 
   const [packages, setPackages] = useState([]);
   const [packageId, setPackageId] = useState("");
@@ -20,6 +22,10 @@ export default function NewBooking() {
   const [genderPref, setGenderPref] = useState("same");
   const [openingOffer, setOpeningOffer] = useState("");
   const [referenceImage, setReferenceImage] = useState("");
+  // The consumer's own uploaded design (POST /bookings/reference-image) -
+  // priced at the package range, like any booking without a catalog design.
+  const [customImage, setCustomImage] = useState("");
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +42,8 @@ export default function NewBooking() {
   useEffect(() => {
     if (rebookPackageId) setPackageId(String(rebookPackageId));
     if (queryDesignId) setDesignId(String(queryDesignId));
-  }, [rebookPackageId, queryDesignId]);
+    if (typeof queryReference === "string" && queryReference.startsWith("/media/")) setCustomImage(queryReference);
+  }, [rebookPackageId, queryDesignId, queryReference]);
 
   useEffect(() => {
     if (!artistId) return;
@@ -63,6 +70,20 @@ export default function NewBooking() {
     setReferenceImage("");
   }
 
+  async function uploadCustom(file) {
+    setUploading(true);
+    setError("");
+    try {
+      const { url } = await api.upload("/bookings/reference-image", file);
+      setCustomImage(url);
+      setReferenceImage("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   function pickSlot(slot) {
     setSelectedSlotId(slot.id);
     setScheduledAt(`${slot.slot_date}T${slot.start_time.slice(0, 5)}`);
@@ -86,7 +107,7 @@ export default function NewBooking() {
         scheduled_at: new Date(scheduledAt).toISOString(),
         gender_preference: genderPref,
         design_id: selectedDesign ? selectedDesign.id : null,
-        reference_design_image_url: selectedDesign ? null : referenceImage || null,
+        reference_design_image_url: selectedDesign ? null : customImage || referenceImage || null,
         opening_offer: openingOffer ? Number(openingOffer) : null,
         availability_slot_id: selectedSlot ? selectedSlot.id : null,
       });
@@ -173,7 +194,10 @@ export default function NewBooking() {
                   key={url}
                   src={url}
                   alt="sample design"
-                  onClick={() => setReferenceImage(url)}
+                  onClick={() => {
+                    setReferenceImage(url);
+                    setCustomImage("");
+                  }}
                   className={`w-16 h-16 object-cover rounded-lg cursor-pointer border-2 ${
                     referenceImage === url ? "border-maroon" : "border-transparent"
                   }`}
@@ -183,6 +207,22 @@ export default function NewBooking() {
             <p className="text-xs text-ink-soft mt-1">
               Picking one lets us auto-verify the finished design matches what you asked for.
             </p>
+          </div>
+        )}
+
+        {selectedPackage && !selectedDesign && (
+          <div>
+            <label className="text-sm font-semibold">Your own design (optional)</label>
+            <p className="text-xs text-ink-soft mb-1">
+              Have a design in mind? Upload it — it&apos;s priced at this package&apos;s usual range (
+              {formatPriceRange(selectedPackage.price_min, selectedPackage.price_max)}), and the finished mehndi is checked against it.
+            </p>
+            <FileUpload onFile={uploadCustom} busy={uploading} previewUrl={customImage} label="Upload a design" />
+            {customImage && (
+              <button type="button" className="text-xs text-ink-soft underline mt-1" onClick={() => setCustomImage("")}>
+                Remove my design
+              </button>
+            )}
           </div>
         )}
 
@@ -258,9 +298,11 @@ export default function NewBooking() {
           </>
         )}
 
+        <PricePromise compact />
+
         {error && <p className="text-sm text-red-700">{error}</p>}
 
-        <button className="btn-primary mt-2" disabled={loading}>
+        <button className="btn-primary mt-2" disabled={loading || uploading}>
           {loading ? "Booking..." : "Request Booking"}
         </button>
       </form>

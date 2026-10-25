@@ -153,3 +153,109 @@ h4 {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* ---- Order pages (custom design, event orders) ------------------------ */
+
+/* Numbered gold medallion for step headings. */
+.medallion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #d9b064, #a9761e 70%);
+  color: #fbf6ec;
+  font-family: var(--font-petrona), Georgia, serif;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px #fbf6ec, 0 0 0 4px #a9761e;
+}
+
+/* Selectable card - the two order modes, package choices. */
+.option-card {
+  position: relative;
+  text-align: left;
+  background: #fbf6ec;
+  border: 1px solid #e1d2b8;
+  border-radius: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.option-card:hover {
+  border-color: #a9761e;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(92, 26, 33, 0.08);
+}
+.option-card[aria-pressed="true"],
+.option-card[aria-selected="true"] {
+  border-color: #5c1a21;
+  background: linear-gradient(160deg, #fbf6ec 40%, #f1e4c8);
+  box-shadow: 0 0 0 2px #5c1a21, 0 10px 28px rgba(92, 26, 33, 0.14);
+}
+
+/* Bill / invitation-RSVP style price summary. */
+.receipt {
+  position: relative;
+  background: #fbf6ec;
+  border: 1px solid #a9761e;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(43, 23, 18, 0.08);
+  overflow: hidden;
+}
+.receipt-head {
+  background: linear-gradient(135deg, #5c1a21, #7a2a31);
+  color: #fbf6ec;
+  padding: 0.9rem 1.1rem;
+  position: relative;
+}
+.receipt-head::after {
+  /* scalloped edge under the header */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 12px;
+  background: radial-gradient(circle at 6px 0, #7a2a31 6px, transparent 6.5px) repeat-x;
+  background-size: 12px 12px;
+}
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+}
+.receipt-rule {
+  border-top: 1px dashed #c9b48c;
+  margin: 0.5rem 0;
+}
+
+.maroon-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background: radial-gradient(circle at 85% 15%, #7a2a31, #5c1a21 60%, #43121a);
+  color: #fbf6ec;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-up {
+  animation: fade-up 0.35s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fade-up {
+    animation: none;
+  }
+  .option-card:hover {
+    transform: none;
+  }
+}

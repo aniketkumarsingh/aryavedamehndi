@@ -10,6 +10,7 @@ from app.routers import (
     artists,
     auth,
     bookings,
+    bulk_orders,
     chat,
     cms,
     designs,
@@ -17,6 +18,7 @@ from app.routers import (
     notifications,
     packages,
     payments,
+    pricing,
     reviews,
     shop,
     users,
@@ -97,6 +99,9 @@ app.include_router(designs.router)
 app.include_router(designs.artist_router)
 app.include_router(designs.admin_router)
 app.include_router(bookings.router)
+app.include_router(bulk_orders.router)
+app.include_router(bulk_orders.admin_router)
+app.include_router(pricing.router)
 app.include_router(chat.router)
 app.include_router(payments.router)
 app.include_router(shop.router)

@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import Script from "next/script";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
-import { cartTotal, clearCart, removeFromCart, updateCartQuantity } from "@/lib/cart";
+import { cartTotal, clearCart, lineKey, removeFromCart, updateCartQuantity } from "@/lib/cart";
 import { useCart } from "@/lib/useCart";
 
 export default function Cart() {
@@ -46,7 +46,7 @@ export default function Cart() {
         shipping_name: shippingName,
         shipping_phone: shippingPhone,
         shipping_address: shippingAddress,
-        items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+        items: items.map((i) => ({ product_id: i.product_id, variant_id: i.variant_id || null, quantity: i.quantity })),
       });
 
       const payOrder = await api.post(`/shop/orders/${order.id}/payment/order`, {});
@@ -109,7 +109,7 @@ export default function Cart() {
         <>
           <div className="card p-4 flex flex-col gap-3">
             {items.map((item) => (
-              <div key={item.product_id} className="flex items-center gap-3 border-b border-line pb-3 last:border-b-0 last:pb-0">
+              <div key={lineKey(item)} className="flex items-center gap-3 border-b border-line pb-3 last:border-b-0 last:pb-0">
                 <img
                   src={item.image_url || "/logo/mark.svg"}
                   alt=""
@@ -117,12 +117,13 @@ export default function Cart() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{item.name}</p>
+                  {item.variant_label && <p className="text-xs text-ink-soft">{item.variant_label}</p>}
                   <p className="text-xs text-ink-soft">₹{item.price} each</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     className="chip"
-                    onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}
+                    onClick={() => updateCartQuantity(lineKey(item), item.quantity - 1)}
                     aria-label="Decrease quantity"
                   >
                     −
@@ -130,14 +131,14 @@ export default function Cart() {
                   <span className="text-sm w-6 text-center">{item.quantity}</span>
                   <button
                     className="chip"
-                    onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}
+                    onClick={() => updateCartQuantity(lineKey(item), item.quantity + 1)}
                     aria-label="Increase quantity"
                   >
                     +
                   </button>
                 </div>
                 <p className="text-sm font-semibold w-16 text-right">₹{item.price * item.quantity}</p>
-                <button className="text-red-700 text-xs" onClick={() => removeFromCart(item.product_id)}>
+                <button className="text-red-700 text-xs" onClick={() => removeFromCart(lineKey(item))}>
                   Remove
                 </button>
               </div>

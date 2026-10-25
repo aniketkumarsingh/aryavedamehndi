@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { api } from "@/lib/api";
 import { categoryLabel, formatPriceRange } from "@/lib/designs";
 import { useAuth } from "@/lib/useAuth";
@@ -9,6 +10,13 @@ const SEARCH_RADIUS_KM = 10;
 
 export default function Discover() {
   const { user } = useAuth();
+  // Arriving from /custom-order with an uploaded design - carried through
+  // to the booking form.
+  const { package_id: packageId, reference: rawReference } = useRouter().query;
+  const reference = typeof rawReference === "string" && rawReference.startsWith("/media/") ? rawReference : null;
+  const bookingQuery = new URLSearchParams(
+    Object.entries({ package_id: packageId, reference }).filter(([, v]) => typeof v === "string" && v)
+  ).toString();
   const [coords, setCoords] = useState(null);
   const [genderFilter, setGenderFilter] = useState("");
   const [artists, setArtists] = useState([]);
@@ -84,6 +92,13 @@ export default function Discover() {
           </select>
         </div>
       </div>
+
+      {reference && (
+        <div className="card p-3 flex items-center gap-3 text-sm">
+          <img src={reference} alt="Your design" className="w-12 h-12 rounded-lg object-cover border border-line" />
+          <p>Booking your own design — pick an artist below. It&apos;s priced at your chosen package&apos;s usual range.</p>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-700">{error}</p>}
       {loading && <p className="text-sm text-ink-soft">Finding artists near you...</p>}
@@ -162,7 +177,7 @@ export default function Discover() {
                 </div>
               )}
               {user?.role === "consumer" ? (
-                <Link href={`/booking/${a.user_id}`} className="btn-primary text-center mt-1 text-sm">
+                <Link href={`/booking/${a.user_id}${bookingQuery ? `?${bookingQuery}` : ""}`} className="btn-primary text-center mt-1 text-sm">
                   Book This Artist
                 </Link>
               ) : (

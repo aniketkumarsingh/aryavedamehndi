@@ -3,10 +3,12 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { api } from "@/lib/api";
 import BookingCalendar from "@/components/BookingCalendar";
+import { BULK_STATUS_LABELS, bulkOccasionLabel } from "@/lib/pricing";
 
 export default function MyBookings() {
   const router = useRouter();
   const [bookings, setBookings] = useState([]);
+  const [eventOrders, setEventOrders] = useState([]);
   const [error, setError] = useState("");
   const [view, setView] = useState("list");
   const [selectedDay, setSelectedDay] = useState(null);
@@ -14,6 +16,7 @@ export default function MyBookings() {
 
   useEffect(() => {
     api.get("/bookings").then(setBookings).catch((e) => setError(e.message));
+    api.get("/bulk-orders").then(setEventOrders).catch(() => {});
   }, []);
 
   function rebook(b) {
@@ -58,12 +61,38 @@ export default function MyBookings() {
         </>
       )}
 
+      {view === "list" && eventOrders.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="font-semibold">Event orders</h2>
+          {eventOrders.map((o) => (
+            <Link key={o.id} href={`/bulk-orders/${o.id}`} className="card p-4 flex justify-between items-center gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold truncate">
+                  {bulkOccasionLabel(o.occasion)} · {o.people} people
+                </p>
+                <p className="text-sm text-ink-soft">{new Date(o.event_at + "Z").toLocaleString()}</p>
+              </div>
+              <span className="chip flex-none">{BULK_STATUS_LABELS[o.status] || o.status}</span>
+            </Link>
+          ))}
+          <h2 className="font-semibold mt-2">Bookings</h2>
+        </div>
+      )}
+
       {view === "list" && (
         <div className="flex flex-col gap-3">
           {bookings.map((b) => (
             <BookingRow key={b.id} b={b} onRebook={rebook} card />
           ))}
-          {bookings.length === 0 && <p className="text-sm text-ink-soft">No bookings yet — go find an artist!</p>}
+          {bookings.length === 0 && (
+            <p className="text-sm text-ink-soft">
+              No bookings yet — go find an artist, or{" "}
+              <Link href="/custom-order" className="text-maroon-soft underline">
+                place a custom or event order
+              </Link>
+              .
+            </p>
+          )}
         </div>
       )}
     </div>

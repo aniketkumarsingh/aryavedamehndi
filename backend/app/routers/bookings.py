@@ -14,6 +14,7 @@ from app.models.package import Package
 from app.models.user import ArtistProfile, User
 from app.schemas.booking import (
     AdvancePaymentOrderOut,
+    ReferenceImageOut,
     AdvancePaymentVerifyIn,
     BookingCreateIn,
     BookingOut,
@@ -26,7 +27,7 @@ from app.schemas.dashboard import SettlementIn
 from app.schemas.design import ConsumerConfirmIn, DesignUploadOut
 from app.services.geo import estimate_travel_minutes, haversine_km
 from app.services.platform_settings import get_platform_settings
-from app.services.pricing import compute_platform_fee
+from app.services.pricing import check_price_in_band, compute_platform_fee
 from app.services.similarity import score_similarity
 from app.services.notifications import notify, notify_admins
 from app.services.razorpay_client import create_order, refund_payment, verify_payment_signature
@@ -46,17 +47,6 @@ def _provision_call_masking(db: Session, booking: Booking) -> None:
     masked_number, provider_ref = provision_masked_number(booking.id, consumer.phone, artist_user.phone)
     booking.masked_call_number = masked_number
     booking.masked_call_provider_ref = provider_ref
-
-
-def _check_price_in_band(package: Package, amount: float, design: Design | None = None) -> None:
-    """A chosen catalog design has its own price range, which replaces the
-    package's."""
-    band = design or package
-    if not band.price_min <= amount <= band.price_max:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"Price must be between ₹{band.price_min:g} and ₹{band.price_max:g} for this {'design' if design else 'package'}",
-        )
 
 
 def _bookable_design(db: Session, design_id: uuid.UUID, package: Package, artist_id: uuid.UUID) -> Design:
@@ -84,7 +74,7 @@ def _confirm_booking_at_price(db: Session, booking: Booking, agreed_price: float
     """Shared by both acceptance paths: an artist accepting the consumer's
     (or their own) pending offer, and an artist directly accepting a plain
     request that never had an offer attached (see POST /{id}/accept)."""
-    _check_price_in_band(booking.package, agreed_price, booking.design)
+    check_price_in_band(booking.package, agreed_price, booking.design)
     booking.agreed_price = agreed_price
     booking.platform_fee = compute_platform_fee(db, agreed_price)
     booking.total_amount = booking.agreed_price + booking.platform_fee
@@ -149,7 +139,7 @@ def create_booking(
 
     if payload.opening_offer is not None:
         _check_negotiable(package)
-        _check_price_in_band(package, payload.opening_offer, design)
+        check_price_in_band(package, payload.opening_offer, design)
 
     eta = estimate_travel_minutes(
         artist_profile.base_lat, artist_profile.base_lng, payload.location_lat, payload.location_lng
@@ -202,6 +192,14 @@ def create_booking(
     return booking
 
 
+@router.post("/reference-image", response_model=ReferenceImageOut)
+async def upload_reference_image(file: UploadFile = File(...), user: User = Depends(require_role("consumer"))):
+    """A consumer's own design to book (or to add to a bulk order). Priced at
+    its package's range like any non-catalog booking, and it becomes the
+    reference the finished work is scored against."""
+    return ReferenceImageOut(url=save_upload(await file.read(), "references"))
+
+
 @router.get("", response_model=list[BookingOut])
 def list_my_bookings(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role == "artist":
@@ -231,7 +229,7 @@ def make_offer(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Booking is no longer negotiable")
     package = db.get(Package, booking.package_id)
     _check_negotiable(package)
-    _check_price_in_band(package, payload.amount, booking.design)
+    check_price_in_band(package, payload.amount, booking.design)
 
     proposed_by = "consumer" if user.id == booking.consumer_id else "artist"
     offer = NegotiationOffer(booking_id=booking.id, proposed_by=proposed_by, amount=payload.amount, message=payload.message)

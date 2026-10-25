@@ -1,0 +1,1903 @@
+{
+ "_comment": "AryaVeda shop catalogue. Loaded by backend/seed_shop.py (idempotent, matched by slug). New products are created as DRAFTS (hidden): a product with requires_licence can only be published once its licence_number is filled in (admin -> Shop Products). Products with requires_licence false (tools, books, decor, textiles, gifts) can be published straight away. Copy avoids medical claims ('traditionally used', 'conditions', not 'cures'). Variant labels are the net quantity / shade printed on the pack; price is the MRP in INR incl. taxes. Images in shop/images/<slug>.jpg are AI-generated and shown labelled 'Illustrative image' until a real product photo is uploaded.",
+ "categories": {
+  "body-art": "Mehndi for Body Art",
+  "hair": "Hair Care",
+  "skin": "Skin & Body",
+  "traditional": "Traditional & Natural",
+  "tools": "Tools & Stencils",
+  "gifts": "Gift Sets & Kits",
+  "learn": "Learn & Practice",
+  "decor": "Ceremony & Decor"
+ },
+ "products": [
+  {
+   "slug": "natural-henna-powder",
+   "category": "body-art",
+   "name": "Natural Henna Powder (Body-Art Quality)",
+   "requires_licence": true,
+   "description": "Triple-sifted, finely milled Lawsonia inermis leaf powder for smooth, crack-free mehndi paste and a rich natural stain.",
+   "ingredients": "100% henna leaf powder (Lawsonia inermis). No PPD, no added colour.",
+   "how_to_use": "Mix with lemon juice or water, a little sugar and a few drops of mehndi oil to a yoghurt-like paste. Cover and rest 6-12 hours before filling cones.",
+   "safety_notes": "Do a patch test 24 hours before use. For external use only. Keep out of reach of children.",
+   "shelf_life": "12 months unopened",
+   "storage": "Store sealed in a cool, dry, dark place.",
+   "variants": [
+    [
+     "100 g",
+     120
+    ],
+    [
+     "250 g",
+     260
+    ],
+    [
+     "500 g",
+     480
+    ]
+   ]
+  },
+  {
+   "slug": "natural-mehndi-cones",
+   "category": "body-art",
+   "name": "Ready-to-use Natural Mehndi Cones",
+   "requires_licence": true,
+   "description": "Freshly made natural henna cones with a fine tip - no chemicals, for a deep reddish-brown stain.",
+   "ingredients": "Henna leaf powder, lemon juice, sugar, eucalyptus and clove essential oils.",
+   "how_to_use": "Snip the tip, apply, let dry and keep on 6-8 hours. Scrape off - do not wash with water for 12 hours. The stain deepens over 48 hours.",
+   "safety_notes": "Patch test first. Contains essential oils - not for children under 6 or during pregnancy without advice. External use only.",
+   "shelf_life": "7 days at room temperature, 6 months frozen",
+   "storage": "Keep refrigerated or frozen until use.",
+   "variants": [
+    [
+     "Pack of 5",
+     100
+    ],
+    [
+     "Pack of 12",
+     220
+    ],
+    [
+     "Pack of 24",
+     420
+    ]
+   ]
+  },
+  {
+   "slug": "bridal-dark-stain-cones",
+   "category": "body-art",
+   "name": "Bridal Dark-Stain Mehndi Cones",
+   "requires_licence": true,
+   "description": "Small-batch bridal cones made fresh to order with premium henna and extra resting time for the darkest natural stain.",
+   "ingredients": "Premium henna leaf powder, lemon juice, sugar, eucalyptus, clove and lavender essential oils.",
+   "how_to_use": "Use within 3 days of delivery or freeze. Keep the paste on for 8-12 hours for bridal depth.",
+   "safety_notes": "Patch test first. Contains essential oils - not for children or during pregnancy without advice. External use only.",
+   "shelf_life": "3 days chilled, 6 months frozen",
+   "storage": "Ships cold. Refrigerate on arrival.",
+   "variants": [
+    [
+     "Single cone",
+     50
+    ],
+    [
+     "Pack of 10",
+     450
+    ],
+    [
+     "Bridal pack of 20",
+     850
+    ]
+   ]
+  },
+  {
+   "slug": "nail-mehndi-cones",
+   "category": "body-art",
+   "name": "Nail Mehndi Cones",
+   "requires_licence": true,
+   "description": "Thicker henna paste made to stain nails a natural orange-red - the traditional way to colour nails.",
+   "ingredients": "Henna leaf powder, lemon juice, sugar.",
+   "how_to_use": "Coat clean, unpolished nails and leave on 2-3 hours. Scrape off.",
+   "safety_notes": "Patch test first. External use only.",
+   "shelf_life": "7 days chilled, 6 months frozen",
+   "storage": "Keep refrigerated.",
+   "variants": [
+    [
+     "Pack of 3",
+     150
+    ],
+    [
+     "Pack of 6",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "fresh-henna-paste-jar",
+   "category": "body-art",
+   "name": "Fresh Henna Paste Jar",
+   "requires_licence": true,
+   "description": "Ready-mixed natural henna paste for artists who fill their own cones or bottles.",
+   "ingredients": "Henna leaf powder, lemon juice, sugar, eucalyptus essential oil.",
+   "how_to_use": "Thaw in the fridge, stir, then fill cones or an applicator bottle.",
+   "safety_notes": "Patch test first. Contains essential oil. External use only.",
+   "shelf_life": "6 months frozen",
+   "storage": "Ships frozen. Keep frozen until use.",
+   "variants": [
+    [
+     "100 g",
+     250
+    ],
+    [
+     "250 g",
+     400
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-oil",
+   "category": "body-art",
+   "name": "Mehndi Oil (Eucalyptus & Clove)",
+   "requires_licence": true,
+   "description": "A traditional blend added to henna paste to help release dye, and dabbed on skin before applying mehndi.",
+   "ingredients": "Eucalyptus oil, clove oil, cajeput oil in a sesame oil base.",
+   "how_to_use": "Add a few drops per 100 g of henna while mixing, or dab lightly on skin before applying.",
+   "safety_notes": "Strong essential oils - never use undiluted on skin, not for children or during pregnancy, keep away from eyes.",
+   "shelf_life": "24 months",
+   "storage": "Keep tightly closed, away from heat and sunlight.",
+   "variants": [
+    [
+     "10 ml",
+     80
+    ],
+    [
+     "30 ml",
+     200
+    ]
+   ]
+  },
+  {
+   "slug": "lemon-sugar-sealant",
+   "category": "body-art",
+   "name": "Lemon-Sugar Mehndi Sealant Spray",
+   "requires_licence": true,
+   "description": "A light spray that keeps drying mehndi paste moist and in contact with the skin for a deeper stain.",
+   "ingredients": "Lemon juice, sugar, purified water, natural preservative.",
+   "how_to_use": "Once the paste is touch-dry, mist lightly 2-3 times over the next hour.",
+   "safety_notes": "External use only. Avoid eyes.",
+   "shelf_life": "6 months",
+   "storage": "Store in a cool place.",
+   "variants": [
+    [
+     "50 ml",
+     120
+    ],
+    [
+     "100 ml",
+     200
+    ]
+   ]
+  },
+  {
+   "slug": "clove-aftercare-balm",
+   "category": "body-art",
+   "name": "Clove Mehndi Aftercare Balm",
+   "requires_licence": true,
+   "description": "A soft balm smoothed over fresh mehndi after scraping, traditionally used to protect and darken the stain.",
+   "ingredients": "Shea butter, coconut oil, beeswax, clove oil.",
+   "how_to_use": "After scraping off the paste, warm a little balm between your palms and smooth over the design.",
+   "safety_notes": "Contains clove oil - not for children under 6. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Keep below 30°C.",
+   "variants": [
+    [
+     "25 g",
+     150
+    ],
+    [
+     "50 g",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "clove-stain-booster",
+   "category": "body-art",
+   "name": "Clove Mehndi Stain Booster Pouch",
+   "requires_licence": false,
+   "description": "Whole cloves for the traditional clove-steam - warming the hands over clove smoke after mehndi.",
+   "ingredients": "Whole cloves.",
+   "how_to_use": "Heat a few cloves on a tawa and hold your hands well above the gentle smoke for a few minutes.",
+   "safety_notes": "Use with adult supervision. Keep hands at a safe distance from heat.",
+   "shelf_life": "24 months",
+   "storage": "Keep sealed and dry.",
+   "variants": [
+    [
+     "50 g",
+     60
+    ],
+    [
+     "100 g",
+     110
+    ]
+   ]
+  },
+  {
+   "slug": "henna-hair-powder",
+   "category": "hair",
+   "name": "Pure Henna Hair Powder",
+   "requires_licence": true,
+   "description": "Natural henna for hair - gives a red-copper tint and is traditionally used to condition and add shine.",
+   "ingredients": "100% henna leaf powder (Lawsonia inermis).",
+   "how_to_use": "Mix with warm water or tea to a smooth paste, rest 4-6 hours, apply to clean hair, keep 1-2 hours, rinse.",
+   "safety_notes": "Patch test 24 hours before use. Not for use on chemically treated hair within 2 weeks. Avoid eyes.",
+   "shelf_life": "18 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "200 g",
+     150
+    ],
+    [
+     "500 g",
+     300
+    ]
+   ]
+  },
+  {
+   "slug": "henna-amla-shikakai-reetha",
+   "category": "hair",
+   "name": "Henna, Amla, Shikakai & Reetha Hair Pack",
+   "requires_licence": true,
+   "description": "A classic herbal hair pack blending henna with amla, shikakai and reetha, traditionally used for clean, soft, glossy hair.",
+   "ingredients": "Henna, amla, shikakai, reetha powders.",
+   "how_to_use": "Mix with water to a paste, apply to hair for 45-60 minutes, rinse well.",
+   "safety_notes": "Patch test first. Avoid eyes. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "200 g",
+     200
+    ],
+    [
+     "400 g",
+     350
+    ]
+   ]
+  },
+  {
+   "slug": "henna-bhringraj-mask",
+   "category": "hair",
+   "name": "Henna & Bhringraj Hair Mask",
+   "requires_licence": true,
+   "description": "Henna with bhringraj and brahmi - a traditional Ayurvedic-style hair mask for conditioning and shine.",
+   "ingredients": "Henna, bhringraj, brahmi, hibiscus powders.",
+   "how_to_use": "Mix with warm water or curd, apply for 45 minutes, rinse.",
+   "safety_notes": "Patch test first. Avoid eyes. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "200 g",
+     220
+    ],
+    [
+     "400 g",
+     380
+    ]
+   ]
+  },
+  {
+   "slug": "indigo-powder",
+   "category": "hair",
+   "name": "Indigo Leaf Powder",
+   "requires_licence": true,
+   "description": "Natural indigo (Indigofera tinctoria) used after henna to take hair to brown or black shades.",
+   "ingredients": "100% indigo leaf powder.",
+   "how_to_use": "Two-step: henna first, then indigo mixed with water and applied straight away for 1-2 hours.",
+   "safety_notes": "Patch test first. Wear gloves. Avoid eyes. External use only.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, dry and away from light.",
+   "variants": [
+    [
+     "100 g",
+     200
+    ],
+    [
+     "200 g",
+     350
+    ]
+   ]
+  },
+  {
+   "slug": "henna-indigo-hair-colour",
+   "category": "hair",
+   "name": "Henna-Indigo Natural Hair Colour",
+   "requires_licence": true,
+   "description": "Ready blends of henna, indigo and herbs for a one-step natural colour in four shades.",
+   "ingredients": "Henna, indigo, amla, cassia - proportions vary by shade.",
+   "how_to_use": "Mix with water, apply to clean hair, keep 2-3 hours, rinse without shampoo. Colour settles over 2 days.",
+   "safety_notes": "Patch test 48 hours before use. Wear gloves. Avoid eyes. Not for eyebrows or lashes.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "Burgundy · 200 g",
+     250
+    ],
+    [
+     "Natural Brown · 200 g",
+     300
+    ],
+    [
+     "Dark Brown · 200 g",
+     350
+    ],
+    [
+     "Soft Black · 200 g",
+     450
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-hair-oil",
+   "category": "hair",
+   "name": "Mehndi Hair Oil",
+   "requires_licence": true,
+   "description": "Fresh henna leaves slow-infused in coconut and sesame oil - a traditional oil for hair and scalp massage.",
+   "ingredients": "Coconut oil, sesame oil, henna leaf extract, curry leaf, hibiscus.",
+   "how_to_use": "Massage into scalp and hair, leave for an hour or overnight, then wash.",
+   "safety_notes": "Patch test first. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Keep away from direct sunlight.",
+   "variants": [
+    [
+     "100 ml",
+     200
+    ],
+    [
+     "200 ml",
+     380
+    ]
+   ]
+  },
+  {
+   "slug": "henna-herbal-cleanser",
+   "category": "hair",
+   "name": "Henna Herbal Hair Cleanser",
+   "requires_licence": true,
+   "description": "A mild shikakai and reetha cleanser with henna leaf, made to wash hair without stripping natural colour.",
+   "ingredients": "Shikakai, reetha, henna leaf extract, aloe vera, purified water, mild cleanser.",
+   "how_to_use": "Lather on wet hair, massage gently and rinse.",
+   "safety_notes": "Avoid eyes. External use only.",
+   "shelf_life": "24 months",
+   "storage": "Store below 30°C.",
+   "variants": [
+    [
+     "200 ml",
+     200
+    ],
+    [
+     "400 ml",
+     350
+    ]
+   ]
+  },
+  {
+   "slug": "henna-leave-in-conditioner",
+   "category": "hair",
+   "name": "Henna Leave-in Conditioning Cream",
+   "requires_licence": true,
+   "description": "A light leave-in cream with henna leaf extract and aloe to soften hair after natural colouring.",
+   "ingredients": "Aloe vera, coconut oil, shea butter, henna leaf extract.",
+   "how_to_use": "Smooth a small amount through damp hair. Do not rinse.",
+   "safety_notes": "External use only.",
+   "shelf_life": "18 months",
+   "storage": "Store below 30°C.",
+   "variants": [
+    [
+     "100 g",
+     250
+    ],
+    [
+     "200 g",
+     400
+    ]
+   ]
+  },
+  {
+   "slug": "beard-moustache-henna",
+   "category": "hair",
+   "name": "Beard & Moustache Henna",
+   "requires_licence": true,
+   "description": "A natural henna-indigo blend for beards and moustaches in a natural brown shade.",
+   "ingredients": "Henna, indigo, amla.",
+   "how_to_use": "Mix a small amount with water, apply to beard for 45-60 minutes, rinse.",
+   "safety_notes": "Patch test 48 hours before use. Keep away from eyes and lips.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "Natural Brown · 100 g",
+     200
+    ],
+    [
+     "Dark Brown · 100 g",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "brow-henna-tint",
+   "category": "hair",
+   "name": "Brow Henna Tint",
+   "requires_licence": true,
+   "description": "A henna-based brow tint for professional brow artists.",
+   "ingredients": "Henna and plant-based colourants (final formula per your licensed manufacturer).",
+   "how_to_use": "Professional use only, following the manufacturer's instructions.",
+   "safety_notes": "Patch test 48 hours before every use. Used near the eyes - only to be sold after eye-area safety testing by the manufacturer.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "Light Brown · 10 g",
+     350
+    ],
+    [
+     "Dark Brown · 10 g",
+     450
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-leaf-soap",
+   "category": "skin",
+   "name": "Mehndi Leaf Handmade Soap",
+   "requires_licence": true,
+   "description": "A cold-process soap with henna leaf and neem - a gentle, earthy, everyday bar.",
+   "ingredients": "Coconut oil, olive oil, sodium hydroxide (saponified), henna leaf powder, neem leaf, essential oil.",
+   "how_to_use": "Lather and rinse. Keep dry between uses.",
+   "safety_notes": "External use only. Avoid eyes.",
+   "shelf_life": "18 months",
+   "storage": "Keep on a draining soap dish.",
+   "variants": [
+    [
+     "100 g bar",
+     120
+    ],
+    [
+     "Pack of 3",
+     330
+    ]
+   ]
+  },
+  {
+   "slug": "henna-foot-cream",
+   "category": "skin",
+   "name": "Henna Foot Cream",
+   "requires_licence": true,
+   "description": "A rich foot cream with henna leaf extract, traditionally valued for its cooling feel on dry, rough heels.",
+   "ingredients": "Shea butter, coconut oil, beeswax, henna leaf extract, camphor.",
+   "how_to_use": "Massage into clean, dry feet at night. Wear cotton socks for best results.",
+   "safety_notes": "Not for broken skin. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Store below 30°C.",
+   "variants": [
+    [
+     "50 g",
+     200
+    ],
+    [
+     "100 g",
+     350
+    ]
+   ]
+  },
+  {
+   "slug": "henna-cooling-foot-pack",
+   "category": "skin",
+   "name": "Henna Cooling Foot Pack",
+   "requires_licence": true,
+   "description": "A traditional henna and multani mitti pack for tired feet, used for its cooling, refreshing feel.",
+   "ingredients": "Henna leaf powder, multani mitti, sandalwood powder, rose powder.",
+   "how_to_use": "Mix with rose water, apply to feet for 15-20 minutes, rinse. May leave a light orange tint.",
+   "safety_notes": "May tint skin. Patch test first. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Store sealed and dry.",
+   "variants": [
+    [
+     "100 g",
+     180
+    ],
+    [
+     "200 g",
+     300
+    ]
+   ]
+  },
+  {
+   "slug": "henna-cuticle-oil",
+   "category": "skin",
+   "name": "Henna Cuticle & Nail Oil",
+   "requires_licence": true,
+   "description": "A nourishing oil for nails and cuticles with henna leaf infusion and vitamin E.",
+   "ingredients": "Almond oil, jojoba oil, henna leaf infusion, vitamin E.",
+   "how_to_use": "Brush onto cuticles and massage in, daily.",
+   "safety_notes": "Contains nut oil. External use only.",
+   "shelf_life": "18 months",
+   "storage": "Keep away from sunlight.",
+   "variants": [
+    [
+     "10 ml",
+     150
+    ],
+    [
+     "30 ml",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "henna-bath-ubtan",
+   "category": "skin",
+   "name": "Henna Leaf Bath Ubtan",
+   "requires_licence": true,
+   "description": "A traditional bath ubtan of gram flour, herbs and a little henna leaf for a gentle, natural body polish.",
+   "ingredients": "Gram flour, rice flour, henna leaf, turmeric, sandalwood, rose petals.",
+   "how_to_use": "Mix with milk or water to a paste, apply on the body, rub off gently while bathing.",
+   "safety_notes": "Not for the face. May tint skin slightly. Patch test first.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "100 g",
+     180
+    ],
+    [
+     "200 g",
+     300
+    ]
+   ]
+  },
+  {
+   "slug": "dried-henna-leaves",
+   "category": "traditional",
+   "name": "Dried Whole Henna Leaves",
+   "requires_licence": true,
+   "description": "Shade-dried whole henna leaves - for grinding fresh paste at home the traditional way.",
+   "ingredients": "100% dried henna leaves.",
+   "how_to_use": "Grind finely and sift, or soak and grind with lemon juice into a paste.",
+   "safety_notes": "For external use only. Not for consumption.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, dry and dark.",
+   "variants": [
+    [
+     "100 g",
+     120
+    ],
+    [
+     "250 g",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "hina-attar",
+   "category": "traditional",
+   "name": "Hina Attar (Henna Flower Perfume Oil)",
+   "requires_licence": true,
+   "description": "A traditional alcohol-free attar with the warm, earthy fragrance of henna flowers and spices.",
+   "ingredients": "Henna flower extract and spices in a sandalwood oil base.",
+   "how_to_use": "Dab a little on the wrists and behind the ears.",
+   "safety_notes": "Patch test first. Avoid broken skin and eyes. Keep away from flame.",
+   "shelf_life": "36 months",
+   "storage": "Keep tightly closed, away from heat.",
+   "variants": [
+    [
+     "3 ml",
+     350
+    ],
+    [
+     "6 ml",
+     650
+    ],
+    [
+     "12 ml",
+     1200
+    ]
+   ]
+  },
+  {
+   "slug": "henna-flower-mist",
+   "category": "traditional",
+   "name": "Henna Flower Room & Linen Mist",
+   "requires_licence": true,
+   "description": "A soft henna-flower and rose fragrance for rooms, pillows and linen.",
+   "ingredients": "Purified water, henna flower and rose fragrance, natural emulsifier.",
+   "how_to_use": "Shake and spray into the air or lightly over linen from 30 cm.",
+   "safety_notes": "Not for use on skin. Avoid eyes. Test on a hidden area of fabric first.",
+   "shelf_life": "24 months",
+   "storage": "Store away from direct sunlight.",
+   "variants": [
+    [
+     "100 ml",
+     250
+    ],
+    [
+     "200 ml",
+     400
+    ]
+   ]
+  },
+  {
+   "slug": "reusable-mehndi-stencils",
+   "category": "tools",
+   "name": "Reusable Mehndi Stencils",
+   "requires_licence": false,
+   "description": "Flexible self-adhesive stencils for neat designs at home - pick bridal, Arabic or kids sets.",
+   "ingredients": "Medical-grade flexible vinyl.",
+   "how_to_use": "Press onto clean, dry skin, fill with paste, peel off once the paste has set.",
+   "safety_notes": "Peel off gently. Not for broken skin.",
+   "shelf_life": "Reusable",
+   "storage": "Store flat on the backing sheet.",
+   "variants": [
+    [
+     "Bridal set",
+     300
+    ],
+    [
+     "Arabic set",
+     200
+    ],
+    [
+     "Kids set",
+     100
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-tool-kit",
+   "category": "tools",
+   "name": "Mehndi Tool Kit",
+   "requires_licence": false,
+   "description": "Applicator bottles, fine metal tips and cello cone wrappers for making and filling your own cones.",
+   "ingredients": "2 applicator bottles, 4 metal tips, 25 cello wrappers, rubber bands.",
+   "how_to_use": "Fill bottles or roll cones from the cello sheets and tape the seam.",
+   "safety_notes": "Small parts - keep away from young children.",
+   "shelf_life": "Reusable",
+   "storage": "Clean and dry tips after use.",
+   "variants": [
+    [
+     "Starter kit",
+     150
+    ],
+    [
+     "Pro kit",
+     350
+    ]
+   ]
+  },
+  {
+   "slug": "diy-henna-kit",
+   "category": "gifts",
+   "name": "DIY Henna Kit",
+   "requires_licence": true,
+   "description": "Everything to mix and apply natural mehndi at home: henna powder, mehndi oil, cone wrappers, an applicator bottle and stencils.",
+   "ingredients": "Henna powder 100 g, mehndi oil 10 ml, sealant sachet, 10 cello wrappers, applicator bottle, stencil sheet.",
+   "how_to_use": "Follow the step-by-step card inside.",
+   "safety_notes": "Patch test first. Contains essential oils - not for children or during pregnancy without advice.",
+   "shelf_life": "12 months",
+   "storage": "Store cool and dry.",
+   "variants": [
+    [
+     "Standard kit",
+     450
+    ],
+    [
+     "Deluxe kit",
+     800
+    ]
+   ]
+  },
+  {
+   "slug": "kids-mehndi-kit",
+   "category": "gifts",
+   "name": "Kids Mehndi Kit",
+   "requires_licence": true,
+   "description": "Mild ready cones made without essential oils, plus fun stencils - for small hands and short designs.",
+   "ingredients": "3 mild henna cones (henna, lemon juice, sugar), 2 kids stencil sheets.",
+   "how_to_use": "Adult to apply. Keep on for 1-2 hours only.",
+   "safety_notes": "Patch test first. Adult supervision. Not for children under 3.",
+   "shelf_life": "7 days chilled",
+   "storage": "Keep cones refrigerated.",
+   "variants": [
+    [
+     "Kit",
+     250
+    ]
+   ]
+  },
+  {
+   "slug": "bridal-shagun-box",
+   "category": "gifts",
+   "name": "Bridal Shagun Box",
+   "requires_licence": true,
+   "description": "A keepsake box for the bride: bridal dark-stain cones, mehndi oil, clove aftercare balm and Hina attar.",
+   "ingredients": "10 bridal cones, mehndi oil 10 ml, aftercare balm 25 g, Hina attar 3 ml.",
+   "how_to_use": "Cones ship chilled - refrigerate on arrival and use within 3 days or freeze.",
+   "safety_notes": "Patch test first. Contains essential oils.",
+   "shelf_life": "Cones 3 days chilled; other items 12+ months",
+   "storage": "Refrigerate the cones.",
+   "variants": [
+    [
+     "Classic box",
+     1200
+    ],
+    [
+     "Royal box",
+     2500
+    ]
+   ]
+  },
+  {
+   "slug": "karwa-chauth-hamper",
+   "category": "gifts",
+   "name": "Karwa Chauth Mehndi Hamper",
+   "requires_licence": true,
+   "description": "Natural mehndi cones, mehndi oil and aftercare balm in a festive Karwa Chauth gift box.",
+   "ingredients": "6 natural cones, mehndi oil 10 ml, aftercare balm 25 g.",
+   "how_to_use": "Refrigerate the cones on arrival.",
+   "safety_notes": "Patch test first. Contains essential oils.",
+   "shelf_life": "Cones 7 days chilled",
+   "storage": "Refrigerate the cones.",
+   "variants": [
+    [
+     "Hamper",
+     600
+    ],
+    [
+     "Hamper with attar",
+     1100
+    ]
+   ]
+  },
+  {
+   "slug": "festival-mehndi-hamper",
+   "category": "gifts",
+   "name": "Festival Mehndi Hamper (Teej / Eid / Diwali)",
+   "requires_licence": true,
+   "description": "A festive gift box of natural cones, stencils and aftercare - choose the Teej, Eid or Diwali edition.",
+   "ingredients": "6 natural cones, festive stencil sheet, aftercare balm 25 g.",
+   "how_to_use": "Refrigerate the cones on arrival.",
+   "safety_notes": "Patch test first. Contains essential oils.",
+   "shelf_life": "Cones 7 days chilled",
+   "storage": "Refrigerate the cones.",
+   "variants": [
+    [
+     "Teej edition",
+     700
+    ],
+    [
+     "Eid edition",
+     700
+    ],
+    [
+     "Diwali edition",
+     700
+    ]
+   ]
+  },
+  {
+   "slug": "trial-sample-pack",
+   "category": "gifts",
+   "name": "Trial & Sample Pack",
+   "requires_licence": true,
+   "description": "Try us first: two natural cones, a mini mehndi oil and a small henna hair powder sample.",
+   "ingredients": "2 natural cones, mehndi oil 3 ml, henna hair powder 25 g.",
+   "how_to_use": "Refrigerate the cones on arrival.",
+   "safety_notes": "Patch test first. Contains essential oils.",
+   "shelf_life": "Cones 7 days chilled",
+   "storage": "Refrigerate the cones.",
+   "variants": [
+    [
+     "Sample pack",
+     150
+    ]
+   ]
+  },
+  {
+   "slug": "natural-hair-colour-kit",
+   "category": "gifts",
+   "name": "Natural Hair Colour Starter Kit",
+   "requires_licence": true,
+   "description": "Henna and indigo with gloves, a shower cap and a step-by-step guide - everything for your first natural colour.",
+   "ingredients": "Henna hair powder 200 g, indigo 100 g, gloves, shower cap, guide.",
+   "how_to_use": "Follow the two-step guide inside.",
+   "safety_notes": "Patch test 48 hours before use. Wear the gloves.",
+   "shelf_life": "12 months",
+   "storage": "Store sealed, cool and dry.",
+   "variants": [
+    [
+     "Starter kit",
+     500
+    ],
+    [
+     "Starter kit + Bhringraj mask",
+     800
+    ]
+   ]
+  },
+  {
+   "slug": "cello-cone-sheets",
+   "category": "tools",
+   "name": "Pre-cut Cello Sheets for Cone Rolling",
+   "requires_licence": false,
+   "description": "Crisp, pre-cut cellophane sheets that roll into neat, leak-free mehndi cones.",
+   "ingredients": "Food-grade cellophane film.",
+   "how_to_use": "Roll into a cone, tape the seam, fill with paste and seal the top.",
+   "safety_notes": "Keep away from flame. Not a toy - keep away from small children.",
+   "shelf_life": "Does not expire",
+   "storage": "Store flat, away from heat and sunlight.",
+   "variants": [
+    [
+     "50 sheets",
+     99
+    ],
+    [
+     "100 sheets",
+     179
+    ],
+    [
+     "250 sheets",
+     399
+    ]
+   ]
+  },
+  {
+   "slug": "metal-applicator-tips",
+   "category": "tools",
+   "name": "Metal Applicator Tips Set",
+   "requires_licence": false,
+   "description": "Stainless-steel tips in fine to bold sizes for applicator bottles - for crisp lines and fine detailing.",
+   "ingredients": "Stainless steel.",
+   "how_to_use": "Screw onto a henna applicator bottle. Clear with the pin after each use and rinse in warm water.",
+   "safety_notes": "Small parts - keep away from children under 5.",
+   "shelf_life": "Reusable",
+   "storage": "Keep clean and dry in the case.",
+   "variants": [
+    [
+     "Set of 5 sizes",
+     149
+    ],
+    [
+     "Set of 10",
+     249
+    ]
+   ]
+  },
+  {
+   "slug": "henna-mixing-set",
+   "category": "tools",
+   "name": "Henna Mixing Bowl & Spatula Set",
+   "requires_licence": false,
+   "description": "A heavy glass mixing bowl, silicone spatula and measuring spoons - everything to mix a smooth batch of paste.",
+   "ingredients": "Borosilicate glass, food-grade silicone, stainless steel.",
+   "how_to_use": "Mix powder and liquid in the bowl, scrape down with the spatula, cover and rest.",
+   "safety_notes": "Glass - handle with care.",
+   "shelf_life": "Reusable",
+   "storage": "Wash and dry after use.",
+   "variants": [
+    [
+     "1 set",
+     349
+    ]
+   ]
+  },
+  {
+   "slug": "henna-sifting-cloth",
+   "category": "tools",
+   "name": "Fine Henna Sifting Cloth",
+   "requires_licence": false,
+   "description": "Reusable fine-mesh cloth for sifting powder or straining paste - the secret to smooth, clog-free cones.",
+   "ingredients": "Fine nylon mesh.",
+   "how_to_use": "Stretch over a bowl and sift powder through it, or strain mixed paste before filling cones.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Rinse and air-dry.",
+   "variants": [
+    [
+     "Pack of 2",
+     99
+    ],
+    [
+     "Pack of 5",
+     199
+    ]
+   ]
+  },
+  {
+   "slug": "paste-filling-bags",
+   "category": "tools",
+   "name": "Paste Filling Bags",
+   "requires_licence": false,
+   "description": "Disposable filling bags for transferring paste into cones and bottles without the mess.",
+   "ingredients": "Food-grade plastic.",
+   "how_to_use": "Fill the bag, snip the tip and squeeze paste into cones or applicator bottles.",
+   "safety_notes": "Keep away from small children - not a toy.",
+   "shelf_life": "Does not expire",
+   "storage": "Store dry.",
+   "variants": [
+    [
+     "25 bags",
+     99
+    ],
+    [
+     "100 bags",
+     299
+    ]
+   ]
+  },
+  {
+   "slug": "wooden-correction-sticks",
+   "category": "tools",
+   "name": "Wooden Correction Sticks",
+   "requires_licence": false,
+   "description": "Smooth wooden sticks for wiping away mistakes and sharpening lines while the paste is wet.",
+   "ingredients": "Natural wood.",
+   "how_to_use": "Use the flat end to lift away wet paste from a slip.",
+   "safety_notes": "Not for use near eyes. Do not press into skin.",
+   "shelf_life": "Does not expire",
+   "storage": "Store dry.",
+   "variants": [
+    [
+     "Pack of 50",
+     79
+    ]
+   ]
+  },
+  {
+   "slug": "cone-storage-box",
+   "category": "tools",
+   "name": "Mehndi Cone Freezer Storage Box",
+   "requires_licence": false,
+   "description": "A sealable box with slots that keeps filled cones upright and fresh in the freezer.",
+   "ingredients": "Food-grade BPA-free plastic.",
+   "how_to_use": "Place sealed cones tip-down in the slots, close the lid and freeze.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Wash with mild soap.",
+   "variants": [
+    [
+     "Holds 12 cones",
+     299
+    ],
+    [
+     "Holds 24 cones",
+     449
+    ]
+   ]
+  },
+  {
+   "slug": "artist-arm-rest",
+   "category": "tools",
+   "name": "Mehndi Artist Arm Rest Cushion",
+   "requires_licence": false,
+   "description": "A firm, wipe-clean cushion that supports the client's arm - steadier hands, cleaner lines, comfier clients.",
+   "ingredients": "Foam filling, wipe-clean faux-leather cover.",
+   "how_to_use": "Place under the client's forearm or hand during application.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean with a damp cloth.",
+   "variants": [
+    [
+     "1 cushion",
+     599
+    ]
+   ]
+  },
+  {
+   "slug": "artist-tool-roll",
+   "category": "tools",
+   "name": "Mehndi Artist Tool Roll",
+   "requires_licence": false,
+   "description": "A roll-up canvas pouch with pockets for cones, bottles, tips and sticks - built for artists on the move.",
+   "ingredients": "Cotton canvas.",
+   "how_to_use": "Slot your tools into the pockets, roll and tie.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Spot clean.",
+   "variants": [
+    [
+     "1 pouch",
+     449
+    ]
+   ]
+  },
+  {
+   "slug": "artist-apron",
+   "category": "tools",
+   "name": "Mehndi Artist Apron",
+   "requires_licence": false,
+   "description": "A dark, stain-friendly apron with pockets for cones and wipes.",
+   "ingredients": "Cotton-poly twill.",
+   "how_to_use": "Wear while mixing and applying.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Machine wash cold, separately.",
+   "variants": [
+    [
+     "One size",
+     399
+    ]
+   ]
+  },
+  {
+   "slug": "cotton-aftercare-gloves",
+   "category": "tools",
+   "name": "Cotton Overnight Mehndi Gloves",
+   "requires_licence": false,
+   "description": "Soft cotton gloves that protect fresh mehndi (and your bedsheets) overnight.",
+   "ingredients": "100% cotton.",
+   "how_to_use": "Once the paste has dried, slip the gloves on loosely before sleeping.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Hand wash; colour may stain.",
+   "variants": [
+    [
+     "1 pair",
+     99
+    ],
+    [
+     "3 pairs",
+     249
+    ]
+   ]
+  },
+  {
+   "slug": "cotton-aftercare-socks",
+   "category": "tools",
+   "name": "Cotton Overnight Mehndi Socks",
+   "requires_licence": false,
+   "description": "Loose cotton socks to protect fresh foot mehndi overnight.",
+   "ingredients": "100% cotton.",
+   "how_to_use": "Once the paste has dried, slip the socks on loosely before sleeping.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Hand wash; colour may stain.",
+   "variants": [
+    [
+     "1 pair",
+     99
+    ],
+    [
+     "3 pairs",
+     249
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-design-book",
+   "category": "learn",
+   "name": "AryaVeda Mehndi Design Book",
+   "requires_licence": false,
+   "description": "Our own pattern book - step-by-step motifs, fillers and full designs to practise and copy.",
+   "ingredients": "Printed book, matte pages.",
+   "how_to_use": "Start with the motif drills, then build up to full designs.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Keep dry.",
+   "variants": [
+    [
+     "Beginner - 40 pages",
+     299
+    ],
+    [
+     "Bridal - 80 pages",
+     549
+    ]
+   ]
+  },
+  {
+   "slug": "silicone-practice-hand",
+   "category": "learn",
+   "name": "Silicone Practice Hand",
+   "requires_licence": false,
+   "description": "A life-size, skin-soft practice hand - perfect your designs before working on a real one. Wipes clean for reuse.",
+   "ingredients": "Silicone.",
+   "how_to_use": "Apply paste or practice gel, let it dry, peel or wipe away and start again.",
+   "safety_notes": "Not a toy.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean, store away from sunlight.",
+   "variants": [
+    [
+     "Left hand",
+     699
+    ],
+    [
+     "Right hand",
+     699
+    ],
+    [
+     "Pair",
+     1299
+    ]
+   ]
+  },
+  {
+   "slug": "practice-sheets",
+   "category": "learn",
+   "name": "Wipe-clean Mehndi Practice Sheets",
+   "requires_licence": false,
+   "description": "Laminated sheets printed with patterns to trace over with a cone - build steady lines fast.",
+   "ingredients": "Laminated card.",
+   "how_to_use": "Trace over the printed patterns with a cone, let dry, wipe off and repeat.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Set of 10",
+     249
+    ],
+    [
+     "Set of 25",
+     499
+    ]
+   ]
+  },
+  {
+   "slug": "artist-practice-starter-kit",
+   "category": "learn",
+   "name": "Mehndi Artist Practice Starter Kit",
+   "requires_licence": false,
+   "description": "Everything to start practising (henna not included): practice hand, practice sheets, cello sheets and correction sticks.",
+   "ingredients": "Silicone hand, laminated sheets, cellophane, wood.",
+   "how_to_use": "Roll cones, fill with your paste and work through the practice sheets, then move on to the hand.",
+   "safety_notes": "Not a toy.",
+   "shelf_life": "Durable",
+   "storage": "Keep dry.",
+   "variants": [
+    [
+     "1 kit",
+     1299
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-ceremony-thali",
+   "category": "decor",
+   "name": "Decorated Mehndi Ceremony Thali",
+   "requires_licence": false,
+   "description": "A hand-decorated thali with mirror and gota work to carry the mehndi cones at the ceremony.",
+   "ingredients": "MDF base, fabric, mirror and gota trim.",
+   "how_to_use": "Arrange cones, flowers and diyas on the thali for the ceremony.",
+   "safety_notes": "Keep diyas away from fabric trim.",
+   "shelf_life": "Durable",
+   "storage": "Dust gently, keep dry.",
+   "variants": [
+    [
+     "Small - 10 inch",
+     899
+    ],
+    [
+     "Large - 14 inch",
+     1499
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-favour-potli",
+   "category": "decor",
+   "name": "Mehndi Favour Potli Bags",
+   "requires_licence": false,
+   "description": "Silky drawstring potli bags for mehndi-night return gifts.",
+   "ingredients": "Satin fabric, drawstring.",
+   "how_to_use": "Fill with cones, sweets or small gifts for guests.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Store dry.",
+   "variants": [
+    [
+     "Pack of 10",
+     299
+    ],
+    [
+     "Pack of 25",
+     649
+    ],
+    [
+     "Pack of 50",
+     1199
+    ]
+   ]
+  },
+  {
+   "slug": "cone-favour-holders",
+   "category": "decor",
+   "name": "Mehndi Cone Guest Favour Holders",
+   "requires_licence": false,
+   "description": "Decorated holders that turn a single cone into a ready-to-give guest favour (cones not included).",
+   "ingredients": "Printed card.",
+   "how_to_use": "Slot a sealed cone into each holder and hand out at the ceremony.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Pack of 10",
+     249
+    ],
+    [
+     "Pack of 25",
+     549
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-floor-cushions",
+   "category": "decor",
+   "name": "Mehndi Ceremony Floor Cushions",
+   "requires_licence": false,
+   "description": "Bright embroidered floor cushions for the bride and guests at the mehndi.",
+   "ingredients": "Cotton cover with embroidery, fibre filling.",
+   "how_to_use": "Arrange on the floor or a dari around the bride.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Remove cover and dry clean.",
+   "variants": [
+    [
+     "Set of 2",
+     1499
+    ],
+    [
+     "Set of 4",
+     2799
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-cushion-cover",
+   "category": "decor",
+   "name": "Mehndi Motif Cushion Cover",
+   "requires_licence": false,
+   "description": "Cushion covers printed with our mehndi motifs - a keepsake from the ceremony.",
+   "ingredients": "100% cotton, zip closure.",
+   "how_to_use": "Fits a 16 x 16 inch cushion insert (not included).",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Machine wash cold, inside out.",
+   "variants": [
+    [
+     "1 cover",
+     449
+    ],
+    [
+     "Set of 2",
+     799
+    ]
+   ]
+  },
+  {
+   "slug": "karwa-chauth-thali-set",
+   "category": "traditional",
+   "name": "Karwa Chauth Puja Thali Set",
+   "requires_licence": false,
+   "description": "A complete decorated thali set - thali, chalni (sieve), karwa and diya - for the evening puja.",
+   "ingredients": "Steel and brass with decorative trim.",
+   "how_to_use": "Set up for the puja with the chalni, karwa and lit diya.",
+   "safety_notes": "Never leave a lit diya unattended.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean and dry.",
+   "variants": [
+    [
+     "Standard set",
+     999
+    ],
+    [
+     "Premium brass set",
+     1599
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-motif-tote",
+   "category": "gifts",
+   "name": "Mehndi Motif Cotton Tote Bag",
+   "requires_licence": false,
+   "description": "A sturdy cotton tote printed with our signature mehndi motifs.",
+   "ingredients": "100% cotton canvas.",
+   "how_to_use": "Everyday carry - or a bridesmaid gift.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Hand wash cold.",
+   "variants": [
+    [
+     "1 tote",
+     349
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-greeting-cards",
+   "category": "gifts",
+   "name": "Mehndi Art Greeting Cards",
+   "requires_licence": false,
+   "description": "Blank greeting cards printed with our mehndi artwork, with envelopes - for weddings, Eid, Teej and Karwa Chauth.",
+   "ingredients": "Textured card, envelopes.",
+   "how_to_use": "Write your own message inside.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Pack of 5",
+     199
+    ],
+    [
+     "Pack of 10",
+     349
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-gift-wrap",
+   "category": "gifts",
+   "name": "Mehndi Print Gift Wrap",
+   "requires_licence": false,
+   "description": "Gift-wrap sheets printed with maroon and gold mehndi patterns.",
+   "ingredients": "Printed paper.",
+   "how_to_use": "Wrap shagun and wedding gifts.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Store rolled or flat.",
+   "variants": [
+    [
+     "5 sheets",
+     149
+    ],
+    [
+     "10 sheets",
+     249
+    ]
+   ]
+  },
+  {
+   "slug": "applicator-bottles",
+   "category": "tools",
+   "name": "Henna Applicator Bottles (Refill Pack)",
+   "requires_licence": false,
+   "description": "Soft-squeeze applicator bottles that take our metal tips - for steady, even lines.",
+   "ingredients": "Food-grade LDPE plastic.",
+   "how_to_use": "Fill with strained paste, screw on a metal tip and squeeze gently while drawing.",
+   "safety_notes": "Small parts - keep away from children under 5.",
+   "shelf_life": "Reusable",
+   "storage": "Wash and dry after use.",
+   "variants": [
+    [
+     "Pack of 3",
+     149
+    ],
+    [
+     "Pack of 6",
+     269
+    ]
+   ]
+  },
+  {
+   "slug": "cone-sealing-tape",
+   "category": "tools",
+   "name": "Cone Sealing Tape",
+   "requires_licence": false,
+   "description": "Clear tape cut to the right width for sealing cone seams and folding over cone tops.",
+   "ingredients": "Clear polypropylene tape.",
+   "how_to_use": "Tape the cone seam after rolling, fill, then fold the top and tape it shut.",
+   "safety_notes": "None.",
+   "shelf_life": "24 months",
+   "storage": "Store away from heat.",
+   "variants": [
+    [
+     "2 rolls",
+     79
+    ],
+    [
+     "6 rolls",
+     199
+    ]
+   ]
+  },
+  {
+   "slug": "cone-unclogging-pins",
+   "category": "tools",
+   "name": "Cone Unclogging Pins",
+   "requires_licence": false,
+   "description": "Fine pins with easy-grip heads for clearing a blocked cone or bottle tip.",
+   "ingredients": "Stainless steel with plastic heads.",
+   "how_to_use": "Gently push through the tip to clear a blockage. Wipe clean after use.",
+   "safety_notes": "Sharp - keep away from children. Never use on skin.",
+   "shelf_life": "Reusable",
+   "storage": "Keep in the case.",
+   "variants": [
+    [
+     "Pack of 5",
+     69
+    ]
+   ]
+  },
+  {
+   "slug": "cone-display-stand",
+   "category": "tools",
+   "name": "Mehndi Cone Display Stand",
+   "requires_licence": false,
+   "description": "A sturdy stand that holds cones upright - for artist stalls, events and your work table.",
+   "ingredients": "Lacquered wood.",
+   "how_to_use": "Slot sealed cones tip-down into the holes.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean.",
+   "variants": [
+    [
+     "Holds 12 cones",
+     349
+    ],
+    [
+     "Holds 24 cones",
+     549
+    ]
+   ]
+  },
+  {
+   "slug": "artist-carry-case",
+   "category": "tools",
+   "name": "Mehndi Artist Carry Case",
+   "requires_licence": false,
+   "description": "A hard-shell case with adjustable compartments for cones, bottles, stencils and tools.",
+   "ingredients": "ABS shell, foam dividers.",
+   "how_to_use": "Arrange the dividers to fit your kit. Keep filled cones in a cool pack inside.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean.",
+   "variants": [
+    [
+     "Medium",
+     899
+    ],
+    [
+     "Large",
+     1299
+    ]
+   ]
+  },
+  {
+   "slug": "stencil-storage-folder",
+   "category": "tools",
+   "name": "Stencil Storage Folder",
+   "requires_licence": false,
+   "description": "A ring folder with clear sleeves that keeps stencils flat, clean and easy to find.",
+   "ingredients": "Polypropylene cover and sleeves.",
+   "how_to_use": "Slide each stencil on its backing sheet into a sleeve.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "20 sleeves",
+     249
+    ],
+    [
+     "40 sleeves",
+     399
+    ]
+   ]
+  },
+  {
+   "slug": "aftercare-instruction-cards",
+   "category": "tools",
+   "name": "Client Aftercare Cards (for Artists)",
+   "requires_licence": false,
+   "description": "Printed cards with mehndi aftercare tips to hand to your clients - in English and Hindi.",
+   "ingredients": "Printed card.",
+   "how_to_use": "Hand one to each client after application.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Pack of 50",
+     149
+    ],
+    [
+     "Pack of 200",
+     449
+    ]
+   ]
+  },
+  {
+   "slug": "client-design-lookbook",
+   "category": "tools",
+   "name": "Client Design Lookbook Album",
+   "requires_licence": false,
+   "description": "A display album for your design photos - let clients flip through and pick their design.",
+   "ingredients": "Hardbound album with clear photo sleeves.",
+   "how_to_use": "Slide printed design photos into the sleeves.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Keep dry.",
+   "variants": [
+    [
+     "40 photos",
+     499
+    ],
+    [
+     "100 photos",
+     899
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-colouring-book",
+   "category": "learn",
+   "name": "Mehndi Pattern Colouring Book",
+   "requires_licence": false,
+   "description": "Mehndi patterns to colour in - a calm creative break for kids and adults, and great for learning motifs.",
+   "ingredients": "Printed book, thick pages.",
+   "how_to_use": "Colour with pencils or felt pens.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Keep dry.",
+   "variants": [
+    [
+     "Kids - 30 pages",
+     199
+    ],
+    [
+     "Adults - 50 pages",
+     299
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-framed-art-print",
+   "category": "decor",
+   "name": "Framed Mehndi Art Print",
+   "requires_licence": false,
+   "description": "Our mehndi artwork printed on textured art paper and framed - ready to hang.",
+   "ingredients": "Art paper, wooden frame, glass front.",
+   "how_to_use": "Hang on a nail or picture hook.",
+   "safety_notes": "Glass - handle with care.",
+   "shelf_life": "Durable",
+   "storage": "Dust with a dry cloth.",
+   "variants": [
+    [
+     "A4",
+     799
+    ],
+    [
+     "A3",
+     1299
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-coasters",
+   "category": "decor",
+   "name": "Mehndi Motif Coasters",
+   "requires_licence": false,
+   "description": "Coasters printed with our mehndi motifs, with a cork base.",
+   "ingredients": "MDF top, cork backing.",
+   "how_to_use": "Wipe clean; not for hot pans.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Wipe with a damp cloth.",
+   "variants": [
+    [
+     "Set of 4",
+     349
+    ],
+    [
+     "Set of 6",
+     499
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-table-runner",
+   "category": "decor",
+   "name": "Mehndi Print Table Runner",
+   "requires_licence": false,
+   "description": "A cotton table runner printed with mehndi paisleys - for ceremony tables and festive dinners.",
+   "ingredients": "100% cotton.",
+   "how_to_use": "Lay along the centre of the table.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Machine wash cold.",
+   "variants": [
+    [
+     "150 cm",
+     599
+    ],
+    [
+     "200 cm",
+     749
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-photo-props",
+   "category": "decor",
+   "name": "Mehndi Night Photo Booth Props",
+   "requires_licence": false,
+   "description": "Fun photo props on sticks - paisleys, henna hands, cones, moustaches and more - for the mehndi photo corner.",
+   "ingredients": "Printed card on wooden sticks.",
+   "how_to_use": "Hand out to guests at the photo corner.",
+   "safety_notes": "Small sticks - supervise young children.",
+   "shelf_life": "Durable",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Set of 15",
+     399
+    ],
+    [
+     "Set of 30",
+     699
+    ]
+   ]
+  },
+  {
+   "slug": "decorative-chhatri",
+   "category": "decor",
+   "name": "Decorative Mehndi Chhatri (Umbrella)",
+   "requires_licence": false,
+   "description": "A bright mirror-work umbrella for the bride's entry and mehndi decor.",
+   "ingredients": "Fabric, mirror work, wooden handle.",
+   "how_to_use": "Use for decor and photos. Not for rain.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Fold and store dry.",
+   "variants": [
+    [
+     "Medium",
+     1199
+    ],
+    [
+     "Large",
+     1799
+    ]
+   ]
+  },
+  {
+   "slug": "artificial-marigold-garlands",
+   "category": "decor",
+   "name": "Artificial Marigold Garlands",
+   "requires_licence": false,
+   "description": "Bright, reusable marigold strings for mehndi and haldi decor - no wilting.",
+   "ingredients": "Fabric flowers on cord.",
+   "how_to_use": "Hang across walls, doors and backdrops.",
+   "safety_notes": "Keep away from open flames.",
+   "shelf_life": "Reusable",
+   "storage": "Store loosely coiled.",
+   "variants": [
+    [
+     "Pack of 5 (5 ft)",
+     349
+    ],
+    [
+     "Pack of 10 (5 ft)",
+     649
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-wall-decal",
+   "category": "decor",
+   "name": "Mehndi Pattern Wall Decal",
+   "requires_licence": false,
+   "description": "A removable wall decal in a mehndi mandala pattern - instant ceremony backdrop or room decor.",
+   "ingredients": "Matte removable vinyl.",
+   "how_to_use": "Peel and press onto a clean, smooth wall.",
+   "safety_notes": "None.",
+   "shelf_life": "Removable",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "60 cm",
+     499
+    ],
+    [
+     "90 cm",
+     799
+    ]
+   ]
+  },
+  {
+   "slug": "cutwork-tealight-holders",
+   "category": "decor",
+   "name": "Mehndi Cut-work Tealight Holders",
+   "requires_licence": false,
+   "description": "Metal tealight holders with mehndi-pattern cut-work that throw lace-like light (tealights not included).",
+   "ingredients": "Powder-coated metal.",
+   "how_to_use": "Place a tealight inside.",
+   "safety_notes": "Never leave a lit candle unattended. Holder gets hot.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean.",
+   "variants": [
+    [
+     "Set of 2",
+     399
+    ],
+    [
+     "Set of 4",
+     699
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-hand-fans",
+   "category": "decor",
+   "name": "Mehndi Print Hand Fans",
+   "requires_licence": false,
+   "description": "Folding paper hand fans printed with mehndi patterns - a cooling guest favour for summer ceremonies.",
+   "ingredients": "Printed paper, bamboo ribs.",
+   "how_to_use": "Hand out to guests.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Store closed.",
+   "variants": [
+    [
+     "Pack of 10",
+     299
+    ],
+    [
+     "Pack of 25",
+     649
+    ]
+   ]
+  },
+  {
+   "slug": "rangoli-stencil-set",
+   "category": "traditional",
+   "name": "Rangoli Stencil Set",
+   "requires_licence": false,
+   "description": "Reusable rangoli stencils in mehndi-inspired designs for festivals and ceremonies (colours not included).",
+   "ingredients": "Flexible plastic.",
+   "how_to_use": "Place on the floor and sprinkle rangoli colour through the cut-outs.",
+   "safety_notes": "None.",
+   "shelf_life": "Reusable",
+   "storage": "Wash and store flat.",
+   "variants": [
+    [
+     "Set of 4",
+     249
+    ],
+    [
+     "Set of 8",
+     449
+    ]
+   ]
+  },
+  {
+   "slug": "green-glass-bangles",
+   "category": "traditional",
+   "name": "Green Glass Bangles Set",
+   "requires_licence": false,
+   "description": "Traditional green glass bangles - worn at the mehndi ceremony.",
+   "ingredients": "Glass.",
+   "how_to_use": "Pick your size; slip on gently with a little soap if snug.",
+   "safety_notes": "Glass - can break; handle with care.",
+   "shelf_life": "Durable",
+   "storage": "Store in the box.",
+   "variants": [
+    [
+     "Size 2.4",
+     199
+    ],
+    [
+     "Size 2.6",
+     199
+    ],
+    [
+     "Size 2.8",
+     199
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-green-dupatta",
+   "category": "traditional",
+   "name": "Green Gota Mehndi Dupatta",
+   "requires_licence": false,
+   "description": "A light green dupatta with gota-patti borders - made for the mehndi ceremony.",
+   "ingredients": "Chiffon with gota-patti trim.",
+   "how_to_use": "Drape over the head or shoulders.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Dry clean only.",
+   "variants": [
+    [
+     "One size",
+     1299
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-journal",
+   "category": "gifts",
+   "name": "Mehndi Motif Journal",
+   "requires_licence": false,
+   "description": "A hardbound journal with a mehndi-motif cover and plain pages - for notes, sketches and wedding planning.",
+   "ingredients": "Hardbound, 160 plain pages.",
+   "how_to_use": "Write, sketch, plan.",
+   "safety_notes": "None.",
+   "shelf_life": "Does not expire",
+   "storage": "Keep dry.",
+   "variants": [
+    [
+     "A5",
+     349
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-bookmarks",
+   "category": "gifts",
+   "name": "Mehndi Art Bookmarks",
+   "requires_licence": false,
+   "description": "Laminated bookmarks with our mehndi artwork and a tassel.",
+   "ingredients": "Laminated card, silk tassel.",
+   "how_to_use": "Slip between the pages.",
+   "safety_notes": "None.",
+   "shelf_life": "Durable",
+   "storage": "Store flat.",
+   "variants": [
+    [
+     "Set of 4",
+     149
+    ]
+   ]
+  },
+  {
+   "slug": "mehndi-fridge-magnets",
+   "category": "gifts",
+   "name": "Mehndi Motif Fridge Magnets",
+   "requires_licence": false,
+   "description": "Small magnets with mehndi motifs - a sweet return gift.",
+   "ingredients": "Printed MDF with magnet backing.",
+   "how_to_use": "Stick on the fridge or any metal surface.",
+   "safety_notes": "Small parts and magnets - keep away from children under 5.",
+   "shelf_life": "Durable",
+   "storage": "Wipe clean.",
+   "variants": [
+    [
+     "Set of 4",
+     199
+    ],
+    [
+     "Set of 12",
+     499
+    ]
+   ]
+  },
+  {
+   "slug": "bridal-mehndi-photo-frame",
+   "category": "gifts",
+   "name": "Bridal Mehndi Photo Frame",
+   "requires_licence": false,
+   "description": "A carved frame for the bride's mehndi photo - a keepsake of the big day.",
+   "ingredients": "Carved wood, glass front.",
+   "how_to_use": "Slide your photo in from the back. Stands or hangs.",
+   "safety_notes": "Glass - handle with care.",
+   "shelf_life": "Durable",
+   "storage": "Dust with a dry cloth.",
+   "variants": [
+    [
+     "5 x 7 inch",
+     599
+    ],
+    [
+     "8 x 10 inch",
+     899
+    ]
+   ]
+  }
+ ]
+}

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import { api } from "@/lib/api";
+import { BULK_STATUS_LABELS, DEPOSIT_LABELS, bulkOccasionLabel, estimateSummary, formatInr } from "@/lib/pricing";
 import { CATEGORIES, COVERAGES, OCCASIONS, STYLES, categoryLabel, coverageLabel, formatDuration, formatPriceRange, groupByCategory, styleLabel } from "@/lib/designs";
 
 const TABS = [
   "Overview",
   "Bookings",
+  "Bulk Orders",
   "Disputes",
   "Users",
   "Artists",
@@ -35,6 +37,7 @@ export default function AdminDashboard() {
       </div>
       {tab === "Overview" && <OverviewTab />}
       {tab === "Bookings" && <AllBookingsTab />}
+      {tab === "Bulk Orders" && <BulkOrdersTab />}
       {tab === "Disputes" && <DisputesTab />}
       {tab === "Designs" && <DesignsTab />}
       {tab === "Design Photos" && <DesignPhotosTab />}
@@ -680,6 +683,7 @@ const GALLERY_KINDS = [
   { key: "detail", label: "Close-up" },
   { key: "photo", label: "Photo" },
   { key: "illustration", label: "Illustration" },
+  { key: "ai_photo", label: "Realistic AI preview" },
 ];
 
 /** Admin view of one design's gallery: add labelled views, remove them,
@@ -749,18 +753,20 @@ function DesignGalleryManager({ design, onChanged }) {
                 <span className="block text-ink-soft">{img.kind}</span>
               </figcaption>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="text-maroon-soft underline"
-                  disabled={busy}
-                  onClick={() => {
-                    if (window.confirm("Make this the main photo? New bookings will be verified against it.")) {
-                      run(() => api.post(`/designs/${design.id}/gallery/${img.id}/make-main`, {}));
-                    }
-                  }}
-                >
-                  Make main
-                </button>
+                {img.kind !== "ai_photo" && (
+                  <button
+                    type="button"
+                    className="text-maroon-soft underline"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm("Make this the main photo? New bookings will be verified against it.")) {
+                        run(() => api.post(`/designs/${design.id}/gallery/${img.id}/make-main`, {}));
+                      }
+                    }}
+                  >
+                    Make main
+                  </button>
+                )}
                 <button
                   type="button"
                   className="text-red-700 underline"
@@ -1320,7 +1326,7 @@ function ShopProductsTab() {
   const [error, setError] = useState("");
 
   function load() {
-    api.get("/shop/products").then(setProducts).catch((e) => setError(e.message));
+    api.get("/shop/admin/products").then(setProducts).catch((e) => setError(e.message));
   }
   useEffect(load, []);
 
@@ -1350,7 +1356,11 @@ function ShopProductsTab() {
 
   return (
     <div className="card p-5">
-      <h2 className="font-semibold mb-3">Shop Products</h2>
+      <h2 className="font-semibold mb-1">Shop Products</h2>
+      <p className="text-xs text-ink-soft mb-3">
+        {products.filter((p) => p.is_active).length} live, {products.filter((p) => !p.is_active).length} drafts. Henna, hair and skin products need
+        their manufacturing licence number (AYUSH, or cosmetic licence) entered before they can be published. Set stock for each pack size.
+      </p>
       {error && <p className="text-sm text-red-700 mb-2">{error}</p>}
       <form onSubmit={submit} className="grid sm:grid-cols-2 gap-2 mb-4">
         <input className="input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -1372,56 +1382,92 @@ function ShopProductsTab() {
 function ShopProductRow({ product, onChanged, onDeactivate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [licence, setLicence] = useState(product.licence_number || "");
+  const [stock, setStock] = useState(() => Object.fromEntries((product.variants || []).map((v) => [v.id, String(v.stock_quantity)])));
   const images = (product.image_urls || "").split(",").filter(Boolean);
+  const variants = (product.variants || []).filter((v) => v.is_active);
+  const needsLicence = product.requires_licence && !(product.licence_number || "").trim();
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function uploadPhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setBusy(true);
-    setError("");
-    try {
-      await api.upload(`/shop/products/${product.id}/image`, file);
-      onChanged();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
+    await run(() => api.upload(`/shop/products/${product.id}/image`, file));
+    e.target.value = "";
   }
 
-  async function removePhoto(url) {
-    setBusy(true);
-    setError("");
-    try {
-      await api.del(`/shop/products/${product.id}/image?url=${encodeURIComponent(url)}`);
-      onChanged();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const removePhoto = (url) => run(() => api.del(`/shop/products/${product.id}/image?url=${encodeURIComponent(url)}`));
+  const saveLicence = () => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, licence_number: licence.trim() || null }));
+  const publish = () => run(() => api.post(`/shop/products/${product.id}/publish`, {}));
+  const saveStock = (v) => run(() => api.put(`/shop/variants/${v.id}/stock`, { stock_quantity: Number(stock[v.id] || 0) }));
 
   return (
     <div className="border-b border-line pb-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <b>{product.name}</b> — ₹{product.price}, {product.stock_quantity} in stock
-          {!product.is_active && <span className="chip ml-2 text-red-700">inactive</span>}
+          <b>{product.name}</b> — {variants.length ? `from ₹${product.price}` : `₹${product.price}, ${product.stock_quantity} in stock`}
+          {product.is_active ? <span className="chip ml-2">live</span> : <span className="chip ml-2 text-red-700">draft</span>}
+          {needsLicence && <span className="chip ml-2 text-red-700">licence no. needed</span>}
+          {product.image_kind === "illustrative" && <span className="chip ml-2">illustrative image</span>}
         </div>
-        <div className="flex gap-2">
-          <label className="btn-secondary text-xs cursor-pointer">
-            {busy ? "Uploading..." : "Upload photo"}
+        <div className="flex gap-2 items-center">
+          <label className="btn-secondary text-xs cursor-pointer" title={product.image_kind === "illustrative" ? "A real photo replaces the illustrative image" : undefined}>
+            {busy ? "Saving..." : "Upload photo"}
             <input type="file" accept="image/*" onChange={uploadPhoto} disabled={busy} className="hidden" />
           </label>
-          {product.is_active && (
+          {product.is_active ? (
             <button className="text-xs text-red-700" onClick={onDeactivate}>
-              Deactivate
+              Unpublish
+            </button>
+          ) : (
+            <button className="btn-primary text-xs" onClick={publish} disabled={busy || needsLicence}>
+              Publish
             </button>
           )}
         </div>
       </div>
+      {product.requires_licence && (
+        <div className="flex gap-2 items-center mt-2 max-w-md">
+          <input className="input text-xs" placeholder="Manufacturing licence no. (printed on pack)" value={licence} onChange={(e) => setLicence(e.target.value)} />
+          <button className="btn-secondary text-xs" onClick={saveLicence} disabled={busy || licence === (product.licence_number || "")}>
+            Save
+          </button>
+        </div>
+      )}
+      {variants.length > 0 && (
+        <div className="flex gap-3 flex-wrap mt-2">
+          {variants.map((v) => (
+            <div key={v.id} className="flex items-center gap-1 text-xs">
+              <span className="font-semibold">{v.label}</span> ₹{v.price}
+              <input
+                className="input text-xs !w-16 !py-1"
+                type="number"
+                min="0"
+                aria-label={`Stock for ${v.label}`}
+                value={stock[v.id] ?? ""}
+                onChange={(e) => setStock({ ...stock, [v.id]: e.target.value })}
+              />
+              {stock[v.id] !== String(v.stock_quantity) && (
+                <button className="text-gold font-semibold" onClick={() => saveStock(v)} disabled={busy}>
+                  Save
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap mt-2">
@@ -1507,7 +1553,7 @@ function ShopOrdersTab() {
                 <p className="font-semibold">{o.shipping_name} — ₹{o.total_amount}</p>
                 <p className="text-xs text-ink-soft">{o.shipping_phone} · {o.shipping_address}</p>
                 <p className="text-xs text-ink-soft mt-1">
-                  {o.items.map((i) => `${i.product_name} ×${i.quantity}`).join(", ")}
+                  {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
                 </p>
               </div>
               <select className="input w-auto" value={o.status} onChange={(e) => updateStatus(o.id, e.target.value)}>
@@ -1527,6 +1573,167 @@ function ShopOrdersTab() {
           {loadingMore ? "Loading…" : "Load more"}
         </button>
       )}
+    </div>
+  );
+}
+
+function BulkOrdersTab() {
+  const [orders, setOrders] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("requested");
+  const [error, setError] = useState("");
+
+  function load() {
+    api
+      .get("/admin/bulk-orders", { status_filter: statusFilter, limit: 200 })
+      .then(setOrders)
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, [statusFilter]);
+
+  function replace(updated) {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  }
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+        <h2 className="font-semibold">Bulk / Event Orders</h2>
+        <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          {["all", ...Object.keys(BULK_STATUS_LABELS)].map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="text-xs text-ink-soft mb-3">
+        Quote each group at a per-person price inside its range — the same range as booking on their own. The platform fee is
+        added per person automatically.
+      </p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-4">
+        {orders.map((o) => (
+          <BulkOrderRow key={o.id} order={o} onChanged={replace} />
+        ))}
+        {orders.length === 0 && <p className="text-sm text-ink-soft">No orders here.</p>}
+      </div>
+    </div>
+  );
+}
+
+function BulkOrderRow({ order, onChanged }) {
+  const [prices, setPrices] = useState(() => Object.fromEntries(order.lines.map((l) => [l.id, l.unit_price ?? l.unit_price_min])));
+  const [note, setNote] = useState(order.admin_note || "");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const est = estimateSummary(order.estimate);
+  const canQuote = ["requested", "quoted"].includes(order.status);
+
+  async function act(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      onChanged(await fn());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function sendQuote() {
+    act(() =>
+      api.post(`/admin/bulk-orders/${order.id}/quote`, {
+        lines: order.lines.map((l) => ({ line_id: l.id, unit_price: Number(prices[l.id]) })),
+        admin_note: note || null,
+      })
+    );
+  }
+
+  function cancel() {
+    const reason = window.prompt("Reason for cancelling (sent to the customer). Any paid deposit is refunded in full.");
+    if (reason !== null) act(() => api.post(`/admin/bulk-orders/${order.id}/cancel`, { reason: reason || null }));
+  }
+
+  return (
+    <div className="border border-line rounded-xl p-4 text-sm flex flex-col gap-2">
+      <div className="flex justify-between items-start gap-2 flex-wrap">
+        <div>
+          <p className="font-semibold">
+            {bulkOccasionLabel(order.occasion)} · {order.people} people · {new Date(order.event_at + "Z").toLocaleString()}
+          </p>
+          <p className="text-xs text-ink-soft">
+            {order.consumer_name || "Customer"} · {order.consumer_phone} · {order.address_text} · artist gender:{" "}
+            {order.gender_preference === "same" ? "same as customer" : "any"}
+          </p>
+          {order.notes && <p className="text-xs mt-1">“{order.notes}”</p>}
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          <span className="chip">{BULK_STATUS_LABELS[order.status]}</span>
+          {order.advance_amount > 0 && <span className="chip">{DEPOSIT_LABELS[order.advance_status]} {formatInr(order.advance_amount)}</span>}
+        </div>
+      </div>
+
+      {order.lines.map((l) => (
+        <div key={l.id} className="flex items-center gap-3 flex-wrap">
+          {(l.design_image_url || l.reference_image_url) && (
+            <a href={l.design_image_url || l.reference_image_url} target="_blank" rel="noreferrer">
+              <img src={l.design_image_url || l.reference_image_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-line" />
+            </a>
+          )}
+          <div className="flex-1 min-w-[12rem]">
+            <p>
+              <b>{l.quantity} ×</b> {l.design_name || l.package_name} <span className="text-ink-soft">({categoryLabel(l.category)})</span>
+              {l.reference_image_url && <span className="chip ml-1">own design</span>}
+            </p>
+            {l.note && <p className="text-xs text-ink-soft">{l.note}</p>}
+          </div>
+          <label className="text-xs flex items-center gap-1">
+            ₹/person
+            <input
+              type="number"
+              className="input w-28"
+              min={l.unit_price_min}
+              max={l.unit_price_max}
+              value={prices[l.id]}
+              disabled={!canQuote}
+              onChange={(e) => setPrices({ ...prices, [l.id]: e.target.value })}
+            />
+            <span className="text-ink-soft">{formatPriceRange(l.unit_price_min, l.unit_price_max)}</span>
+          </label>
+        </div>
+      ))}
+
+      <p className="text-xs text-ink-soft">
+        Estimate {est.total} (fee {est.fee})
+        {order.total_amount != null && (
+          <>
+            {" "}· Quoted <b className="text-ink">{formatInr(order.total_amount)}</b> ({formatInr(order.subtotal)} + {formatInr(order.platform_fee)} fee)
+          </>
+        )}
+      </p>
+
+      {canQuote && (
+        <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note to the customer (artists lined up, timings…)" />
+      )}
+      {error && <p className="text-red-700">{error}</p>}
+      <div className="flex gap-2 flex-wrap">
+        {canQuote && (
+          <button className="btn-primary text-sm" disabled={busy} onClick={sendQuote}>
+            {order.status === "quoted" ? "Update quote" : "Send quote"}
+          </button>
+        )}
+        {order.status === "confirmed" && (
+          <button className="btn-primary text-sm" disabled={busy || order.advance_status === "pending"} onClick={() => act(() => api.post(`/admin/bulk-orders/${order.id}/complete`, {}))}>
+            Mark completed
+          </button>
+        )}
+        {!["completed", "cancelled"].includes(order.status) && (
+          <button className="btn-secondary text-sm" disabled={busy} onClick={cancel}>
+            Cancel order
+          </button>
+        )}
+      </div>
     </div>
   );
 }
