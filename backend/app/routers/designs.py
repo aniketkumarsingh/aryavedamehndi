@@ -360,11 +360,18 @@ def make_gallery_image_main(design_id: uuid.UUID, image_id: uuid.UUID, db: Sessi
     they were made with."""
     design = _get_design_or_404(db, design_id, active_only=False)
     image = _get_gallery_image(db, design_id, image_id)
-    old_main, old_hd, old_source = design.image_url, design.image_hd_url, design.image_source
+    if image.kind in ("ai_photo", "spin"):
+        # The main image is what finished work is checked against - an AI
+        # preview or a turntable frame must never become that reference.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This view can't be the main image - upload a real photo instead")
+    old = (design.image_url, design.image_hd_url, design.image_source, design.image_kind, design.image_credit)
     design.image_url, design.image_hd_url, design.image_source = image.url, image.hd_url, image.source_key
-    if old_main:
-        image.url, image.hd_url, image.source_key = old_main, old_hd, old_source
-        image.label, image.kind = "Previous main photo", "photo"
+    design.image_kind = "illustration" if image.kind == "illustration" else "photo"
+    design.image_credit = image.credit
+    if old[0]:
+        image.url, image.hd_url, image.source_key, old_kind, image.credit = old
+        image.kind = "illustration" if old_kind == "illustration" else "photo"
+        image.label = "Previous main illustration" if image.kind == "illustration" else "Previous main photo"
     else:
         db.delete(image)
     db.commit()

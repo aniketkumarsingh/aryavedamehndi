@@ -3,7 +3,15 @@
  * DesignImage.credit): {author, license, license_url, source_url, edited}
  * for licensed photos, {generator} for illustrations. Renders nothing for
  * photos that need no credit. */
-export default function PhotoCredit({ credit, illustration = false, className = "" }) {
+export default function PhotoCredit({ credit, illustration = false, aiPhoto = false, className = "" }) {
+  if (aiPhoto) {
+    return (
+      <p className={`text-xs text-ink-soft ${className}`}>
+        <span className="font-semibold text-maroon-soft">Realistic AI preview</span> - a computer-generated image of how this
+        design could look on a hand. It is not a photo of real mehndi; your artist draws it by hand, so details will differ.
+      </p>
+    );
+  }
   if (illustration || credit?.generator) {
     return (
       <p className={`text-xs text-ink-soft ${className}`}>

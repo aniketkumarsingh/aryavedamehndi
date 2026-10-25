@@ -53,6 +53,8 @@ def jobs(designs: list[dict]):
             yield "images", d["image"], MAIN_PRESET
         elif d.get("illustration"):
             yield "illustrations", d["illustration"]["file"], MAIN_PRESET
+        if d.get("ai_photo"):
+            yield "ai", d["ai_photo"]["file"], MAIN_PRESET
         for extra in d.get("more_images", []):
             yield "angles", extra["file"], MAIN_PRESET
         for closeup in d.get("closeups", []):

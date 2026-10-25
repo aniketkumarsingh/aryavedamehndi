@@ -135,3 +135,26 @@ def test_save_image_variants_can_use_a_fixed_name(tmp_path, monkeypatch):
     assert (tmp_path / "catalog/bridal-01-4821-hd.jpg").read_bytes() == buf.getvalue()
     with pytest.raises(ValueError):
         storage.save_upload(buf.getvalue(), "catalog", name="../kyc/x")
+
+
+def test_ai_preview_shows_in_gallery_but_can_never_be_the_main_image(client, db):
+    from app.models.catalog import Design
+
+    admin, design = _setup(client, db)
+    preview = _add(client, admin, design["id"], (90, 40, 20), label="Realistic AI preview", kind="ai_photo")
+    assert preview["kind"] == "ai_photo"
+    shown = client.get(f"/designs/{design['id']}").json()["images"]
+    assert [i["kind"] for i in shown] == ["ai_photo"]
+
+    res = client.post(f"/designs/{design['id']}/gallery/{preview['id']}/make-main", headers=auth_headers(admin))
+    assert res.status_code == 400
+    db.expire_all()
+    assert db.get(Design, design["id"]).image_kind != "ai_photo"
+
+
+def test_promoting_an_illustration_keeps_it_marked_as_illustration(client, db):
+    admin, design = _setup(client, db)
+    ill = _add(client, admin, design["id"], (10, 80, 30), label="Illustration", kind="illustration")
+    res = client.post(f"/designs/{design['id']}/gallery/{ill['id']}/make-main", headers=auth_headers(admin))
+    assert res.status_code == 200, res.text
+    assert res.json()["image_kind"] == "illustration"

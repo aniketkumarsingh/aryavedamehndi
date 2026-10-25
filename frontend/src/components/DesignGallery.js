@@ -4,7 +4,7 @@ import PhotoCredit from "@/components/PhotoCredit";
 import SpinViewer from "@/components/SpinViewer";
 import { swipeDirection, tiltFromPointer } from "@/lib/viewer";
 
-const KIND_LABEL = { detail: "Close-up", angle: "Angle", illustration: "Illustration", photo: "Photo" };
+const KIND_LABEL = { detail: "Close-up", angle: "Angle", illustration: "Illustration", ai_photo: "Realistic AI preview", photo: "Photo" };
 
 /** The design page's photo gallery: the main photo plus every extra view
  * (angles, close-ups, the illustrated version), with thumbnails, swipe, a
@@ -127,7 +127,7 @@ export default function DesignGallery({ design }) {
         )}
       </div>
 
-      <PhotoCredit credit={current.credit} illustration={current.kind === "illustration"} />
+      <PhotoCredit credit={current.credit} illustration={current.kind === "illustration"} aiPhoto={current.kind === "ai_photo"} />
 
       {views.length > 1 && (
         <div ref={thumbsRef} className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Design photos">

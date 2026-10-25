@@ -82,7 +82,9 @@ class Design(Base):
 
 # DesignImage.kind - "spin" frames are the ordered photos of a 360-degree
 # turntable shot (see the design page's 360 viewer), not gallery views.
-DESIGN_IMAGE_KINDS = ("photo", "angle", "detail", "illustration", "spin")
+# "ai_photo" is a realistic AI preview of the design - shown labelled in the
+# gallery, never the main image (so never the verification reference).
+DESIGN_IMAGE_KINDS = ("photo", "angle", "detail", "illustration", "ai_photo", "spin")
 
 
 class DesignImage(Base):

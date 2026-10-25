@@ -17,6 +17,9 @@ Idempotent - safe to re-run, including on production:
   - a design with no photo yet but an "illustration" (catalog/illustrations/,
     an AI illustration) is shown with that as its main image, labelled as an
     illustration, until a real photo replaces it
+  - a design shown with an illustration may also have a realistic AI
+    preview ("ai_photo", catalog/ai/) - added to its gallery as kind
+    "ai_photo", labelled, and never usable as the main image
   - photos under a licence that requires credit (CC BY / BY-SA, e.g. from
     Wikimedia Commons) carry that credit - author, licence, source, and
     "edited" since the catalog versions are edited - to the site
@@ -59,6 +62,7 @@ GALLERY = HERE / "catalog" / "gallery"
 ANGLES = HERE / "catalog" / "angles"
 SPIN = HERE / "catalog" / "spin"
 ILLUSTRATIONS = HERE / "catalog" / "illustrations"
+AI_PHOTOS = HERE / "catalog" / "ai"
 STUDIO = HERE / "catalog" / "studio"
 DESIGN_FIELDS = ("price_min", "price_max", "duration_minutes", "description", "style", "coverage", "occasions")
 
@@ -114,6 +118,21 @@ def package_for(category: str) -> Package:
     if pkg is None:
         raise SystemExit(f"No active package for category '{category}' - add it to 'packages' in {CATALOG.name}")
     return pkg
+
+
+def ai_preview_views(spec: dict) -> list[dict]:
+    """The design's realistic AI preview (catalog/ai/), shown in the gallery
+    after the main image and labelled as AI - never a main image."""
+    ai = spec.get("ai_photo")
+    if not ai:
+        return []
+    path = AI_PHOTOS / ai["file"]
+    if not path.exists():
+        warnings.append(f"{spec['slug']}: {path.relative_to(HERE)} missing - skipped")
+        return []
+    path = shown(path, spec["slug"])
+    return [{"path": path, "label": "Realistic AI preview", "kind": "ai_photo", "order": 0, "name": path.stem,
+             "key": source_key(path, prefix=f"{spec['slug']}/"), "credit": {"generator": ai["generator"]}}]
 
 
 def desired_gallery(spec: dict, main: Path) -> list[dict]:
@@ -220,7 +239,7 @@ for order, spec in enumerate(data["designs"]):
                 stats["main"] += 1
             design.image_kind = "illustration"
             design.image_credit = {"generator": spec["illustration"]["generator"]}
-            sync_gallery(design, [])
+            sync_gallery(design, ai_preview_views(spec))
     elif main is None and spec.get("photo_needed"):
         # Hidden until it has a good photo - unless an admin already gave it one.
         if not admin_photo:
