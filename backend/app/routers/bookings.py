@@ -85,10 +85,31 @@ def _confirm_booking_at_price(db: Session, booking: Booking, agreed_price: float
     _provision_call_masking(db, booking)
 
 
+def mark_advance_paid(db: Session, booking: Booking, payment_id: str, signature: str | None = None) -> bool:
+    """Records the advance as paid - from the customer's browser or the
+    Razorpay webhook, whichever arrives first. Returns False if it was
+    already recorded. Doesn't commit."""
+    if booking.advance_status == "paid":
+        return False
+    booking.advance_razorpay_payment_id = payment_id
+    booking.advance_razorpay_signature = signature
+    booking.advance_status = "paid"
+    booking.advance_paid_at = utcnow()
+    notify(
+        db,
+        booking.artist_id,
+        "booking",
+        "Advance paid - slot secured",
+        f"₹{booking.advance_amount} advance received. You're clear to head out once it's time.",
+        f"/booking-detail/{booking.id}",
+    )
+    return True
+
+
 def refund_advance(booking: Booking) -> str:
     """Refunds a paid advance and returns a consumer-facing note. Shared by
     early cancellation and an admin cancelling a disputed booking."""
-    refund_payment(booking.advance_razorpay_payment_id, booking.advance_amount)
+    refund_payment(booking.advance_razorpay_payment_id)
     booking.advance_status = "refunded"
     return f"Your ₹{booking.advance_amount} advance has been refunded."
 
@@ -362,18 +383,7 @@ def verify_advance_payment(
     if not verify_payment_signature(payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment signature verification failed")
 
-    booking.advance_razorpay_payment_id = payload.razorpay_payment_id
-    booking.advance_razorpay_signature = payload.razorpay_signature
-    booking.advance_status = "paid"
-    booking.advance_paid_at = utcnow()
-    notify(
-        db,
-        booking.artist_id,
-        "booking",
-        "Advance paid - slot secured",
-        f"₹{booking.advance_amount} advance received. You're clear to head out once it's time.",
-        f"/booking-detail/{booking_id}",
-    )
+    mark_advance_paid(db, booking, payload.razorpay_payment_id, payload.razorpay_signature)
     db.commit()
     db.refresh(booking)
     return booking

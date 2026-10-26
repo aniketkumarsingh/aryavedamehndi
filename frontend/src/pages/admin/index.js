@@ -18,6 +18,7 @@ const TABS = [
   "Reports",
   "Shop Products",
   "Shop Orders",
+  "Coupons",
   "Brand Content",
   "Settings",
 ];
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
       {tab === "Reports" && <ReportsTab />}
       {tab === "Shop Products" && <ShopProductsTab />}
       {tab === "Shop Orders" && <ShopOrdersTab />}
+      {tab === "Coupons" && <CouponsTab />}
       {tab === "Brand Content" && <CmsTab />}
     </div>
   );
@@ -306,6 +308,9 @@ const SETTING_FIELDS = [
   { key: "design_match_threshold", label: "Design auto-match threshold (%)", hint: "Scores at or above this release payment without asking the consumer", step: "1" },
   { key: "strikes_before_suspension", label: "Strikes before auto-suspension", hint: "Upheld reports that suspend an artist", step: "1" },
   { key: "checkin_flag_distance_m", label: "Check-in flag distance (m)", hint: "Check-ins farther than this from the address get flagged", step: "50" },
+  { key: "shop_shipping_fee", label: "Shop delivery charge (₹)", hint: "Flat charge per shop order below the free-delivery amount", step: "1" },
+  { key: "shop_free_shipping_above", label: "Free delivery from (₹)", hint: "Orders at or above this (after coupon discount) ship free", step: "1" },
+  { key: "shop_payment_window_minutes", label: "Shop payment window (minutes)", hint: "Unpaid orders are cancelled and their stock released after this", step: "5" },
 ];
 
 function SettingsTab() {
@@ -1383,6 +1388,7 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [licence, setLicence] = useState(product.licence_number || "");
+  const [tax, setTax] = useState({ hsn_code: product.hsn_code || "", gst_rate: product.gst_rate ?? "" });
   const [stock, setStock] = useState(() => Object.fromEntries((product.variants || []).map((v) => [v.id, String(v.stock_quantity)])));
   const images = (product.image_urls || "").split(",").filter(Boolean);
   const variants = (product.variants || []).filter((v) => v.is_active);
@@ -1411,6 +1417,16 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
   const removePhoto = (url) => run(() => api.del(`/shop/products/${product.id}/image?url=${encodeURIComponent(url)}`));
   const saveLicence = () => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, licence_number: licence.trim() || null }));
   const publish = () => run(() => api.post(`/shop/products/${product.id}/publish`, {}));
+  const saveTax = () =>
+    run(() =>
+      api.put(`/shop/products/${product.id}`, {
+        name: product.name,
+        price: product.price,
+        hsn_code: tax.hsn_code.trim() || null,
+        gst_rate: tax.gst_rate === "" ? null : Number(tax.gst_rate),
+      })
+    );
+  const taxChanged = tax.hsn_code !== (product.hsn_code || "") || String(tax.gst_rate) !== String(product.gst_rate ?? "");
   const saveStock = (v) => run(() => api.put(`/shop/variants/${v.id}/stock`, { stock_quantity: Number(stock[v.id] || 0) }));
 
   return (
@@ -1446,6 +1462,16 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
           </button>
         </div>
       )}
+      <div className="flex gap-2 items-center mt-2 flex-wrap text-xs">
+        <span className="text-ink-soft">For GST invoices:</span>
+        <input className="input text-xs !w-24 !py-1" placeholder="HSN code" aria-label="HSN code" value={tax.hsn_code} onChange={(e) => setTax({ ...tax, hsn_code: e.target.value })} />
+        <input className="input text-xs !w-20 !py-1" type="number" min="0" max="40" step="0.25" placeholder="GST %" aria-label="GST rate" value={tax.gst_rate} onChange={(e) => setTax({ ...tax, gst_rate: e.target.value })} />
+        {taxChanged && (
+          <button className="text-gold font-semibold" onClick={saveTax} disabled={busy}>
+            Save
+          </button>
+        )}
+      </div>
       {variants.length > 0 && (
         <div className="flex gap-3 flex-wrap mt-2">
           {variants.map((v) => (
@@ -1523,14 +1549,6 @@ function ShopOrdersTab() {
     }
   }
 
-  async function updateStatus(id, status) {
-    try {
-      await api.post(`/admin/shop-orders/${id}/status`, { status });
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
 
   return (
     <div className="card p-5">
@@ -1547,24 +1565,7 @@ function ShopOrdersTab() {
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-col gap-3 text-sm">
         {orders.map((o) => (
-          <div key={o.id} className="border-b border-line pb-3">
-            <div className="flex justify-between items-start gap-2 flex-wrap">
-              <div>
-                <p className="font-semibold">{o.shipping_name} — ₹{o.total_amount}</p>
-                <p className="text-xs text-ink-soft">{o.shipping_phone} · {o.shipping_address}</p>
-                <p className="text-xs text-ink-soft mt-1">
-                  {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
-                </p>
-              </div>
-              <select className="input w-auto" value={o.status} onChange={(e) => updateStatus(o.id, e.target.value)}>
-                {SHOP_ORDER_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <ShopOrderRow key={o.id} order={o} onChanged={load} />
         ))}
         {orders.length === 0 && <p className="text-ink-soft">No orders yet.</p>}
       </div>
@@ -1573,6 +1574,223 @@ function ShopOrdersTab() {
           {loadingMore ? "Loading…" : "Load more"}
         </button>
       )}
+    </div>
+  );
+}
+
+// Mirrors SHOP_ORDER_TRANSITIONS in the backend; "paid" only comes from payment.
+const SHOP_ORDER_NEXT = { pending: ["cancelled"], paid: ["shipped", "cancelled"], shipped: ["delivered"], delivered: [], cancelled: [] };
+const SHOP_ACTION_LABEL = { shipped: "Mark shipped", delivered: "Mark delivered", cancelled: "Cancel" };
+
+function ShopOrderRow({ order: o, onChanged }) {
+  const [shipping, setShipping] = useState(false);
+  const [tracking, setTracking] = useState({ courier_name: "", tracking_number: "", tracking_url: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function move(status, extra = {}) {
+    if (status === "cancelled" && !window.confirm(o.status === "paid" ? `Cancel and refund ₹${o.total_amount}?` : "Cancel this unpaid order?")) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/admin/shop-orders/${o.id}/status`, { status, ...extra });
+      setShipping(false);
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryRefund() {
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/admin/shop-orders/${o.id}/retry-refund`, {});
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function ship(e) {
+    e.preventDefault();
+    const extra = Object.fromEntries(Object.entries(tracking).filter(([, v]) => v.trim()));
+    move("shipped", extra);
+  }
+
+  return (
+    <div className="border-b border-line pb-3">
+      <div className="flex justify-between items-start gap-2 flex-wrap">
+        <div>
+          <p className="font-semibold">
+            {o.shipping_name} — ₹{o.total_amount} <span className="chip ml-1">{o.status}</span>
+          </p>
+          <p className="text-xs text-ink-soft">{o.shipping_phone} · {o.shipping_address}</p>
+          <p className="text-xs text-ink-soft mt-1">
+            {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
+          </p>
+          <p className="text-xs text-ink-soft">
+            {o.items_amount != null && `Items ₹${o.items_amount}`}
+            {o.discount_amount > 0 && ` · ${o.coupon_code} −₹${o.discount_amount}`}
+            {` · Delivery ${o.shipping_fee > 0 ? `₹${o.shipping_fee}` : "free"}`}
+            {` · ${new Date(o.created_at).toLocaleString()}`}
+          </p>
+          {o.tracking_number && <p className="text-xs">Shipped via {o.courier_name || "courier"} · {o.tracking_number}</p>}
+          {o.invoice_number && (
+            <a href={`/shop/orders/${o.id}/invoice`} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+              Invoice {o.invoice_number}
+            </a>
+          )}
+          {o.status === "cancelled" && (
+            <p className="text-xs">
+              {o.cancel_reason}
+              {o.refund_status === "refunded" && " · refunded"}
+              {o.refund_status === "failed" && (
+                <>
+                  <b className="text-red-700"> · refund failed </b>
+                  <button className="underline text-red-700" disabled={busy} onClick={() => retryRefund()}>
+                    Retry refund
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {SHOP_ORDER_NEXT[o.status].map((next) => (
+            <button
+              key={next}
+              className={next === "cancelled" ? "text-xs text-red-700" : "btn-secondary text-xs"}
+              disabled={busy}
+              onClick={() => (next === "shipped" ? setShipping(!shipping) : move(next))}
+            >
+              {SHOP_ACTION_LABEL[next]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {shipping && (
+        <form onSubmit={ship} className="grid sm:grid-cols-3 gap-2 mt-2">
+          <input className="input text-xs" placeholder="Courier (e.g. Delhivery)" value={tracking.courier_name} onChange={(e) => setTracking({ ...tracking, courier_name: e.target.value })} />
+          <input className="input text-xs" placeholder="Tracking number" value={tracking.tracking_number} onChange={(e) => setTracking({ ...tracking, tracking_number: e.target.value })} />
+          <input className="input text-xs" placeholder="Tracking link (https://…)" value={tracking.tracking_url} onChange={(e) => setTracking({ ...tracking, tracking_url: e.target.value })} />
+          <button className="btn-primary text-xs sm:col-span-3 justify-self-start" disabled={busy}>
+            {busy ? "Saving…" : "Confirm shipped & notify customer"}
+          </button>
+        </form>
+      )}
+      {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+const EMPTY_COUPON = { code: "", description: "", discount_type: "percent", discount_value: "", max_discount: "", min_order_amount: "", starts_at: "", expires_at: "", usage_limit: "", per_user_limit: "1" };
+
+function couponPayload(f) {
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  return {
+    code: f.code.trim(),
+    description: f.description.trim() || null,
+    discount_type: f.discount_type,
+    discount_value: Number(f.discount_value),
+    max_discount: f.discount_type === "percent" ? num(f.max_discount) : null,
+    min_order_amount: num(f.min_order_amount) || 0,
+    starts_at: f.starts_at ? new Date(f.starts_at).toISOString() : null,
+    expires_at: f.expires_at ? new Date(f.expires_at).toISOString() : null,
+    usage_limit: num(f.usage_limit),
+    per_user_limit: num(f.per_user_limit),
+    is_active: f.is_active ?? true,
+  };
+}
+
+function CouponsTab() {
+  const [coupons, setCoupons] = useState([]);
+  const [form, setForm] = useState(EMPTY_COUPON);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  function load() {
+    api.get("/shop/admin/coupons").then(setCoupons).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function create(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api.post("/shop/admin/coupons", couponPayload(form));
+      setForm(EMPTY_COUPON);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggle(c) {
+    try {
+      // Send the stored (UTC) dates back untouched.
+      const { id, uses, created_at, ...fields } = c;
+      await api.put(`/shop/admin/coupons/${id}`, { ...fields, is_active: !c.is_active });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  const describe = (c) =>
+    `${c.discount_type === "percent" ? `${c.discount_value}% off${c.max_discount ? ` (max ₹${c.max_discount})` : ""}` : `₹${c.discount_value} off`}` +
+    (c.min_order_amount ? ` on ₹${c.min_order_amount}+` : "") +
+    (c.expires_at ? ` · until ${new Date(c.expires_at).toLocaleDateString()}` : "") +
+    ` · used ${c.uses}${c.usage_limit ? `/${c.usage_limit}` : ""}` +
+    ` · ${c.per_user_limit ? `${c.per_user_limit} per customer` : "unlimited per customer"}`;
+
+  return (
+    <div className="card p-5 flex flex-col gap-4">
+      <div>
+        <h2 className="font-semibold">Shop Coupons</h2>
+        <p className="text-xs text-ink-soft">
+          Customers enter these in the cart. Bank, card and UPI offers are set up separately in the Razorpay dashboard (Offers)
+          and appear on the payment screen automatically.
+        </p>
+      </div>
+      <form onSubmit={create} className="grid sm:grid-cols-3 gap-2 text-sm">
+        <input className="input uppercase" placeholder="Code, e.g. DIWALI10" value={form.code} onChange={set("code")} required />
+        <select className="input" value={form.discount_type} onChange={set("discount_type")}>
+          <option value="percent">Percent off</option>
+          <option value="flat">Flat ₹ off</option>
+        </select>
+        <input className="input" type="number" min="1" placeholder={form.discount_type === "percent" ? "Percent (max 90)" : "Amount ₹"} value={form.discount_value} onChange={set("discount_value")} required />
+        {form.discount_type === "percent" && <input className="input" type="number" min="1" placeholder="Max discount ₹ (optional)" value={form.max_discount} onChange={set("max_discount")} />}
+        <input className="input" type="number" min="0" placeholder="Minimum order ₹" value={form.min_order_amount} onChange={set("min_order_amount")} />
+        <input className="input" type="number" min="1" placeholder="Total uses (blank = unlimited)" value={form.usage_limit} onChange={set("usage_limit")} />
+        <input className="input" type="number" min="1" placeholder="Uses per customer (blank = unlimited)" value={form.per_user_limit} onChange={set("per_user_limit")} />
+        <label className="text-xs flex flex-col gap-1">Starts (optional)<input className="input" type="datetime-local" value={form.starts_at} onChange={set("starts_at")} /></label>
+        <label className="text-xs flex flex-col gap-1">Expires (optional)<input className="input" type="datetime-local" value={form.expires_at} onChange={set("expires_at")} /></label>
+        <input className="input sm:col-span-3" placeholder="Note for your team (optional)" value={form.description} onChange={set("description")} />
+        <button className="btn-primary sm:col-span-3 justify-self-start" disabled={busy}>{busy ? "Saving…" : "Create coupon"}</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-2 text-sm">
+        {coupons.map((c) => (
+          <div key={c.id} className="flex justify-between items-center gap-2 border-b border-line pb-2 flex-wrap">
+            <div>
+              <b>{c.code}</b> {!c.is_active && <span className="chip ml-1 text-red-700">off</span>}
+              <p className="text-xs text-ink-soft">{describe(c)}</p>
+              {c.description && <p className="text-xs text-ink-soft">{c.description}</p>}
+            </div>
+            <button className="btn-secondary text-xs" onClick={() => toggle(c)}>{c.is_active ? "Turn off" : "Turn on"}</button>
+          </div>
+        ))}
+        {coupons.length === 0 && <p className="text-ink-soft">No coupons yet.</p>}
+      </div>
     </div>
   );
 }

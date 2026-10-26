@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from typing import Literal
 
@@ -21,6 +21,8 @@ class ShopProductIn(BaseModel):
     storage: str | None = Field(default=None, max_length=200)
     requires_licence: bool = False
     licence_number: str | None = Field(default=None, max_length=80)
+    hsn_code: str | None = Field(default=None, pattern=r"^\d{4,8}$")
+    gst_rate: float | None = Field(default=None, ge=0, le=40)
 
 
 class ShopVariantOut(BaseModel):
@@ -59,6 +61,8 @@ class ShopProductOut(BaseModel):
     licence_number: str | None = None
     # "photo" or "illustrative" (AI image, shown labelled)
     image_kind: str = "photo"
+    hsn_code: str | None = None
+    gst_rate: float | None = None
     variants: list[ShopVariantOut] = []
 
     class Config:
@@ -76,7 +80,76 @@ class ShopOrderCreateIn(BaseModel):
     shipping_name: str = Field(min_length=1, max_length=120)
     shipping_phone: str = Field(min_length=10, max_length=15)
     shipping_address: str = Field(min_length=1, max_length=2000)
+    shipping_state: str | None = Field(default=None, max_length=60)
+    shipping_pincode: str | None = Field(default=None, pattern=r"^[1-9]\d{5}$")
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
+    coupon_code: str | None = Field(default=None, max_length=40)
+
+
+class ShopQuoteIn(BaseModel):
+    """The cart, priced before ordering: discount, delivery and total."""
+
+    items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
+    coupon_code: str | None = Field(default=None, max_length=40)
+
+
+class ShopQuoteOut(BaseModel):
+    items_amount: float
+    discount_amount: float
+    shipping_fee: float
+    total_amount: float
+    free_shipping_above: float
+    coupon_code: str | None = None
+    coupon_error: str | None = None
+
+
+class ShopCheckoutConfigOut(BaseModel):
+    shipping_fee: float
+    free_shipping_above: float
+    payment_window_minutes: int
+
+
+class ShopCouponIn(BaseModel):
+    code: str = Field(min_length=3, max_length=40, pattern=r"^[A-Za-z0-9_-]+$")
+    description: str | None = Field(default=None, max_length=200)
+    discount_type: Literal["percent", "flat"]
+    discount_value: float = Field(gt=0, le=100_000)
+    max_discount: float | None = Field(default=None, gt=0, le=100_000)
+    min_order_amount: float = Field(default=0, ge=0, le=1_000_000)
+    starts_at: datetime | None = None
+    expires_at: datetime | None = None
+    usage_limit: int | None = Field(default=None, ge=1, le=1_000_000)
+    per_user_limit: int | None = Field(default=1, ge=1, le=1000)
+    is_active: bool = True
+
+    @field_validator("starts_at", "expires_at")
+    @classmethod
+    def to_naive_utc(cls, v):
+        # Stored like every other timestamp here: naive UTC.
+        if v is not None and v.tzinfo is not None:
+            v = v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
+    @field_validator("discount_value")
+    @classmethod
+    def percent_in_range(cls, v, info):
+        if info.data.get("discount_type") == "percent" and v > 90:
+            raise ValueError("a percent discount must be 90 or less")
+        return v
+
+
+class ShopCouponOut(ShopCouponIn):
+    id: uuid.UUID
+    code: str
+    uses: int = 0
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ShopOrderCancelIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class ShopOrderItemOut(BaseModel):
@@ -84,6 +157,8 @@ class ShopOrderItemOut(BaseModel):
     product_name: str
     variant_id: uuid.UUID | None = None
     variant_label: str | None = None
+    hsn_code: str | None = None
+    gst_rate: float | None = None
     unit_price: float
     quantity: int
     subtotal: float
@@ -98,12 +173,25 @@ class ShopOrderOut(BaseModel):
     shipping_name: str
     shipping_phone: str
     shipping_address: str
+    shipping_state: str | None = None
+    shipping_pincode: str | None = None
+    invoice_number: str | None = None
     total_amount: float
     status: str
     created_at: datetime
     paid_at: datetime | None
     shipped_at: datetime | None
     items: list[ShopOrderItemOut]
+    items_amount: float | None = None
+    discount_amount: float = 0
+    shipping_fee: float = 0
+    coupon_code: str | None = None
+    courier_name: str | None = None
+    tracking_number: str | None = None
+    tracking_url: str | None = None
+    cancelled_at: datetime | None = None
+    cancel_reason: str | None = None
+    refund_status: str | None = None
 
     class Config:
         from_attributes = True
@@ -111,6 +199,11 @@ class ShopOrderOut(BaseModel):
 
 class ShopOrderStatusIn(BaseModel):
     status: str
+    # Filled in when marking an order shipped.
+    courier_name: str | None = Field(default=None, max_length=80)
+    tracking_number: str | None = Field(default=None, max_length=80)
+    tracking_url: str | None = Field(default=None, max_length=300, pattern=r"^https?://")
+    reason: str | None = Field(default=None, max_length=200)
 
     @field_validator("status")
     @classmethod

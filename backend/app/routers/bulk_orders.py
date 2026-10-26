@@ -75,7 +75,7 @@ def _get_own_order(db: Session, order_id: uuid.UUID, user: User) -> BulkOrder:
 
 
 def _refund_advance(order: BulkOrder) -> str:
-    refund_payment(order.advance_razorpay_payment_id, order.advance_amount)
+    refund_payment(order.advance_razorpay_payment_id)
     order.advance_status = "refunded"
     return f"Your ₹{order.advance_amount:g} deposit has been refunded."
 
@@ -204,6 +204,20 @@ def create_advance_order(order_id: uuid.UUID, user: User = Depends(require_role(
     )
 
 
+def mark_deposit_paid(db: Session, order: BulkOrder, payment_id: str, signature: str | None = None) -> bool:
+    """Records the deposit as paid - from the customer's browser or the
+    Razorpay webhook, whichever arrives first. Returns False if it was
+    already recorded. Doesn't commit."""
+    if order.advance_status == "paid":
+        return False
+    order.advance_razorpay_payment_id = payment_id
+    order.advance_razorpay_signature = signature
+    order.advance_status = "paid"
+    order.advance_paid_at = utcnow()
+    notify_admins(db, "Bulk order deposit paid", f"₹{order.advance_amount:g} received - the event is secured.", "/admin")
+    return True
+
+
 @router.post("/{order_id}/advance/verify", response_model=BulkOrderOut)
 def verify_advance_payment(
     order_id: uuid.UUID,
@@ -217,11 +231,7 @@ def verify_advance_payment(
     if not verify_payment_signature(payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Payment signature verification failed")
 
-    order.advance_razorpay_payment_id = payload.razorpay_payment_id
-    order.advance_razorpay_signature = payload.razorpay_signature
-    order.advance_status = "paid"
-    order.advance_paid_at = utcnow()
-    notify_admins(db, "Bulk order deposit paid", f"₹{order.advance_amount:g} received - the event is secured.", "/admin")
+    mark_deposit_paid(db, order, payload.razorpay_payment_id, payload.razorpay_signature)
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

@@ -59,6 +59,9 @@ class PlatformSettingsOut(BaseModel):
     design_match_threshold: int
     strikes_before_suspension: int
     checkin_flag_distance_m: int
+    shop_shipping_fee: float
+    shop_free_shipping_above: float
+    shop_payment_window_minutes: int
 
 
 class PlatformSettingsIn(BaseModel):
@@ -68,6 +71,9 @@ class PlatformSettingsIn(BaseModel):
     design_match_threshold: int | None = Field(default=None, ge=0, le=100)
     strikes_before_suspension: int | None = Field(default=None, ge=1, le=20)
     checkin_flag_distance_m: int | None = Field(default=None, ge=50, le=50_000)
+    shop_shipping_fee: float | None = Field(default=None, ge=0, le=10_000)
+    shop_free_shipping_above: float | None = Field(default=None, ge=0, le=1_000_000)
+    shop_payment_window_minutes: int | None = Field(default=None, ge=10, le=24 * 60)
 
 
 class AdminUserOut(BaseModel):

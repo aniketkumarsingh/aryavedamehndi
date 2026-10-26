@@ -22,11 +22,15 @@ def _configured() -> bool:
     return bool(settings.exotel_sid and settings.exotel_token and settings.exotel_virtual_number)
 
 
-def provision_masked_number(booking_id: uuid.UUID, consumer_phone: str, artist_phone: str) -> tuple[str, str]:
+def provision_masked_number(booking_id: uuid.UUID, consumer_phone: str, artist_phone: str) -> tuple[str | None, str | None]:
     """Returns (masked_number, provider_ref) that both consumer and artist
     can dial to reach each other for this booking, with real numbers
     hidden from one another."""
     if not _configured():
+        if settings.app_env == "production":
+            # No number at all - the booking page hides the call button
+            # rather than showing a fake one to real customers.
+            return None, None
         # Dev-stub: a clearly-fake number, distinguishable from a real one,
         # so nothing in the UI accidentally looks like it actually works.
         return f"+91-DEV-{str(booking_id)[:8].upper()}", f"dev_mask_{booking_id}"

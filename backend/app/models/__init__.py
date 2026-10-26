@@ -14,7 +14,7 @@ from app.models.payment import Payment
 from app.models.platform_settings import PlatformSetting
 from app.models.refresh_token import RefreshToken
 from app.models.review import Report, Review
-from app.models.shop import ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import ArtistProfile, User
 
 __all__ = [
@@ -44,6 +44,7 @@ __all__ = [
     "ChatMessage",
     "ShopProduct",
     "ShopProductVariant",
+    "ShopCoupon",
     "ShopOrder",
     "ShopOrderItem",
 ]

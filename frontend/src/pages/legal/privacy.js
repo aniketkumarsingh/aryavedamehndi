@@ -5,7 +5,7 @@ export default function PrivacyPolicy() {
     <div className="max-w-2xl mx-auto flex flex-col gap-5">
       <h1 className="text-2xl">Privacy Policy</h1>
       <p className="text-xs text-ink-soft">
-        Last updated: September 2026. Written in accordance with India&apos;s Digital Personal Data Protection Act, 2023
+        Last updated: October 2026. Written in accordance with India&apos;s Digital Personal Data Protection Act, 2023
         (DPDP Act).
       </p>
 
@@ -53,7 +53,15 @@ export default function PrivacyPolicy() {
         compliance, and personal profile data for as long as your account is active.
       </Section>
 
-      <Section title="8. Changes">
+      <Section title="8. Cookies, Analytics &amp; Advertising">
+        With your permission (the cookie banner), we use Google Analytics and the Meta Pixel to measure visits and the
+        results of our ads on Google, Facebook and Instagram — for example, which pages were viewed and whether a
+        purchase was completed. These tools receive device and browsing information, not your name or phone number.
+        If you choose &quot;No thanks&quot;, they are never loaded and the site works exactly the same. To change your
+        choice, clear this site&apos;s data in your browser and the banner will ask again.
+      </Section>
+
+      <Section title="9. Changes">
         We may update this policy as the platform evolves; material changes will be reflected here with an updated
         date.
       </Section>

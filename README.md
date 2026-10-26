@@ -27,35 +27,36 @@ pure churn with no benefit.
 
 ## First-time setup (do this once)
 
-**1. Database.** Postgres 17 is already running locally. Create the app's
-role + database (you'll be prompted for your `postgres` superuser
-password — I didn't set this up automatically since it needs your
-credentials):
+Commands are for macOS/Linux; on Windows use `venv\Scripts\...` instead of
+`venv/bin/...` and `copy` instead of `cp`.
+
+**1. Database.** With Postgres 17 running locally, create the app's role +
+database (you'll be prompted for your `postgres` superuser password):
 
 ```
-"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -h localhost -f backend\setup_db.sql
+psql -U postgres -h localhost -f backend/setup_db.sql
 ```
 
-**2. Backend env + migrations:**
+**2. Backend env, migrations and seed data:**
 
 ```
 cd backend
-copy .env.example .env
-venv\Scripts\alembic upgrade head
-venv\Scripts\python seed.py
+python3 -m venv venv && venv/bin/pip install -r requirements-dev.txt
+cp .env.example .env
+venv/bin/alembic upgrade head
+venv/bin/python seed.py            # packages, admin user, CMS copy
+venv/bin/python seed_designs.py    # design catalog + gallery images
+venv/bin/python seed_shop.py       # shop catalogue (loads as hidden drafts)
+venv/bin/python set_admin_password.py admin   # username/password admin login
 ```
 
-(The virtualenv and all Python packages are already installed.)
-
-**3. Frontend env** (defaults are already correct for local dev, this step
-is optional):
+**3. Frontend env** (defaults are fine for local dev):
 
 ```
 cd frontend
-copy .env.local.example .env.local
+npm install
+cp .env.local.example .env.local
 ```
-
-(`node_modules` are already installed.)
 
 ## Running it
 
@@ -63,7 +64,7 @@ Two terminals:
 
 ```
 cd backend
-venv\Scripts\uvicorn app.main:app --reload --port 8000
+venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
 ```
@@ -125,6 +126,29 @@ whether a browser will offer to install at all:
 To check installability in Chrome: DevTools → Application → Manifest
 (shows install errors) and → Service workers. To start over, uninstall the
 app (Chrome: open the app → ⋮ → Uninstall) and clear site data.
+
+## Going live checklist
+
+The backend refuses to start with `APP_ENV=production` until the unsafe
+dev settings are gone: a real `JWT_SECRET` (32+ chars), `OTP_DEV_MODE=false`,
+`CORS_ORIGINS` set to the real site, Razorpay live keys, and MSG91 key +
+OTP template (registered on TRAI DLT).
+
+Also set before launch:
+
+- **Backend `.env`:** `S3_*` (so uploads survive server replacement),
+  `PUBLIC_SITE_URL`, `PUBLIC_API_URL`, and optionally `EXOTEL_*` for masked
+  calling (without it the call button is hidden in production).
+- **Frontend env:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SITE_URL`, the
+  seller and grievance-officer details (`NEXT_PUBLIC_BUSINESS_*`,
+  `NEXT_PUBLIC_SUPPORT_*`, `NEXT_PUBLIC_GRIEVANCE_OFFICER_*` — the policy
+  pages highlight anything missing), and `NEXT_PUBLIC_GA_MEASUREMENT_ID` /
+  `NEXT_PUBLIC_META_PIXEL_ID` for analytics and ad tracking.
+- **Admin panel:** stock for each pack size and licence numbers for licensed
+  products (Shop Products), delivery charge and payment window (Settings),
+  and any launch coupons (Coupons).
+- **Ads:** point Meta Commerce Manager / Google Merchant Center at
+  `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed.
 
 ## What's stubbed vs. production-ready
 

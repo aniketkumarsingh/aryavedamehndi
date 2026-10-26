@@ -259,3 +259,22 @@ h4 {
     transform: none;
   }
 }
+
+/* ---- Printing (order receipt / invoice) ------------------------------- */
+
+@media print {
+  header,
+  footer,
+  .no-print,
+  [aria-label="Cookie consent"] {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .print-plain {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+}

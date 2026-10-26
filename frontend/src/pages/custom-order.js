@@ -6,6 +6,7 @@ import FileUpload from "@/components/FileUpload";
 import { Icon, OrnateHero, QuantityStepper, Receipt, StepHeading } from "@/components/OrderParts";
 import PricePromise from "@/components/PricePromise";
 import SectionDivider from "@/components/SectionDivider";
+import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { categoryLabel, formatDuration, formatPriceRange } from "@/lib/designs";
 import { BULK_OCCASIONS, bulkOccasionLabel, estimateSummary } from "@/lib/pricing";
@@ -49,7 +50,7 @@ export default function CustomOrder() {
     <div className="flex flex-col gap-8 max-w-5xl mx-auto">
       <Head>
         <title>Custom & Event Mehndi Orders | AryaVeda Mehndi</title>
-        <meta name="description" content="Book mehndi in your own design, or for every guest at your mehndi ceremony, sangeet or festival — at the same transparent per-person prices." />
+        <meta key="description" name="description" content="Book mehndi in your own design, or for every guest at your mehndi ceremony, sangeet or festival — at the same transparent per-person prices." />
       </Head>
 
       <OrnateHero eyebrow="Custom & Event Orders" title="Your design. Your celebration.">
@@ -323,6 +324,7 @@ function BulkOrder({ packages }) {
           note: l.note || null,
         })),
       });
+      track("generate_lead", { lead_type: "bulk_order", occasion });
       router.push(`/bulk-orders/${order.id}`);
     } catch (err) {
       setError(err.message);

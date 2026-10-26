@@ -62,20 +62,30 @@ def build_transfer(linked_account_id: str, amount_rupees: float) -> dict:
     return {"account": linked_account_id, "amount": int(round(amount_rupees * 100)), "currency": "INR", "on_hold": False}
 
 
-def refund_payment(payment_id: str, amount_rupees: float) -> dict:
-    """Refunds a captured payment (used for advance-deposit refunds on an
-    early cancellation - see app/routers/bookings.py). Dev-stub: if the
-    payment was never a real Razorpay payment (dev-mode "dev_payment" id),
-    there's nothing to actually refund - just report success so the
-    booking's advance_status can move to "refunded"."""
+def refund_payment(payment_id: str, amount_rupees: float | None = None) -> dict:
+    """Refunds a captured payment - in full by default. A full refund returns
+    exactly what was captured, which can be less than our order total when a
+    Razorpay Offer (bank/UPI/wallet discount) applied at checkout; asking for
+    the order total would then be rejected. Dev-stub: if the payment was
+    never a real Razorpay payment (dev-mode "dev_payment" id), there's
+    nothing to actually refund - just report success."""
     if not _configured() or payment_id == "dev_payment":
         return {"id": f"rfnd_dev_{payment_id}", "status": "processed"}
 
-    amount_paise = int(round(amount_rupees * 100))
+    body = {} if amount_rupees is None else {"amount": int(round(amount_rupees * 100))}
     with _client() as client:
-        resp = client.post(f"{RAZORPAY_API_BASE}/payments/{payment_id}/refund", json={"amount": amount_paise})
+        resp = client.post(f"{RAZORPAY_API_BASE}/payments/{payment_id}/refund", json=body)
         resp.raise_for_status()
         return resp.json()
+
+
+def verify_webhook_signature(body: bytes, signature: str | None) -> bool:
+    """Razorpay signs each webhook body with the webhook secret set in the
+    dashboard (Settings -> Webhooks), separately from the API key secret."""
+    if not settings.razorpay_webhook_secret or not signature:
+        return False
+    expected = hmac.new(settings.razorpay_webhook_secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
 
 def verify_payment_signature(order_id: str, payment_id: str, signature: str) -> bool:

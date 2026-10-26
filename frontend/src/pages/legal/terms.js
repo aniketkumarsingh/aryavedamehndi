@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { GrievanceOfficer, Section as RichSection, SellerDetails } from "@/components/Legal";
 
 export default function TermsOfService() {
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-5">
       <h1 className="text-2xl">Terms of Service</h1>
-      <p className="text-xs text-ink-soft">Last updated: September 2026</p>
+      <p className="text-xs text-ink-soft">Last updated: October 2026</p>
 
       <Section title="1. What AryaVeda Mehndi Is">
         AryaVeda Mehndi is a platform that connects consumers with independent, verified mehndi artists for booking
@@ -54,13 +55,41 @@ export default function TermsOfService() {
         maintain in good faith.
       </Section>
 
-      <Section title="9. Changes">
+      <Section title="9. Shop Orders">
+        Products in our shop are sold by AryaVeda Mehndi (seller details below). Prices are MRPs including taxes; any
+        delivery charge and coupon discount are shown before you pay. An order is confirmed once payment succeeds;
+        unpaid orders are released after the payment window. Cancellations, returns and refunds follow our{" "}
+        <Link href="/legal/refunds" className="text-maroon-soft underline">Refund &amp; Cancellation Policy</Link>, and
+        delivery follows our <Link href="/legal/shipping" className="text-maroon-soft underline">Shipping &amp; Delivery Policy</Link>.
+        Product images marked &quot;Illustrative image&quot; show the product type; the pack you receive may look different.
+      </Section>
+
+      <Section title="10. Offers &amp; Coupons">
+        Coupon codes are subject to their stated minimum order, validity dates and usage limits, can&apos;t be exchanged
+        for cash, and only one coupon applies per order. Bank, card, UPI or wallet offers shown at payment are run by
+        those providers on their own terms. We may withdraw an offer that is being misused.
+      </Section>
+
+      <RichSection title="11. Grievance Officer">
+        <p>
+          Complaints about the platform, an order or content on it can be sent to our Grievance Officer, appointed under
+          the Information Technology Rules, 2021 and the Consumer Protection (E-Commerce) Rules, 2020:
+        </p>
+        <GrievanceOfficer />
+      </RichSection>
+
+      <RichSection title="12. Who We Are">
+        <SellerDetails />
+      </RichSection>
+
+      <Section title="13. Changes">
         We may update these terms as the platform evolves. Continued use after a change means you accept the updated
         terms.
       </Section>
 
       <p className="text-sm text-ink-soft">
-        See also our <Link href="/legal/privacy" className="text-maroon-soft underline">Privacy Policy</Link>.
+        See also our <Link href="/legal/privacy" className="text-maroon-soft underline">Privacy Policy</Link> and{" "}
+        <Link href="/contact" className="text-maroon-soft underline">Contact</Link> page.
       </p>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import DesignGallery from "@/components/DesignGallery";
+import SocialMeta from "@/components/SocialMeta";
 import { api } from "@/lib/api";
 import { categoryLabel, coverageLabel, formatDuration, formatPriceRange, occasionLabel, styleLabel } from "@/lib/designs";
 import { fetchBackend } from "@/lib/serverApi";
@@ -59,8 +60,14 @@ export default function DesignDetail({ initialDesign, id }) {
     <div className="flex flex-col gap-6 max-w-4xl mx-auto">
       <Head>
         <title>{`${design.name} — ${formatPriceRange(design.price_min, design.price_max)} | AryaVeda Mehndi`}</title>
-        <meta name="description" content={design.description || `${categoryLabel(design.category)} mehndi design by verified artists.`} />
+        <meta key="description" name="description" content={design.description || `${categoryLabel(design.category)} mehndi design by verified artists.`} />
       </Head>
+      <SocialMeta
+        title={`${design.name} — AryaVeda Mehndi`}
+        description={design.description || `${categoryLabel(design.category)} mehndi design by verified artists.`}
+        image={design.image_url}
+        path={`/designs/${id}`}
+      />
 
       <Link href={`/designs?category=${design.category}`} className="text-sm text-maroon-soft underline self-start">
         ← {categoryLabel(design.category)} designs
