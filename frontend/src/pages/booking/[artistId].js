@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { formatPriceRange } from "@/lib/designs";
 import FileUpload from "@/components/FileUpload";
@@ -111,6 +112,8 @@ export default function NewBooking() {
         opening_offer: openingOffer ? Number(openingOffer) : null,
         availability_slot_id: selectedSlot ? selectedSlot.id : null,
       });
+      // A booking request is the lead our ads optimise for.
+      track("generate_lead", { lead_type: "booking", currency: "INR", value: openingOffer ? Number(openingOffer) : undefined });
       router.push(`/booking-detail/${booking.id}`);
     } catch (err) {
       setError(err.message);

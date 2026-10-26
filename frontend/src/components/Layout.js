@@ -177,6 +177,13 @@ export default function Layout({ children }) {
           <span>·</span>
           <Link href="/legal/privacy" className="underline">{t("footer_privacy")}</Link>
         </div>
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <Link href="/legal/refunds" className="underline">{t("footer_refunds")}</Link>
+          <span>·</span>
+          <Link href="/legal/shipping" className="underline">{t("footer_shipping")}</Link>
+          <span>·</span>
+          <Link href="/contact" className="underline">{t("footer_contact")}</Link>
+        </div>
       </footer>
     </div>
   );

@@ -22,6 +22,7 @@ from app.routers import (
     reviews,
     shop,
     users,
+    webhooks,
 )
 from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
 
@@ -43,6 +44,14 @@ def _check_production_safety() -> None:
         problems.append("OTP_DEV_MODE is true - OTP codes are handed back in the API response")
     if "*" in settings.cors_origin_list:
         problems.append("CORS_ORIGINS allows '*' - restrict it to your real frontend origin(s)")
+    # Without these the payment and SMS clients fall back to dev stubs: any
+    # made-up payment would verify as paid, and OTPs would only be printed.
+    if not (settings.razorpay_key_id and settings.razorpay_key_secret):
+        problems.append("RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are empty - payments would auto-verify without real money")
+    if not settings.razorpay_webhook_secret:
+        problems.append("RAZORPAY_WEBHOOK_SECRET is empty - payments made after a customer closes the page would be missed")
+    if not (settings.msg91_auth_key and settings.msg91_otp_template_id):
+        problems.append("MSG91_AUTH_KEY/MSG91_OTP_TEMPLATE_ID are empty - login OTPs would never be sent")
     if problems:
         raise RuntimeError(
             "Refusing to start with APP_ENV=production while insecure dev settings are active:\n- "
@@ -105,6 +114,7 @@ app.include_router(pricing.router)
 app.include_router(chat.router)
 app.include_router(payments.router)
 app.include_router(shop.router)
+app.include_router(webhooks.router)
 app.include_router(reviews.router)
 app.include_router(cms.router)
 app.include_router(admin.router)

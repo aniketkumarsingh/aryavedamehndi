@@ -11,7 +11,9 @@ from app.models.package import Package
 from app.models.payment import Payment
 from app.models.review import Report
 from app.models.user import ArtistProfile, User
-from app.models.shop import ShopOrder
+from app.models.shop import SHOP_ORDER_TRANSITIONS, ShopOrder
+from app.services.razorpay_client import refund_payment
+from app.services.shop_orders import cancel_order, release_stale_orders
 from app.schemas.admin import (
     AdminArtistOut,
     AdminBookingOut,
@@ -385,6 +387,8 @@ def list_shop_orders(
 ):
     from app.routers.shop import _order_out
 
+    if release_stale_orders(db):
+        db.commit()
     query = db.query(ShopOrder).order_by(ShopOrder.created_at.desc())
     if status_filter != "all":
         query = query.filter(ShopOrder.status == status_filter)
@@ -400,11 +404,45 @@ def update_shop_order_status(order_id: uuid.UUID, payload: ShopOrderStatusIn, db
     order = db.get(ShopOrder, order_id)
     if order is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if payload.status not in SHOP_ORDER_TRANSITIONS[order.status]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"A {order.status} order can't be marked {payload.status}")
 
-    order.status = payload.status
-    if payload.status == "shipped" and order.shipped_at is None:
-        order.shipped_at = utcnow()
-    notify(db, order.consumer_id, "shop", "Order update", f"Your order is now '{payload.status}'.", f"/shop/orders/{order.id}")
+    message = f"Your order is now '{payload.status}'."
+    if payload.status == "cancelled":
+        cancel_order(db, order, payload.reason or "Cancelled by AryaVeda")
+        if order.refund_status == "refunded":
+            message = f"Your order was cancelled and ₹{order.total_amount} has been refunded."
+    else:
+        order.status = payload.status
+    if payload.status == "shipped":
+        order.shipped_at = order.shipped_at or utcnow()
+        order.courier_name = payload.courier_name or order.courier_name
+        order.tracking_number = payload.tracking_number or order.tracking_number
+        order.tracking_url = payload.tracking_url or order.tracking_url
+        if order.tracking_number:
+            message = f"Your order has shipped with {order.courier_name or 'our courier'} - tracking no. {order.tracking_number}."
+    notify(db, order.consumer_id, "shop", "Order update", message, f"/shop/orders/{order.id}")
+    db.commit()
+    db.refresh(order)
+    return _order_out(db, order)
+
+
+@router.post("/shop-orders/{order_id}/retry-refund", response_model=ShopOrderOut)
+def retry_shop_refund(order_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Retries a refund that failed when a paid order was cancelled."""
+    from app.routers.shop import _order_out
+
+    order = db.get(ShopOrder, order_id)
+    if order is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    if order.status != "cancelled" or order.refund_status != "failed" or not order.razorpay_payment_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This order has no failed refund to retry")
+    try:
+        refund = refund_payment(order.razorpay_payment_id)
+    except Exception:  # noqa: BLE001 - surfaced to the admin
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Razorpay rejected the refund again - check the payment in the Razorpay dashboard")
+    order.refund_status, order.refund_id = "refunded", refund.get("id")
+    notify(db, order.consumer_id, "shop", "Refund issued", f"₹{order.total_amount} has been refunded to your original payment method.", f"/shop/orders/{order.id}")
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

@@ -49,6 +49,7 @@ export default function DesignsGallery({ initialDesigns }) {
       <Head>
         <title>Mehndi Designs & Prices — AryaVeda Mehndi</title>
         <meta
+          key="description"
           name="description"
           content="Browse bridal, party & festive, simple, feet and kids mehndi designs with prices - by style, coverage and occasion - and book a verified artist who has done the exact design."
         />

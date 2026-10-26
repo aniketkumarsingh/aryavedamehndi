@@ -40,11 +40,20 @@ class Settings(BaseSettings):
 
     google_maps_api_key: str = ""
 
+    # Secret for Razorpay webhooks (Dashboard -> Settings -> Webhooks), so
+    # payments are recorded even if the customer's browser never reports back.
+    razorpay_webhook_secret: str = ""
+
     s3_endpoint_url: str = ""
     s3_bucket: str = ""
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_public_base_url: str = ""
+
+    # Public addresses, used in links that leave the site (ad product feeds,
+    # notifications): the website, and the API that serves /media files.
+    public_site_url: str = "https://www.aryavedamehndi.com"
+    public_api_url: str = "http://localhost:8000"
 
     design_match_threshold: int = 90
 

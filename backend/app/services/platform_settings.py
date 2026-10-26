@@ -18,6 +18,12 @@ def _defaults() -> dict:
         "design_match_threshold": settings.design_match_threshold,
         "strikes_before_suspension": 3,
         "checkin_flag_distance_m": 500,
+        # Shop: flat delivery charge, waived at or above the free-shipping
+        # amount (after discount); unpaid orders release their stock after
+        # the payment window.
+        "shop_shipping_fee": 49.0,
+        "shop_free_shipping_above": 499.0,
+        "shop_payment_window_minutes": 30,
     }
 
 

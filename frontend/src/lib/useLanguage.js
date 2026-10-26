@@ -32,7 +32,7 @@ export function LanguageProvider({ children }) {
     }
   }
 
-  const t = (key) => translate(lang, key);
+  const t = (key, vars) => translate(lang, key, vars);
 
   return <LanguageContext.Provider value={{ lang, setLang: changeLang, t }}>{children}</LanguageContext.Provider>;
 }

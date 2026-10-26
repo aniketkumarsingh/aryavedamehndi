@@ -2,74 +2,38 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { addToCart } from "@/lib/cart";
+import SocialMeta from "@/components/SocialMeta";
+import {
+  IllustrativeBadge,
+  ProductDetails,
+  SHOP_CATEGORIES,
+  VariantPicker,
+  addProductToCart,
+  hasDetails,
+  productImages,
+  useVariant,
+} from "@/components/ShopProduct";
 
-const CATEGORIES = [
-  { key: "all", label: "All" },
-  { key: "body-art", label: "Mehndi & Body Art" },
-  { key: "hair", label: "Hair Care" },
-  { key: "skin", label: "Skin & Body" },
-  { key: "traditional", label: "Traditional" },
-  { key: "tools", label: "Tools" },
-  { key: "learn", label: "Learn & Practice" },
-  { key: "decor", label: "Ceremony & Decor" },
-  { key: "gifts", label: "Kits & Gifts" },
-];
-
-const DETAILS = [
-  ["ingredients", "Ingredients"],
-  ["how_to_use", "How to use"],
-  ["safety_notes", "Safety"],
-  ["shelf_life", "Shelf life"],
-  ["storage", "Storage"],
-];
-
-// Licensed products list ingredients; tools, decor and gifts list what they're made of.
-const detailLabel = (product, key, label) => (key === "ingredients" && !product.requires_licence ? "Materials" : label);
+function MaybeLink({ href, className, children }) {
+  return href ? <Link href={href} className={className}>{children}</Link> : <div className={className}>{children}</div>;
+}
 
 function ProductCard({ product, onAdd, added }) {
-  const images = (product.image_urls || "").split(",").filter(Boolean);
-  const variants = product.variants || [];
-  const [variantId, setVariantId] = useState(() => (variants.find((v) => v.stock_quantity > 0) || variants[0])?.id);
+  const images = productImages(product);
+  const { variants, variant, setVariantId, price, stock } = useVariant(product);
   const [open, setOpen] = useState(false);
-  const variant = variants.find((v) => v.id === variantId) || null;
-  const price = variant ? variant.price : product.price;
-  const stock = variant ? variant.stock_quantity : product.stock_quantity;
-  const hasDetails = DETAILS.some(([k]) => product[k]);
+  const href = product.slug ? `/shop/${product.slug}` : null;
 
   return (
     <div className="card overflow-hidden flex flex-col">
-      <div className="relative">
+      <MaybeLink href={href} className="relative block">
         <img src={images[0] || "/logo/mark.svg"} alt={product.name} className="w-full aspect-square object-cover bg-ivory border-b border-line" />
-        {product.image_kind === "illustrative" && (
-          <span className="absolute left-2 bottom-2 rounded-full bg-ivory-raised/90 border border-line px-2 py-0.5 text-[0.68rem] font-semibold text-ink-soft">
-            Illustrative image
-          </span>
-        )}
-      </div>
+        <IllustrativeBadge product={product} />
+      </MaybeLink>
       <div className="p-4 flex flex-col gap-2 flex-1">
-        <h3 className="font-semibold leading-snug">{product.name}</h3>
+        <MaybeLink href={href} className="font-semibold leading-snug hover:underline">{product.name}</MaybeLink>
         {product.description && <p className="text-sm text-ink-soft line-clamp-3">{product.description}</p>}
-
-        {variants.length > 1 && (
-          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Pack size">
-            {variants.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                role="radio"
-                aria-checked={v.id === variantId}
-                onClick={() => setVariantId(v.id)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  v.id === variantId ? "bg-maroon border-maroon text-ivory-raised" : "border-line bg-ivory-raised text-ink-soft hover:border-gold"
-                }`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {variants.length === 1 && <p className="text-xs text-ink-soft">{variants[0].label}</p>}
+        <VariantPicker variants={variants} variant={variant} onPick={setVariantId} />
 
         <div className="mt-auto flex flex-col gap-1">
           <p className="text-lg font-semibold text-maroon-soft">
@@ -79,23 +43,14 @@ function ProductCard({ product, onAdd, added }) {
           <button className="btn-primary text-sm mt-1" disabled={stock <= 0} onClick={() => onAdd(product, variant)}>
             {added ? "Added ✓" : stock > 0 ? "Add to Cart" : "Out of Stock"}
           </button>
-          {hasDetails && (
+          {hasDetails(product) && (
             <button type="button" className="text-xs font-semibold text-gold self-start mt-1" aria-expanded={open} onClick={() => setOpen(!open)}>
               {open ? "Hide details" : product.requires_licence ? "Ingredients, use & safety" : "Details & care"}
             </button>
           )}
         </div>
 
-        {open && (
-          <dl className="text-xs flex flex-col gap-2 border-t border-line pt-3">
-            {DETAILS.filter(([k]) => product[k]).map(([k, label]) => (
-              <div key={k}>
-                <dt className="font-semibold text-ink">{detailLabel(product, k, label)}</dt>
-                <dd className="text-ink-soft">{product[k]}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        {open && <ProductDetails product={product} className="border-t border-line pt-3" />}
       </div>
     </div>
   );
@@ -117,12 +72,12 @@ export default function Shop() {
   }, []);
 
   function handleAdd(product, variant) {
-    addToCart(product, 1, variant);
+    addProductToCart(product, variant);
     setJustAdded(product.id);
     setTimeout(() => setJustAdded(null), 1500);
   }
 
-  const available = CATEGORIES.filter((c) => c.key === "all" || products.some((p) => p.category === c.key));
+  const available = SHOP_CATEGORIES.filter((c) => c.key === "all" || products.some((p) => p.category === c.key));
   const shown = category === "all" ? products : products.filter((p) => p.category === category);
   const anyIllustrative = shown.some((p) => p.image_kind === "illustrative");
 
@@ -130,7 +85,13 @@ export default function Shop() {
     <div className="flex flex-col gap-6">
       <Head>
         <title>Shop — AryaVeda Mehndi</title>
+        <meta key="description" name="description" content="Natural mehndi products, tools, practice kits, ceremony decor and gifts from AryaVeda Mehndi." />
       </Head>
+      <SocialMeta
+        title="Shop — AryaVeda Mehndi"
+        description="Natural mehndi products, tools, practice kits, ceremony decor and gifts."
+        path="/shop"
+      />
       <div>
         <h1 className="text-2xl">Our Mehndi Products</h1>
         <p className="text-sm text-ink-soft">Natural henna for mehndi, hair and skin, made under the AryaVeda name and delivered to your door.</p>
