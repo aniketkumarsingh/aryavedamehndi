@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.models  # noqa: F401 - registers every model on Base.metadata before create_all
+import app.tasks  # noqa: F401 - registers every background job handler
 from app.core.security import create_access_token
 from app.database import Base, SessionLocal, engine, get_db
 from app.main import app
@@ -110,3 +111,17 @@ def artist_with_profile(db):
 @pytest.fixture
 def package(db):
     return make_package(db)
+
+
+def run_jobs(max_rounds: int = 20) -> int:
+    """Runs queued background jobs inline until none are due (what the
+    worker does in production). Returns how many ran."""
+    from app.services.jobs import run_due_jobs
+
+    total = 0
+    for _ in range(max_rounds):
+        ran = run_due_jobs("test")
+        total += ran
+        if not ran:
+            break
+    return total

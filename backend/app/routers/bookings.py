@@ -30,7 +30,8 @@ from app.services.platform_settings import get_platform_settings
 from app.services.pricing import check_price_in_band, compute_platform_fee
 from app.services.similarity import score_similarity
 from app.services.notifications import notify, notify_admins
-from app.services.razorpay_client import create_order, refund_payment, verify_payment_signature
+from app.services.razorpay_client import create_order, verify_payment_signature
+from app.services.refunds import issue_refund
 from app.services.storage import save_upload
 from app.services.telephony import provision_masked_number
 from app.core.time import utcnow
@@ -106,12 +107,14 @@ def mark_advance_paid(db: Session, booking: Booking, payment_id: str, signature:
     return True
 
 
-def refund_advance(booking: Booking) -> str:
-    """Refunds a paid advance and returns a consumer-facing note. Shared by
-    early cancellation and an admin cancelling a disputed booking."""
-    refund_payment(booking.advance_razorpay_payment_id)
-    booking.advance_status = "refunded"
-    return f"Your ₹{booking.advance_amount} advance has been refunded."
+def refund_advance(db: Session, booking: Booking, initiated_by=None) -> str:
+    """Refunds a paid advance (queued and tracked - see app/services/refunds)
+    and returns a consumer-facing note. Shared by early cancellation and an
+    admin cancelling a disputed booking."""
+    issue_refund(db, target_type="booking_advance", target_id=booking.id, payment_id=booking.advance_razorpay_payment_id,
+                 reason="Booking cancelled before the artist set out", initiated_by=initiated_by)
+    booking.advance_status = "refund_pending"  # "refunded" once Razorpay confirms
+    return f"Your ₹{booking.advance_amount} advance is being refunded - banks usually show it within 5-7 working days."
 
 
 def _get_booking_or_404(db: Session, booking_id: uuid.UUID) -> Booking:
@@ -375,6 +378,7 @@ def verify_advance_payment(
     db: Session = Depends(get_db),
 ):
     booking = _get_booking_or_404(db, booking_id)
+    db.refresh(booking, with_for_update=True)  # one settle at a time (see the webhook)
     if booking.consumer_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
     if booking.advance_razorpay_order_id != payload.razorpay_order_id:
@@ -509,7 +513,7 @@ def cancel_booking(booking_id: uuid.UUID, user: User = Depends(get_current_user)
             booking.advance_status = "forfeited"
             advance_note = f" The ₹{booking.advance_amount} advance is forfeited since the artist had already headed out."
         else:
-            advance_note = " " + refund_advance(booking)
+            advance_note = " " + refund_advance(db, booking, initiated_by=user.id)
 
     if booking.availability_slot_id is not None and booking.advance_status != "forfeited":
         slot = db.get(ArtistAvailability, booking.availability_slot_id)

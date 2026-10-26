@@ -116,7 +116,7 @@ checks, negotiation amount bounds).
 | Nearby-artist search | Haversine distance in plain SQL/Python | swap in PostGIS `ST_DWithin` later for scale — same API shape |
 | Design-match scoring | perceptual-hash similarity (`ImageHash`) | swap `app/services/similarity.py` for a CLIP-embedding model for higher accuracy — nothing else changes |
 | File storage | local disk under `backend/media/`, served at `/media/...` | set the `S3_*` env vars to switch to S3/R2 automatically |
-| Background jobs (OTP send, similarity scoring) | run synchronously in the request | move to Celery + Redis once traffic justifies it |
+| Background jobs | Postgres-backed queue (`app/services/jobs.py`), run by `python -m app.worker`: payment events, refunds, emails, unpaid-order release, daily reconciliation, with retries and backoff. OTP send and similarity scoring still run in the request | same queue in production - run one or more workers; no Redis needed |
 
 ## Key flows
 

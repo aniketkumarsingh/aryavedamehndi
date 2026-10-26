@@ -24,6 +24,12 @@ def _defaults() -> dict:
         "shop_shipping_fee": 49.0,
         "shop_free_shipping_above": 499.0,
         "shop_payment_window_minutes": 30,
+        # Cash on Delivery: on/off, an order-value ceiling, a handling fee,
+        # and how many undelivered COD orders one customer may have open.
+        "shop_cod_enabled": True,
+        "shop_cod_max_order": 2500.0,
+        "shop_cod_fee": 30.0,
+        "shop_cod_max_open_orders": 2,
     }
 
 

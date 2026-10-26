@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -28,6 +28,17 @@ export default function Cart() {
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState("");
   const [quote, setQuote] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("online");
+  const [contactEmail, setContactEmail] = useState(() => {
+    try {
+      return localStorage.getItem("aryaveda_contact_email") || "";
+    } catch {
+      return "";
+    }
+  });
+  // One Idempotency-Key per checkout attempt: a double-tap or network retry
+  // of the same cart returns the same order instead of placing two.
+  const idempotencyKey = useRef(null);
 
   useEffect(() => {
     api.get("/shop/checkout-config").then(setConfig).catch(() => {});
@@ -43,11 +54,21 @@ export default function Cart() {
       return;
     }
     api
-      .post("/shop/quote", { items: lines, coupon_code: coupon || null })
+      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod })
       .then(setQuote)
       .catch(() => setQuote(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, linesKey, coupon]);
+  }, [user, linesKey, coupon, paymentMethod]);
+
+  // A changed cart is a different request, so it gets a fresh key.
+  useEffect(() => {
+    idempotencyKey.current = null;
+  }, [linesKey, coupon, paymentMethod]);
+
+  // COD stopped being available (e.g. the total went over the limit).
+  useEffect(() => {
+    if (paymentMethod === "cod" && quote && !quote.cod_available) setPaymentMethod("online");
+  }, [quote, paymentMethod]);
 
   useEffect(() => {
     if (user) {
@@ -74,27 +95,50 @@ export default function Cart() {
       setError("Please enter a valid 6-digit PIN code.");
       return;
     }
+    if (contactEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail.trim())) {
+      setError("Please check your email address, or leave it empty.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      const order = await api.post("/shop/orders", {
-        shipping_name: shippingName,
-        shipping_phone: shippingPhone,
-        shipping_address: shippingAddress,
-        shipping_state: shippingState,
-        shipping_pincode: shippingPincode.trim(),
-        items: lines,
-        coupon_code: quote?.coupon_code || null,
-      });
-      track("begin_checkout", { value: order.total_amount, currency: "INR", coupon: order.coupon_code || undefined, items: cartItemsForAnalytics(items) });
+      idempotencyKey.current = idempotencyKey.current || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      const email = contactEmail.trim();
+      try {
+        if (email) localStorage.setItem("aryaveda_contact_email", email);
+      } catch {
+        /* remembering the email is only a convenience */
+      }
+      const order = await api.post(
+        "/shop/orders",
+        {
+          shipping_name: shippingName,
+          shipping_phone: shippingPhone,
+          shipping_address: shippingAddress,
+          shipping_state: shippingState,
+          shipping_pincode: shippingPincode.trim(),
+          contact_email: email || null,
+          payment_method: paymentMethod,
+          items: lines,
+          coupon_code: quote?.coupon_code || null,
+        },
+        undefined,
+        { "Idempotency-Key": idempotencyKey.current }
+      );
+      track("begin_checkout", { value: order.total_amount, currency: "INR", coupon: order.coupon_code || undefined, payment_type: paymentMethod, items: cartItemsForAnalytics(items) });
 
       // The order now holds these items (and their stock), so the cart is
       // done with - if payment is interrupted the order page offers "Pay now".
       clearCart();
-      try {
-        await payShopOrder(order);
-      } catch {
-        // Shown on the order page, which has the retry.
+      idempotencyKey.current = null;
+      if (order.payment_method === "online") {
+        try {
+          await payShopOrder(order);
+        } catch {
+          // Shown on the order page, which has the retry.
+        }
+      } else {
+        track("purchase", { transaction_id: order.id, value: order.total_amount, currency: "INR", payment_type: "cod", items: cartItemsForAnalytics(items) });
       }
       router.push(`/shop/orders/${order.id}`);
     } catch (err) {
@@ -116,7 +160,7 @@ export default function Cart() {
   // Without a server quote (logged out), apply the delivery rule locally.
   const itemsTotal = cartTotal(items);
   const localShipping = config && itemsTotal < config.free_shipping_above ? config.shipping_fee : 0;
-  const summary = quote || { items_amount: itemsTotal, discount_amount: 0, shipping_fee: localShipping, total_amount: itemsTotal + localShipping };
+  const summary = quote || { items_amount: itemsTotal, discount_amount: 0, shipping_fee: localShipping, cod_fee: 0, total_amount: itemsTotal + localShipping };
   const total = summary.total_amount;
   const toFreeShipping = config ? config.free_shipping_above - (summary.items_amount - summary.discount_amount) : 0;
 
@@ -211,6 +255,9 @@ export default function Cart() {
                 <span>{t("cart_delivery")}</span>
                 <span>{summary.shipping_fee > 0 ? `₹${summary.shipping_fee}` : t("cart_free")}</span>
               </div>
+              {summary.cod_fee > 0 && (
+                <div className="flex justify-between"><span>Cash on Delivery charge</span><span>₹{summary.cod_fee}</span></div>
+              )}
               {summary.shipping_fee > 0 && toFreeShipping > 0 && (
                 <p className="text-xs text-ink-soft">{t("cart_free_delivery_hint", { amount: Math.ceil(toFreeShipping) })}</p>
               )}
@@ -221,7 +268,7 @@ export default function Cart() {
             </div>
             {config && (
               <p className="text-xs text-ink-soft">
-                {t("cart_pay_window", { minutes: config.payment_window_minutes })}{" "}
+                {paymentMethod === "online" && <>{t("cart_pay_window", { minutes: config.payment_window_minutes })} </>}
                 <Link href="/legal/shipping" className="underline">{t("policy_delivery")}</Link> ·{" "}
                 <Link href="/legal/refunds" className="underline">{t("policy_refund")}</Link>
               </p>
@@ -255,9 +302,58 @@ export default function Cart() {
                 onChange={(e) => setShippingPincode(e.target.value.replace(/\D/g, ""))}
               />
             </div>
+            <input
+              className="input"
+              type="email"
+              autoComplete="email"
+              placeholder="Email for receipt & invoice (optional)"
+              aria-label="Email for receipt and invoice"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+            />
+
+            <fieldset className="flex flex-col gap-2 mt-1">
+              <legend className="font-semibold text-sm mb-1">Payment</legend>
+              <label className="option-card p-3 flex gap-3 items-start cursor-pointer" aria-pressed={paymentMethod === "online"}>
+                <input type="radio" name="payment" className="mt-1" checked={paymentMethod === "online"} onChange={() => setPaymentMethod("online")} />
+                <span className="text-sm">
+                  <b>Pay online</b>
+                  <span className="block text-xs text-ink-soft">UPI, cards, net banking or wallets via Razorpay. Bank and UPI offers appear on the payment screen.</span>
+                </span>
+              </label>
+              {config?.cod_enabled && (
+                <label
+                  className={`option-card p-3 flex gap-3 items-start ${quote && !quote.cod_available ? "opacity-60" : "cursor-pointer"}`}
+                  aria-pressed={paymentMethod === "cod"}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    className="mt-1"
+                    checked={paymentMethod === "cod"}
+                    disabled={!user || (quote && !quote.cod_available)}
+                    onChange={() => setPaymentMethod("cod")}
+                  />
+                  <span className="text-sm">
+                    <b>Cash on Delivery</b>
+                    {config.cod_fee > 0 ? ` (+₹${config.cod_fee})` : ""}
+                    <span className="block text-xs text-ink-soft">
+                      {quote && !quote.cod_available ? quote.cod_error : user ? "Pay the courier in cash or UPI when your order arrives." : "Log in to choose Cash on Delivery."}
+                    </span>
+                  </span>
+                </label>
+              )}
+            </fieldset>
+
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button className="btn-primary" disabled={busy} onClick={checkout}>
-              {busy ? "Placing order…" : user ? `Pay ₹${total} & Place Order` : "Log in to Checkout"}
+              {busy
+                ? "Placing order…"
+                : !user
+                  ? "Log in to Checkout"
+                  : paymentMethod === "cod"
+                    ? `Place order · pay ₹${total} at delivery`
+                    : `Pay ₹${total} & Place Order`}
             </button>
           </div>
         </>

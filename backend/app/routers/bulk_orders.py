@@ -32,7 +32,8 @@ from app.schemas.bulk_order import (
 )
 from app.services.notifications import notify, notify_admins
 from app.services.pricing import quote_totals
-from app.services.razorpay_client import create_order, refund_payment, verify_payment_signature
+from app.services.razorpay_client import create_order, verify_payment_signature
+from app.services.refunds import issue_refund
 
 router = APIRouter(prefix="/bulk-orders", tags=["bulk-orders"])
 admin_router = APIRouter(prefix="/admin/bulk-orders", tags=["admin"], dependencies=[Depends(require_role("admin"))])
@@ -74,10 +75,11 @@ def _get_own_order(db: Session, order_id: uuid.UUID, user: User) -> BulkOrder:
     return order
 
 
-def _refund_advance(order: BulkOrder) -> str:
-    refund_payment(order.advance_razorpay_payment_id)
-    order.advance_status = "refunded"
-    return f"Your ₹{order.advance_amount:g} deposit has been refunded."
+def _refund_advance(db: Session, order: BulkOrder) -> str:
+    issue_refund(db, target_type="bulk_deposit", target_id=order.id, payment_id=order.advance_razorpay_payment_id,
+                 reason="Bulk order cancelled")
+    order.advance_status = "refund_pending"  # "refunded" once Razorpay confirms
+    return f"Your ₹{order.advance_amount:g} deposit is being refunded - banks usually show it within 5-7 working days."
 
 
 # ---------------------------------------------------------------- consumer --
@@ -174,7 +176,7 @@ def cancel_bulk_order(
             order.advance_status = "forfeited"
             note = f"The ₹{order.advance_amount:g} deposit is forfeited since the event is less than 24 hours away."
         else:
-            note = _refund_advance(order)
+            note = _refund_advance(db, order)
 
     order.status = "cancelled"
     order.cancel_reason = payload.reason
@@ -226,6 +228,7 @@ def verify_advance_payment(
     db: Session = Depends(get_db),
 ):
     order = _get_own_order(db, order_id, user)
+    db.refresh(order, with_for_update=True)  # one settle at a time (see the webhook)
     if order.advance_razorpay_order_id != payload.razorpay_order_id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No matching deposit payment order")
     if not verify_payment_signature(payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature):
@@ -314,7 +317,7 @@ def admin_cancel_bulk_order(order_id: uuid.UUID, payload: BulkOrderCancelIn, db:
     order = _get_order_or_404(db, order_id)
     if order.status in ("completed", "cancelled"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"This order is already {order.status}")
-    note = _refund_advance(order) if order.advance_status == "paid" else None
+    note = _refund_advance(db, order) if order.advance_status == "paid" else None
     order.status = "cancelled"
     order.cancel_reason = payload.reason
     body = " ".join(filter(None, [payload.reason, note]))

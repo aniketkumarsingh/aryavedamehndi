@@ -29,6 +29,7 @@ export const DEPOSIT_LABELS = {
   not_required: "No deposit needed",
   pending: "Deposit due",
   paid: "Deposit paid",
+  refund_pending: "Deposit refund in progress",
   refunded: "Deposit refunded",
   forfeited: "Deposit forfeited",
 };

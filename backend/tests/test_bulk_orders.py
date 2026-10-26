@@ -7,7 +7,7 @@ from app.core.time import utcnow
 from app.models.bulk_order import BulkOrder
 from app.models.catalog import Design
 from app.services.platform_settings import update_platform_settings
-from tests.conftest import auth_headers, make_package, make_user
+from tests.conftest import auth_headers, make_package, make_user, run_jobs
 
 
 def _png() -> bytes:
@@ -148,7 +148,9 @@ def test_deposit_refunded_early_forfeited_late(client, db, consumer):
     early = confirmed_paid_order()
     res = client.post(f"/bulk-orders/{early}/cancel", json={}, headers=auth_headers(consumer))
     assert res.json()["status"] == "cancelled"
-    assert res.json()["advance_status"] == "refunded"
+    assert res.json()["advance_status"] == "refund_pending"
+    run_jobs()
+    assert client.get(f"/bulk-orders/{early}", headers=auth_headers(consumer)).json()["advance_status"] == "refunded"
 
     late = confirmed_paid_order()
     row = db.get(BulkOrder, late)

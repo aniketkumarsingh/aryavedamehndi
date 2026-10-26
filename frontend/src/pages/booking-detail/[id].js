@@ -17,6 +17,7 @@ const TERMINAL_STATUSES = ["completed", "cancelled"];
 const ADVANCE_LABELS = {
   pending: "Advance due",
   paid: "Advance paid ✓",
+  refund_pending: "Advance refund in progress",
   refunded: "Advance refunded",
   forfeited: "Advance forfeited",
 };

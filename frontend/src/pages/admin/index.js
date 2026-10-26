@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import { api } from "@/lib/api";
+import { downloadFile } from "@/lib/download";
 import { BULK_STATUS_LABELS, DEPOSIT_LABELS, bulkOccasionLabel, estimateSummary, formatInr } from "@/lib/pricing";
 import { CATEGORIES, COVERAGES, OCCASIONS, STYLES, categoryLabel, coverageLabel, formatDuration, formatPriceRange, groupByCategory, styleLabel } from "@/lib/designs";
 
@@ -19,6 +20,7 @@ const TABS = [
   "Shop Products",
   "Shop Orders",
   "Coupons",
+  "Payments",
   "Brand Content",
   "Settings",
 ];
@@ -51,6 +53,7 @@ export default function AdminDashboard() {
       {tab === "Shop Products" && <ShopProductsTab />}
       {tab === "Shop Orders" && <ShopOrdersTab />}
       {tab === "Coupons" && <CouponsTab />}
+      {tab === "Payments" && <PaymentsTab />}
       {tab === "Brand Content" && <CmsTab />}
     </div>
   );
@@ -311,6 +314,9 @@ const SETTING_FIELDS = [
   { key: "shop_shipping_fee", label: "Shop delivery charge (₹)", hint: "Flat charge per shop order below the free-delivery amount", step: "1" },
   { key: "shop_free_shipping_above", label: "Free delivery from (₹)", hint: "Orders at or above this (after coupon discount) ship free", step: "1" },
   { key: "shop_payment_window_minutes", label: "Shop payment window (minutes)", hint: "Unpaid orders are cancelled and their stock released after this", step: "5" },
+  { key: "shop_cod_max_order", label: "Cash on Delivery: max order (₹)", hint: "Larger orders must be paid online (limits losses on returned parcels)", step: "50" },
+  { key: "shop_cod_fee", label: "Cash on Delivery charge (₹)", hint: "Added to COD orders; 0 for none", step: "1" },
+  { key: "shop_cod_max_open_orders", label: "Cash on Delivery: open orders per customer", hint: "Undelivered COD orders one customer may have at once", step: "1" },
 ];
 
 function SettingsTab() {
@@ -332,7 +338,7 @@ function SettingsTab() {
     setError("");
     setSaved(false);
     try {
-      const payload = { platform_fee_mode: values.platform_fee_mode };
+      const payload = { platform_fee_mode: values.platform_fee_mode, shop_cod_enabled: Boolean(values.shop_cod_enabled) };
       for (const f of SETTING_FIELDS) payload[f.key] = Number(values[f.key]);
       setValues(await api.put("/admin/settings", payload));
       setSaved(true);
@@ -359,6 +365,10 @@ function SettingsTab() {
           <option value="percent">Percent of agreed price</option>
           <option value="flat">Flat amount per booking</option>
         </select>
+      </label>
+      <label className="text-sm flex items-center gap-2">
+        <input type="checkbox" checked={Boolean(values.shop_cod_enabled)} onChange={(e) => setValues({ ...values, shop_cod_enabled: e.target.checked })} />
+        Offer Cash on Delivery in the shop
       </label>
       {SETTING_FIELDS.map((f) => (
         <label key={f.key} className="text-sm flex flex-col gap-1">
@@ -1515,31 +1525,34 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
   );
 }
 
-const SHOP_ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"];
+const SHOP_ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled", "returned"];
+const SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"];
 
 function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
+  const filters = { status_filter: statusFilter, payment_status: paymentFilter };
 
   function load() {
     api
-      .get("/admin/shop-orders", { status_filter: statusFilter, limit: PAGE_SIZE, offset: 0 })
+      .get("/admin/shop-orders", { ...filters, limit: PAGE_SIZE, offset: 0 })
       .then((rows) => {
         setOrders(rows);
         setHasMore(rows.length === PAGE_SIZE);
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter]);
+  useEffect(load, [statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
     try {
-      const rows = await api.get("/admin/shop-orders", { status_filter: statusFilter, limit: PAGE_SIZE, offset: orders.length });
+      const rows = await api.get("/admin/shop-orders", { ...filters, limit: PAGE_SIZE, offset: orders.length });
       setOrders((prev) => [...prev, ...rows]);
       setHasMore(rows.length === PAGE_SIZE);
     } catch (e) {
@@ -1554,13 +1567,22 @@ function ShopOrdersTab() {
     <div className="card p-5">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h2 className="font-semibold">Shop Orders</h2>
-        <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          {["all", ...SHOP_ORDER_STATUSES].map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        <div className="flex gap-2">
+          <select className="input w-auto" aria-label="Order status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            {["all", ...SHOP_ORDER_STATUSES].map((s) => (
+              <option key={s} value={s}>
+                {s === "all" ? "Any status" : s}
+              </option>
+            ))}
+          </select>
+          <select className="input w-auto" aria-label="Payment status" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
+            {["all", ...SHOP_PAYMENT_STATUSES].map((s) => (
+              <option key={s} value={s}>
+                {s === "all" ? "Any payment" : s.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-col gap-3 text-sm">
@@ -1579,22 +1601,24 @@ function ShopOrdersTab() {
 }
 
 // Mirrors SHOP_ORDER_TRANSITIONS in the backend; "paid" only comes from payment.
-const SHOP_ORDER_NEXT = { pending: ["cancelled"], paid: ["shipped", "cancelled"], shipped: ["delivered"], delivered: [], cancelled: [] };
-const SHOP_ACTION_LABEL = { shipped: "Mark shipped", delivered: "Mark delivered", cancelled: "Cancel" };
+// Mirrors SHOP_ORDER_TRANSITIONS in the backend; "confirmed" only comes from payment / COD checkout.
+const SHOP_ORDER_NEXT = { pending: ["cancelled"], confirmed: ["shipped", "cancelled"], shipped: ["delivered", "returned"], delivered: [], cancelled: [], returned: [] };
+const SHOP_ACTION_LABEL = { shipped: "Mark shipped", delivered: "Mark delivered", cancelled: "Cancel", returned: "Mark returned (RTO)" };
+const REFUNDABLE = ["paid", "partially_refunded", "refund_pending"];
 
 function ShopOrderRow({ order: o, onChanged }) {
-  const [shipping, setShipping] = useState(false);
+  const [panel, setPanel] = useState(null); // "ship" | "refund" | null
   const [tracking, setTracking] = useState({ courier_name: "", tracking_number: "", tracking_url: "" });
+  const [refund, setRefund] = useState({ amount: "", reason: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function move(status, extra = {}) {
-    if (status === "cancelled" && !window.confirm(o.status === "paid" ? `Cancel and refund ₹${o.total_amount}?` : "Cancel this unpaid order?")) return;
+  async function run(fn) {
     setBusy(true);
     setError("");
     try {
-      await api.post(`/admin/shop-orders/${o.id}/status`, { status, ...extra });
-      setShipping(false);
+      await fn();
+      setPanel(null);
       onChanged();
     } catch (err) {
       setError(err.message);
@@ -1603,23 +1627,31 @@ function ShopOrderRow({ order: o, onChanged }) {
     }
   }
 
-  async function retryRefund() {
-    setBusy(true);
-    setError("");
-    try {
-      await api.post(`/admin/shop-orders/${o.id}/retry-refund`, {});
-      onChanged();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
+  function move(status, extra = {}) {
+    if (status === "cancelled") {
+      const prompt = o.payment_status === "paid" ? `Cancel and refund ₹${o.amount_paid}?` : "Cancel this order?";
+      if (!window.confirm(prompt)) return;
     }
+    if (status === "returned") {
+      const reason = window.prompt("Why did the parcel come back? (e.g. refused at door, address not found)", "Refused at door");
+      if (reason === null) return;
+      const refundNote = o.payment_method === "online" ? " The payment will be refunded in full." : "";
+      if (!window.confirm(`Mark returned and put the items back in stock?${refundNote}`)) return;
+      extra = { ...extra, reason: reason.trim() || "Returned by the courier" };
+    }
+    run(() => api.post(`/admin/shop-orders/${o.id}/status`, { status, ...extra }));
   }
 
   function ship(e) {
     e.preventDefault();
-    const extra = Object.fromEntries(Object.entries(tracking).filter(([, v]) => v.trim()));
-    move("shipped", extra);
+    move("shipped", Object.fromEntries(Object.entries(tracking).filter(([, v]) => v.trim())));
+  }
+
+  function submitRefund(e) {
+    e.preventDefault();
+    const amount = refund.amount === "" ? null : Number(refund.amount);
+    if (!window.confirm(amount ? `Refund ₹${amount}?` : `Refund the full remaining payment?`)) return;
+    run(() => api.post(`/admin/shop-orders/${o.id}/refunds`, { amount, reason: refund.reason.trim() }));
   }
 
   return (
@@ -1627,9 +1659,17 @@ function ShopOrderRow({ order: o, onChanged }) {
       <div className="flex justify-between items-start gap-2 flex-wrap">
         <div>
           <p className="font-semibold">
-            {o.shipping_name} — ₹{o.total_amount} <span className="chip ml-1">{o.status}</span>
+            {o.shipping_name} — ₹{o.total_amount}
+            <span className="chip ml-1">{o.status}</span>
+            <span className={`chip ml-1 ${o.payment_status === "refund_pending" || o.refunds.some((r) => r.status === "failed") ? "text-red-700" : ""}`}>
+              {o.payment_method === "cod" ? "COD · " : ""}{o.payment_status.replace(/_/g, " ")}
+            </span>
           </p>
-          <p className="text-xs text-ink-soft">{o.shipping_phone} · {o.shipping_address}</p>
+          <p className="text-xs text-ink-soft">
+            {o.shipping_phone} · {o.shipping_address}
+            {o.shipping_state ? `, ${o.shipping_state}` : ""} {o.shipping_pincode || ""}
+            {o.contact_email ? ` · ${o.contact_email}` : ""}
+          </p>
           <p className="text-xs text-ink-soft mt-1">
             {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
           </p>
@@ -1637,49 +1677,88 @@ function ShopOrderRow({ order: o, onChanged }) {
             {o.items_amount != null && `Items ₹${o.items_amount}`}
             {o.discount_amount > 0 && ` · ${o.coupon_code} −₹${o.discount_amount}`}
             {` · Delivery ${o.shipping_fee > 0 ? `₹${o.shipping_fee}` : "free"}`}
+            {o.cod_fee > 0 && ` · COD ₹${o.cod_fee}`}
+            {o.amount_paid > 0 && ` · Paid ₹${o.amount_paid}`}
+            {o.amount_refunded > 0 && ` · Refunded ₹${o.amount_refunded}`}
             {` · ${new Date(o.created_at).toLocaleString()}`}
           </p>
           {o.tracking_number && <p className="text-xs">Shipped via {o.courier_name || "courier"} · {o.tracking_number}</p>}
-          {o.invoice_number && (
-            <a href={`/shop/orders/${o.id}/invoice`} target="_blank" rel="noopener noreferrer" className="text-xs underline">
-              Invoice {o.invoice_number}
-            </a>
+          {["cancelled", "returned"].includes(o.status) && o.cancel_reason && <p className="text-xs">{o.cancel_reason}</p>}
+          {o.status !== "pending" && (
+            <button
+              className="text-xs underline"
+              onClick={() => downloadFile(`/shop/orders/${o.id}/document.pdf`, `${o.invoice_number || `receipt-${o.id.slice(0, 8)}`}.pdf`).catch((e) => setError(e.message))}
+            >
+              {o.invoice_number ? `Invoice ${o.invoice_number} (PDF)` : "Receipt (PDF)"}
+            </button>
           )}
-          {o.status === "cancelled" && (
-            <p className="text-xs">
-              {o.cancel_reason}
-              {o.refund_status === "refunded" && " · refunded"}
-              {o.refund_status === "failed" && (
+          {o.refunds.map((r) => (
+            <p key={r.id} className="text-xs">
+              Refund ₹{r.amount_refunded ?? r.amount_requested ?? "full"} · {r.status}
+              {r.credit_note_number && (
                 <>
-                  <b className="text-red-700"> · refund failed </b>
-                  <button className="underline text-red-700" disabled={busy} onClick={() => retryRefund()}>
+                  {" · "}
+                  <button className="underline" onClick={() => downloadFile(`/shop/refunds/${r.id}/credit-note.pdf`, `${r.credit_note_number}.pdf`).catch((e) => setError(e.message))}>
+                    {r.credit_note_number}
+                  </button>
+                </>
+              )}
+              {r.status === "failed" && (
+                <>
+                  {" · "}
+                  <button className="underline text-red-700" disabled={busy} onClick={() => run(() => api.post(`/admin/payments/refunds/${r.id}/retry`, {}))}>
                     Retry refund
                   </button>
                 </>
               )}
             </p>
-          )}
+          ))}
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-start">
           {SHOP_ORDER_NEXT[o.status].map((next) => (
             <button
               key={next}
-              className={next === "cancelled" ? "text-xs text-red-700" : "btn-secondary text-xs"}
+              className={next === "cancelled" || next === "returned" ? "text-xs text-red-700" : "btn-secondary text-xs"}
               disabled={busy}
-              onClick={() => (next === "shipped" ? setShipping(!shipping) : move(next))}
+              onClick={() => (next === "shipped" ? setPanel(panel === "ship" ? null : "ship") : move(next))}
             >
               {SHOP_ACTION_LABEL[next]}
             </button>
           ))}
+          {o.payment_method === "online" && REFUNDABLE.includes(o.payment_status) && ["shipped", "delivered"].includes(o.status) && (
+            <button className="btn-secondary text-xs" disabled={busy} onClick={() => setPanel(panel === "refund" ? null : "refund")}>
+              Refund…
+            </button>
+          )}
         </div>
       </div>
-      {shipping && (
+      {panel === "ship" && (
         <form onSubmit={ship} className="grid sm:grid-cols-3 gap-2 mt-2">
           <input className="input text-xs" placeholder="Courier (e.g. Delhivery)" value={tracking.courier_name} onChange={(e) => setTracking({ ...tracking, courier_name: e.target.value })} />
           <input className="input text-xs" placeholder="Tracking number" value={tracking.tracking_number} onChange={(e) => setTracking({ ...tracking, tracking_number: e.target.value })} />
           <input className="input text-xs" placeholder="Tracking link (https://…)" value={tracking.tracking_url} onChange={(e) => setTracking({ ...tracking, tracking_url: e.target.value })} />
+          <p className="text-xs text-ink-soft sm:col-span-3">Shipping issues the GST invoice and emails it to the customer.</p>
           <button className="btn-primary text-xs sm:col-span-3 justify-self-start" disabled={busy}>
             {busy ? "Saving…" : "Confirm shipped & notify customer"}
+          </button>
+        </form>
+      )}
+      {panel === "refund" && (
+        <form onSubmit={submitRefund} className="grid sm:grid-cols-3 gap-2 mt-2">
+          <input
+            className="input text-xs"
+            type="number"
+            min="1"
+            step="0.01"
+            max={Math.max(o.amount_paid - o.amount_refunded, 0)}
+            placeholder={`Amount (blank = full ₹${Math.max(o.amount_paid - o.amount_refunded, 0)})`}
+            value={refund.amount}
+            onChange={(e) => setRefund({ ...refund, amount: e.target.value })}
+          />
+          <input className="input text-xs sm:col-span-2" placeholder="Reason (shown to the customer)" required minLength={3} value={refund.reason} onChange={(e) => setRefund({ ...refund, reason: e.target.value })} />
+          <p className="text-xs text-ink-soft sm:col-span-3">The order stays as it is. Refunds on invoiced orders get a GST credit note automatically.</p>
+          <button className="btn-primary text-xs sm:col-span-3 justify-self-start" disabled={busy}>
+            {busy ? "Saving…" : "Issue refund"}
           </button>
         </form>
       )}
@@ -1790,6 +1869,186 @@ function CouponsTab() {
           </div>
         ))}
         {coupons.length === 0 && <p className="text-ink-soft">No coupons yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+const fmt = (d) => (d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—");
+
+function PaymentsTab() {
+  const [summary, setSummary] = useState(null);
+  const [refunds, setRefunds] = useState([]);
+  const [refundFilter, setRefundFilter] = useState("all");
+  const [events, setEvents] = useState([]);
+  const [runs, setRuns] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function load() {
+    Promise.all([
+      api.get("/admin/payments/summary"),
+      api.get("/admin/payments/refunds", { status_filter: refundFilter, limit: 50 }),
+      api.get("/admin/payments/events", { limit: 30 }),
+      api.get("/admin/payments/reconciliation", { limit: 10 }),
+      api.get("/admin/payments/jobs", { status_filter: "dead", limit: 30 }),
+    ])
+      .then(([sum, ref, ev, rec, jb]) => {
+        setSummary(sum);
+        setRefunds(ref);
+        setEvents(ev);
+        setRuns(rec);
+        setJobs(jb);
+      })
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, [refundFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function act(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!summary) return error ? <p className="text-sm text-red-700">{error}</p> : <p className="text-sm text-ink-soft">Loading…</p>;
+  const lastRun = summary.last_reconciliation;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="card p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="font-semibold">Payments health</h2>
+          <button className="btn-secondary text-xs" onClick={load} disabled={busy}>Refresh</button>
+        </div>
+        {summary.alerts.length === 0 ? (
+          <p className="text-sm text-leaf">All clear — payments, refunds and background jobs are running normally.</p>
+        ) : (
+          <ul className="text-sm text-red-700 list-disc pl-5">
+            {summary.alerts.map((a) => <li key={a}>{a}</li>)}
+          </ul>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+          {[
+            ["Refunds in progress", summary.refunds_in_flight],
+            ["Refunds failed", summary.refunds_failed],
+            ["Events waiting", summary.events_unprocessed],
+            ["Jobs given up", summary.dead_jobs],
+          ].map(([label, n]) => (
+            <div key={label} className="border border-line rounded-lg p-3">
+              <p className="text-xl font-semibold">{n}</p>
+              <p className="text-xs text-ink-soft">{label}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-ink-soft">
+          Queue: {Object.entries(summary.jobs_by_status).map(([k, v]) => `${v} ${k}`).join(" · ") || "empty"}
+          {summary.oldest_queued_seconds != null && ` · oldest waiting ${Math.round(summary.oldest_queued_seconds / 60)} min`}
+        </p>
+        {error && <p className="text-sm text-red-700">{error}</p>}
+      </div>
+
+      <div className="card p-5">
+        <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+          <h2 className="font-semibold">Refunds</h2>
+          <select className="input w-auto text-xs" aria-label="Refund status" value={refundFilter} onChange={(e) => setRefundFilter(e.target.value)}>
+            {["all", "pending", "submitted", "processed", "failed"].map((v) => <option key={v} value={v}>{v === "all" ? "All refunds" : v}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-2 text-xs">
+          {refunds.map((r) => (
+            <div key={r.id} className="flex justify-between gap-2 border-b border-line pb-2 flex-wrap">
+              <div>
+                <p>
+                  <b>₹{r.amount_refunded ?? r.amount_requested ?? "full"}</b> · {r.target_type.replace("_", " ")} · <span className="chip">{r.status}</span>
+                  {r.credit_note_number && ` · ${r.credit_note_number}`}
+                </p>
+                <p className="text-ink-soft">{r.reason} · {fmt(r.created_at)} · {r.razorpay_payment_id}{r.razorpay_refund_id ? ` → ${r.razorpay_refund_id}` : ""}</p>
+                {r.failure_reason && <p className="text-red-700">{r.failure_reason}</p>}
+              </div>
+              {r.status === "failed" && (
+                <button className="btn-secondary text-xs self-start" disabled={busy} onClick={() => act(() => api.post(`/admin/payments/refunds/${r.id}/retry`, {}))}>
+                  Retry
+                </button>
+              )}
+            </div>
+          ))}
+          {refunds.length === 0 && <p className="text-ink-soft">No refunds.</p>}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <div className="flex justify-between items-center mb-2 flex-wrap gap-2">
+          <h2 className="font-semibold">Reconciliation with Razorpay</h2>
+          <button className="btn-secondary text-xs" disabled={busy} onClick={() => act(() => api.post("/admin/payments/reconciliation/run", {}))}>
+            Run now
+          </button>
+        </div>
+        <p className="text-xs text-ink-soft mb-2">
+          Runs daily at 3 am: records any payment Razorpay captured that we missed, and flags payments that don&apos;t match an order.
+          {lastRun && ` Last run ${fmt(lastRun.started_at)}: ${lastRun.status}.`}
+        </p>
+        <div className="flex flex-col gap-2 text-xs">
+          {runs.map((r) => (
+            <div key={r.id} className="border-b border-line pb-2">
+              <p>
+                {fmt(r.started_at)} · <span className="chip">{r.status}</span> · {r.payments_seen} payments checked · {r.fixed} recorded
+                {r.note && ` · ${r.note}`}
+              </p>
+              {r.issues.map((i, n) => (
+                <p key={n} className="text-red-700">
+                  {i.type.replace(/_/g, " ")}: payment {i.payment_id}{i.amount != null ? ` (₹${i.amount})` : ""}{i.order_id ? ` · order ${i.order_id}` : ""}
+                </p>
+              ))}
+            </div>
+          ))}
+          {runs.length === 0 && <p className="text-ink-soft">No runs yet — they start once the worker is running.</p>}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="font-semibold mb-2">Razorpay events</h2>
+        <div className="flex flex-col gap-1 text-xs">
+          {events.map((e) => (
+            <div key={e.id} className="flex justify-between gap-2 border-b border-line pb-1 flex-wrap">
+              <span>
+                {fmt(e.received_at)} · <b>{e.event_type}</b> · {e.status}{e.result ? ` → ${e.result}` : ""}
+                {e.error && <span className="text-red-700"> · {e.error}</span>}
+              </span>
+              {(e.status === "received" || e.error) && (
+                <button className="underline" disabled={busy} onClick={() => act(() => api.post(`/admin/payments/events/${e.id}/reprocess`, {}))}>
+                  Reprocess
+                </button>
+              )}
+            </div>
+          ))}
+          {events.length === 0 && <p className="text-ink-soft">No events yet — they arrive once the Razorpay webhook is set up.</p>}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h2 className="font-semibold mb-2">Background jobs that gave up</h2>
+        <div className="flex flex-col gap-2 text-xs">
+          {jobs.map((j) => (
+            <div key={j.id} className="flex justify-between gap-2 border-b border-line pb-2 flex-wrap">
+              <div className="min-w-0">
+                <p><b>{j.kind}</b> · {j.attempts}/{j.max_attempts} attempts · {fmt(j.finished_at)}</p>
+                <p className="text-red-700 break-all">{(j.last_error || "").split("\n")[0]}</p>
+              </div>
+              <button className="btn-secondary text-xs self-start" disabled={busy} onClick={() => act(() => api.post(`/admin/payments/jobs/${j.id}/retry`, {}))}>
+                Retry
+              </button>
+            </div>
+          ))}
+          {jobs.length === 0 && <p className="text-ink-soft">None.</p>}
+        </div>
       </div>
     </div>
   );

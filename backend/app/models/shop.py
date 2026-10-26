@@ -66,17 +66,27 @@ class ShopProductVariant(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-# "pending" (created, awaiting payment) -> "paid" -> "shipped" -> "delivered"
-# side branch: "cancelled" (from pending or paid; a paid order is refunded)
-SHOP_ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"]
-# Moves an admin may make. "paid" is only ever set by payment verification.
+# Fulfilment status (where the parcel is), kept apart from payment_status
+# (where the money is) so Cash on Delivery and partial refunds fit:
+#   "pending"   - online order awaiting payment
+#   "confirmed" - paid online, or a Cash on Delivery order placed
+#   "shipped" -> "delivered"; side branches "cancelled" (before dispatch)
+#   and "returned" (parcel came back: refused, undeliverable)
+SHOP_ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled", "returned"]
+# Moves an admin may make. "confirmed" is only set by payment / COD checkout.
 SHOP_ORDER_TRANSITIONS = {
     "pending": {"cancelled"},
-    "paid": {"shipped", "cancelled"},
-    "shipped": {"delivered"},
+    "confirmed": {"shipped", "cancelled"},
+    "shipped": {"delivered", "returned"},
     "delivered": set(),
     "cancelled": set(),
+    "returned": set(),
 }
+# unpaid -> paid -> partially_refunded / refund_pending -> refunded
+# COD:   cod_due -> cod_collected (on delivery)
+# void:  cancelled before any money moved
+SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"]
+PAYMENT_METHODS = ("online", "cod")
 
 
 class ShopCoupon(Base):
@@ -115,7 +125,13 @@ class ShopOrder(Base):
 
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)  # what the customer pays
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    # total_amount = items_amount - discount_amount + shipping_fee
+    payment_method: Mapped[str] = mapped_column(String(10), nullable=False, default="online")
+    payment_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unpaid")
+    amount_paid: Mapped[float] = mapped_column(Float, nullable=False, default=0)  # captured / collected
+    amount_refunded: Mapped[float] = mapped_column(Float, nullable=False, default=0)  # processed refunds
+    cod_fee: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    contact_email: Mapped[str] = mapped_column(String(200), nullable=True)  # for receipts and invoices
+    # total_amount = items_amount - discount_amount + shipping_fee + cod_fee
     items_amount: Mapped[float] = mapped_column(Float, nullable=True)  # null on orders before 0024
     discount_amount: Mapped[float] = mapped_column(Float, default=0)
     shipping_fee: Mapped[float] = mapped_column(Float, default=0)
@@ -124,12 +140,14 @@ class ShopOrder(Base):
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_number: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_url: Mapped[str] = mapped_column(String(300), nullable=True)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    delivered_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancelled_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancel_reason: Mapped[str] = mapped_column(String(200), nullable=True)
-    refund_status: Mapped[str] = mapped_column(String(20), nullable=True)  # "refunded" | "failed"
-    refund_id: Mapped[str] = mapped_column(String(100), nullable=True)
-    # Consecutive per financial year (GST rule), given when the order is paid.
+    # GST invoice, issued at dispatch (time of supply for goods); numbered
+    # consecutively within the financial year.
     invoice_number: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)
+    invoiced_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     razorpay_order_id: Mapped[str] = mapped_column(String(100), nullable=True)
     razorpay_payment_id: Mapped[str] = mapped_column(String(100), nullable=True)
@@ -158,9 +176,10 @@ class ShopOrderItem(Base):
 
 
 class ShopInvoiceCounter(Base):
-    """Last invoice number used in each financial year (April-March)."""
+    """Last number used in each document series per financial year
+    (April-March): "INV2627" for invoices, "CN2627" for credit notes."""
 
     __tablename__ = "shop_invoice_counters"
 
-    financial_year: Mapped[str] = mapped_column(String(4), primary_key=True)  # "2627"
+    series: Mapped[str] = mapped_column(String(12), primary_key=True)
     last_number: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,20 +1,35 @@
-"""Shop order rules shared by the customer and admin endpoints: pricing
-(coupon discount + delivery charge), coupon eligibility, cancelling (stock
-back, refund if paid) and releasing unpaid orders whose payment window has
-passed. There's no background worker, so stale orders are released lazily
-whenever orders are created, paid for or listed by an admin."""
+"""Shop order rules shared by the customer, admin, webhook and worker paths.
+
+Two separate state machines live on an order:
+
+    status          pending -> confirmed -> shipped -> delivered
+                          \\-> cancelled  <-/ (before dispatch)
+    payment_status  online: unpaid -> paid -> refund_pending ->
+                            partially_refunded / refunded;  void if
+                            cancelled before any money moved
+                    COD:    cod_due -> cod_collected (on delivery)
+
+Covered here: pricing (coupon, delivery charge, COD fee), coupon and COD
+eligibility, confirming a payment (from the browser, the webhook or
+reconciliation - idempotent), cancelling (stock back, refund queued),
+dispatch (GST invoice issued) and delivery (COD collected), and the
+scheduled release of unpaid orders.
+"""
 
 from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-from app.models.shop import ShopCoupon, ShopInvoiceCounter, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
-from app.services.notifications import notify
+from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.services.doc_numbers import next_document_number
+from app.services.jobs import enqueue, job_handler, periodic
+from app.services.notifications import notify, notify_admins
 from app.services.platform_settings import get_platform_settings
-from app.services.razorpay_client import refund_payment
+from app.services.refunds import RefundError, issue_refund
+
+# Orders holding stock / counting against limits.
+OPEN_STATUSES = ("pending", "confirmed", "shipped")
 
 
 def money(value: float) -> float:
@@ -24,6 +39,8 @@ def money(value: float) -> float:
 def normalise_code(code: str) -> str:
     return code.strip().upper()
 
+
+# ----------------------------------------------------------------- pricing --
 
 def coupon_discount(coupon: ShopCoupon, items_amount: float) -> float:
     if coupon.discount_type == "percent":
@@ -54,21 +71,43 @@ def coupon_problem(db: Session, coupon: ShopCoupon | None, user_id, items_amount
     return None
 
 
-def price_order(db: Session, items_amount: float, coupon: ShopCoupon | None) -> dict:
-    """discount, delivery and total for an items total (coupon already checked)."""
+def price_order(db: Session, items_amount: float, coupon: ShopCoupon | None, payment_method: str = "online") -> dict:
+    """Discount, delivery, COD fee and total for an items total (coupon
+    already checked)."""
     s = get_platform_settings(db)
     discount = coupon_discount(coupon, items_amount) if coupon else 0.0
     after_discount = money(items_amount - discount)
     free_above = float(s["shop_free_shipping_above"])
     shipping = 0.0 if after_discount >= free_above else money(float(s["shop_shipping_fee"]))
+    cod_fee = money(float(s["shop_cod_fee"])) if payment_method == "cod" else 0.0
     return {
         "items_amount": money(items_amount),
         "discount_amount": discount,
         "shipping_fee": shipping,
-        "total_amount": money(after_discount + shipping),
+        "cod_fee": cod_fee,
+        "total_amount": money(after_discount + shipping + cod_fee),
         "free_shipping_above": free_above,
     }
 
+
+def cod_problem(db: Session, user_id, total_without_cod_fee: float) -> str | None:
+    """Why Cash on Delivery isn't available for this order, or None."""
+    s = get_platform_settings(db)
+    if not s["shop_cod_enabled"]:
+        return "Cash on Delivery isn't available right now"
+    if total_without_cod_fee > float(s["shop_cod_max_order"]):
+        return f"Cash on Delivery is available on orders up to ₹{float(s['shop_cod_max_order']):g} - please pay online"
+    open_cod = (
+        db.query(ShopOrder)
+        .filter(ShopOrder.consumer_id == user_id, ShopOrder.payment_method == "cod", ShopOrder.status.in_(OPEN_STATUSES))
+        .count()
+    )
+    if open_cod >= int(s["shop_cod_max_open_orders"]):
+        return "You already have Cash on Delivery orders on the way - please pay online for this one"
+    return None
+
+
+# ------------------------------------------------------------ transitions --
 
 def _restock(db: Session, order: ShopOrder) -> None:
     for item in db.query(ShopOrderItem).filter(ShopOrderItem.order_id == order.id):
@@ -77,78 +116,161 @@ def _restock(db: Session, order: ShopOrder) -> None:
             row.stock_quantity += item.quantity
 
 
-def cancel_order(db: Session, order: ShopOrder, reason: str) -> None:
-    """Cancels a pending or paid order: stock goes back, and a paid order is
-    refunded in full. A failed refund is recorded for the admin to retry by
-    hand rather than blocking the cancellation. Doesn't commit."""
-    was_paid = order.status == "paid"
+def confirm_cod(db: Session, order: ShopOrder) -> None:
+    """A Cash on Delivery order is confirmed as soon as it's placed."""
+    order.status, order.payment_status, order.confirmed_at = "confirmed", "cod_due", utcnow()
+    notify(db, order.consumer_id, "shop", "Order confirmed",
+           f"Your Cash on Delivery order is confirmed. Please keep ₹{order.total_amount:g} ready at delivery.", f"/shop/orders/{order.id}")
+    enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
+
+
+def cancel_order(db: Session, order: ShopOrder, reason: str, initiated_by=None) -> None:
+    """Cancels an order before dispatch: stock goes back, and money paid
+    online is refunded in full (queued; see app/services/refunds.py).
+    Doesn't commit."""
     order.status = "cancelled"
     order.cancelled_at = utcnow()
     order.cancel_reason = reason[:200]
     _restock(db, order)
-    if was_paid and order.razorpay_payment_id:
-        try:
-            refund = refund_payment(order.razorpay_payment_id)
-            order.refund_status, order.refund_id = "refunded", refund.get("id")
-        except Exception:  # noqa: BLE001 - recorded, admin retries in the Razorpay dashboard
-            order.refund_status = "failed"
+    if order.payment_status == "paid" and order.razorpay_payment_id:
+        issue_refund(db, target_type="shop_order", target_id=order.id, payment_id=order.razorpay_payment_id,
+                     reason=f"Order cancelled: {reason}", initiated_by=initiated_by)
+    elif order.payment_status in ("unpaid", "cod_due"):
+        order.payment_status = "void"
 
+
+def mark_shipped(db: Session, order: ShopOrder, courier: str | None, tracking_number: str | None, tracking_url: str | None) -> None:
+    """Dispatch is the time of supply for goods, so the GST invoice is
+    issued here and emailed with the dispatch notice."""
+    now = utcnow()
+    order.status = "shipped"
+    order.shipped_at = order.shipped_at or now
+    order.courier_name = courier or order.courier_name
+    order.tracking_number = tracking_number or order.tracking_number
+    order.tracking_url = tracking_url or order.tracking_url
+    if not order.invoice_number:
+        order.invoice_number, order.invoiced_at = next_document_number(db, "invoice"), now
+    message = "Your order has shipped."
+    if order.tracking_number:
+        message = f"Your order has shipped with {order.courier_name or 'our courier'} - tracking no. {order.tracking_number}."
+    notify(db, order.consumer_id, "shop", "Order shipped", message, f"/shop/orders/{order.id}")
+    enqueue(db, "email.shop_order_shipped", {"order_id": str(order.id)}, dedupe_key=f"email-shipped:{order.id}")
+
+
+def mark_returned(db: Session, order: ShopOrder, reason: str, initiated_by=None) -> None:
+    """A shipped parcel came back (refused at the door, undeliverable - RTO).
+    Stock goes back; nothing is owed on Cash on Delivery; money paid online
+    is refunded in full (with a credit note, as the order was invoiced)."""
+    order.status = "returned"
+    order.cancel_reason = reason[:200]
+    _restock(db, order)
+    if order.payment_method == "cod" and order.payment_status == "cod_due":
+        order.payment_status = "void"
+    elif order.payment_status in ("paid", "partially_refunded") and order.razorpay_payment_id:
+        remaining = money(order.amount_paid - order.amount_refunded)
+        if remaining > 0:
+            issue_refund(db, target_type="shop_order", target_id=order.id, payment_id=order.razorpay_payment_id,
+                         amount=None if order.payment_status == "paid" else remaining,
+                         reason=f"Parcel returned: {reason}", initiated_by=initiated_by, refundable=order.amount_paid)
+    notify(db, order.consumer_id, "shop", "Order returned",
+           "Your parcel came back to us." + (" Your payment is being refunded." if order.payment_method == "online" else ""),
+           f"/shop/orders/{order.id}")
+
+
+def mark_delivered(db: Session, order: ShopOrder) -> None:
+    order.status, order.delivered_at = "delivered", utcnow()
+    if order.payment_method == "cod" and order.payment_status == "cod_due":
+        order.payment_status, order.amount_paid, order.paid_at = "cod_collected", order.total_amount, utcnow()
+    notify(db, order.consumer_id, "shop", "Order delivered", "Your order has been delivered. We hope you love it!", f"/shop/orders/{order.id}")
+
+
+def refundable_amount(order: ShopOrder) -> float:
+    return money(order.amount_paid if order.payment_method == "online" else 0)
+
+
+def refund_order(db: Session, order: ShopOrder, amount: float | None, reason: str, initiated_by) -> None:
+    """Admin refund on a dispatched prepaid order (e.g. a damaged item):
+    full when `amount` is None, else partial. Doesn't change the fulfilment
+    status. Before dispatch, cancel instead - a refund then would leave the
+    GST invoice issued at dispatch overstating the sale."""
+    if order.payment_method != "online" or order.payment_status not in ("paid", "partially_refunded", "refund_pending"):
+        raise RefundError("Only orders paid online can be refunded here")
+    if order.status not in ("shipped", "delivered"):
+        raise RefundError("This order hasn't shipped yet - cancel it instead (that refunds the payment in full)")
+    issue_refund(db, target_type="shop_order", target_id=order.id, payment_id=order.razorpay_payment_id, amount=amount,
+                 reason=reason, initiated_by=initiated_by, refundable=refundable_amount(order))
+
+
+# ---------------------------------------------------------------- payment --
 
 def is_stale(db: Session, order: ShopOrder) -> bool:
     window = int(get_platform_settings(db)["shop_payment_window_minutes"])
     return order.status == "pending" and order.created_at < utcnow() - timedelta(minutes=window)
 
 
+def settle_payment(db: Session, order: ShopOrder, payment_id: str, signature: str | None = None, amount: float | None = None) -> str:
+    """Records a captured payment against an order - from the browser, the
+    webhook or reconciliation, whichever comes first. Returns "paid",
+    "already_paid", or "refunded" when the order had expired or been
+    cancelled before the money arrived (it's then refunded once).
+    `amount` is what Razorpay captured, when known (it can be below the
+    total if a Razorpay Offer applied). Doesn't commit."""
+    if order.razorpay_payment_id == payment_id and order.payment_status != "unpaid":
+        # Seen before. The browser can't report the captured amount; the
+        # webhook can - keep the gateway's figure (a Razorpay Offer may have
+        # made it smaller than the total) while nothing has been refunded.
+        if amount and order.payment_status == "paid" and abs(order.amount_paid - amount) > 0.009:
+            order.amount_paid = money(amount)
+        return "already_paid" if order.status != "cancelled" else "refunded"
+    if order.razorpay_payment_id and order.razorpay_payment_id != payment_id:
+        # A second, different payment for an order that already has one (a
+        # double charge). Never overwrite the first; a person decides.
+        notify_admins(db, "Duplicate payment", f"Order {str(order.id)[:8]} already has payment {order.razorpay_payment_id}; "
+                      f"another payment {payment_id} arrived. Refund the extra one from the Razorpay dashboard.", "/admin")
+        return "duplicate_needs_review"
+    if order.status == "pending" and is_stale(db, order):
+        cancel_order(db, order, "Payment not completed in time")
+    if order.status != "pending":
+        # Money for an order that's no longer waiting (its stock may be gone).
+        order.razorpay_payment_id = payment_id
+        order.amount_paid = money(amount if amount else order.total_amount)
+        order.payment_status = "paid"
+        issue_refund(db, target_type="shop_order", target_id=order.id, payment_id=payment_id,
+                     reason="Payment arrived after the order had expired")
+        notify(db, order.consumer_id, "shop", "Payment refunded",
+               "Your payment arrived after the order had expired, so it's being refunded in full. Please order again.",
+               f"/shop/orders/{order.id}")
+        return "refunded"
+    now = utcnow()
+    order.razorpay_payment_id = payment_id
+    order.razorpay_signature = signature
+    order.status, order.payment_status = "confirmed", "paid"
+    order.amount_paid = money(amount if amount else order.total_amount)
+    order.paid_at = order.confirmed_at = now
+    notify(db, order.consumer_id, "shop", "Order confirmed", f"Your ₹{order.amount_paid:g} payment is received and your order will ship soon.", f"/shop/orders/{order.id}")
+    enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
+    return "paid"
+
+
 def release_stale_orders(db: Session) -> int:
-    """Cancels unpaid orders older than the payment window, returning their
-    stock and coupon uses. Doesn't commit."""
+    """Cancels unpaid online orders older than the payment window, giving
+    back their stock and coupon uses. Doesn't commit."""
     window = int(get_platform_settings(db)["shop_payment_window_minutes"])
     cutoff = utcnow() - timedelta(minutes=window)
-    stale = db.query(ShopOrder).filter(ShopOrder.status == "pending", ShopOrder.created_at < cutoff).all()
+    stale = (
+        db.query(ShopOrder)
+        .filter(ShopOrder.status == "pending", ShopOrder.created_at < cutoff)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
     for order in stale:
         cancel_order(db, order, "Payment not completed in time")
     return len(stale)
 
 
-def settle_payment(db: Session, order: ShopOrder, payment_id: str, signature: str | None = None) -> str:
-    """Records a captured payment against an order - from the customer's
-    browser or from the Razorpay webhook, whichever arrives first. Returns
-    "paid", "already_paid", or "refunded" when the order had expired or been
-    cancelled before the money arrived (its stock may be gone), in which
-    case the payment is refunded once. Doesn't commit."""
-    if order.status == "paid":
-        return "already_paid"
-    if order.status == "pending" and is_stale(db, order):
-        cancel_order(db, order, "Payment not completed in time")
-    if order.status != "pending":
-        if not (order.razorpay_payment_id == payment_id and order.refund_status == "refunded"):
-            refund = refund_payment(payment_id)
-            order.razorpay_payment_id = payment_id
-            order.refund_status, order.refund_id = "refunded", refund.get("id")
-            notify(db, order.consumer_id, "shop", "Payment refunded",
-                   "Your payment arrived after the order had expired, so it has been refunded in full. Please order again.",
-                   f"/shop/orders/{order.id}")
-        return "refunded"
-    order.razorpay_payment_id = payment_id
-    order.razorpay_signature = signature
-    order.status = "paid"
-    order.paid_at = utcnow()
-    order.invoice_number = order.invoice_number or next_invoice_number(db)
-    notify(db, order.consumer_id, "shop", "Order confirmed", f"Your ₹{order.total_amount} order has been paid and will ship soon.", f"/shop/orders/{order.id}")
-    return "paid"
+@job_handler("shop.release_unpaid")
+def release_unpaid_job(db: Session, payload: dict) -> str:
+    return f"{release_stale_orders(db)} released"
 
 
-IST = timedelta(hours=5, minutes=30)
-
-
-def next_invoice_number(db: Session) -> str:
-    """Next invoice number, consecutive within the Indian financial year
-    (April-March, in IST) as GST invoices require: "AV2627-000001". The
-    counter row is locked, so two orders paid at once can't share a number."""
-    now = utcnow() + IST
-    start = now.year if now.month >= 4 else now.year - 1
-    fy = f"{start % 100:02d}{(start + 1) % 100:02d}"
-    db.execute(pg_insert(ShopInvoiceCounter).values(financial_year=fy, last_number=0).on_conflict_do_nothing())
-    counter = db.query(ShopInvoiceCounter).filter(ShopInvoiceCounter.financial_year == fy).with_for_update().one()
-    counter.last_number += 1
-    return f"AV{fy}-{counter.last_number:06d}"
+periodic("shop.release_unpaid", timedelta(minutes=5))
