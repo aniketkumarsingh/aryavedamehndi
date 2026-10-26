@@ -19,3 +19,5 @@ frontend/public/fallback-*.js
 .DS_Store
 # Photos taken out of the catalog - kept locally for reference only
 backend/catalog/retired/
+backend/backups/
+deploy/.env

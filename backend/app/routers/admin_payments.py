@@ -2,7 +2,7 @@
 event log, reconciliation runs and the background job queue."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -96,6 +96,9 @@ def summary(db: Session = Depends(get_db)):
         alerts.append(f"{refunds_failed} refund(s) failed and need attention.")
     if last and last.status == "issues":
         alerts.append(f"The last reconciliation found {len(last.issues)} issue(s).")
+    last_backup = db.query(func.max(Job.finished_at)).filter(Job.kind == "ops.backup_database", Job.status == "done").scalar()
+    if last_backup is None or utcnow() - last_backup > timedelta(hours=36):
+        alerts.append("No database backup in the last 36 hours - check the worker and backup storage.")
     return SummaryOut(
         jobs_by_status=jobs,
         oldest_queued_seconds=lag,

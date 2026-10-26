@@ -128,6 +128,9 @@ def _run_one(job: ClaimedJob) -> None:
             _finish(job.id, status="dead", finished_at=utcnow(), last_error=error, locked_by=None, locked_at=None)
             log.error("job %s %s dead after %s attempts: %s", job.kind, job.id, job.attempts, exc)
             _alert_dead(job, exc)
+            from app.core.observability import capture
+
+            capture(exc, job_kind=job.kind, job_id=str(job.id))
         else:
             _finish(job.id, status="queued", run_at=utcnow() + backoff(job.attempts), last_error=error, locked_by=None, locked_at=None)
             log.warning("job %s %s failed (attempt %s/%s), will retry: %s", job.kind, job.id, job.attempts, job.max_attempts, exc)

@@ -25,6 +25,7 @@ from app.routers import (
     users,
     webhooks,
 )
+from app.core.observability import init_sentry
 from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
 
 settings = get_settings()
@@ -61,6 +62,7 @@ def _check_production_safety() -> None:
 
 
 _check_production_safety()
+init_sentry("api")
 
 app = FastAPI(title="AryaVeda Mehndi API", version="0.1.0")
 
@@ -124,4 +126,19 @@ app.include_router(admin.router)
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    """Liveness: the process is up. Cheap, no database - for container
+    restarts. Use /health/ready for monitoring."""
+    return {"status": "ok", "release": settings.git_sha or None}
+
+
+@app.get("/health/ready")
+def readiness_check():
+    """Readiness for uptime monitors: 200 when the database answers and the
+    worker is keeping up (and backups are recent), 503 with the reasons
+    otherwise."""
+    from fastapi.responses import JSONResponse
+
+    from app.services.health import readiness
+
+    report = readiness()
+    return JSONResponse(report, status_code=200 if report["status"] == "ok" else 503)

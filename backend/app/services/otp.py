@@ -1,4 +1,5 @@
-import random
+import hmac
+import secrets
 import string
 from datetime import timedelta
 
@@ -23,7 +24,8 @@ class OtpRateLimited(Exception):
 
 
 def _generate_code() -> str:
-    return "".join(random.choices(string.digits, k=6))
+    # secrets, not random: login codes must not be predictable.
+    return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
 def issue_otp(db: Session, phone: str) -> tuple[str, bool]:
@@ -89,7 +91,7 @@ def verify_otp(db: Session, phone: str, code: str) -> bool:
         return False
 
     otp.attempts += 1
-    if otp.code != code:
+    if not hmac.compare_digest(otp.code, code):
         db.commit()
         return False
 

@@ -7,6 +7,7 @@ import Layout from "@/components/Layout";
 // Also starts listening for the browser's install prompt as early as
 // possible - see useInstallPrompt.
 import { clearPrivateCaches } from "@/lib/pwa";
+import { initErrorTracking } from "@/lib/errorTracking";
 import { LanguageProvider } from "@/lib/useLanguage";
 import "leaflet/dist/leaflet.css";
 import "@/styles/globals.css";
@@ -26,6 +27,7 @@ export default function App({ Component, pageProps }) {
   // so drop it once on load.
   useEffect(() => {
     clearPrivateCaches();
+    initErrorTracking();
   }, []);
 
   return (

@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env.local
+tests/
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/worker-*.js
+public/fallback-*.js

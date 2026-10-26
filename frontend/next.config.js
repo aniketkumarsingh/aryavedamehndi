@@ -64,7 +64,9 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+    // Server-to-server: the private address when there is one (Docker:
+    // http://api:8000), else the public one. Fixed at build time.
+    const apiBase = process.env.API_BASE_INTERNAL || process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
     return [
       { source: "/api/:path*", destination: `${apiBase}/:path*` },
       // Uploaded photos (KYC, portfolio, designs) come back from the API as
