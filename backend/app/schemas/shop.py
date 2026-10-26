@@ -82,31 +82,71 @@ class ShopOrderCreateIn(BaseModel):
     shipping_address: str = Field(min_length=1, max_length=2000)
     shipping_state: str | None = Field(default=None, max_length=60)
     shipping_pincode: str | None = Field(default=None, pattern=r"^[1-9]\d{5}$")
+    contact_email: str | None = Field(default=None, max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    payment_method: Literal["online", "cod"] = "online"
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
 
 
 class ShopQuoteIn(BaseModel):
-    """The cart, priced before ordering: discount, delivery and total."""
+    """The cart, priced before ordering: discount, delivery, COD fee, total."""
 
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
+    payment_method: Literal["online", "cod"] = "online"
 
 
 class ShopQuoteOut(BaseModel):
     items_amount: float
     discount_amount: float
     shipping_fee: float
+    cod_fee: float = 0
     total_amount: float
     free_shipping_above: float
     coupon_code: str | None = None
     coupon_error: str | None = None
+    # Whether Cash on Delivery could be chosen for this cart, and why not.
+    cod_available: bool = False
+    cod_error: str | None = None
 
 
 class ShopCheckoutConfigOut(BaseModel):
     shipping_fee: float
     free_shipping_above: float
     payment_window_minutes: int
+    cod_enabled: bool
+    cod_max_order: float
+    cod_fee: float
+
+
+class ShopRefundOut(BaseModel):
+    id: uuid.UUID
+    amount_requested: float | None
+    amount_refunded: float | None
+    status: str
+    reason: str | None
+    credit_note_number: str | None
+    created_at: datetime
+    processed_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminRefundOut(ShopRefundOut):
+    target_type: str
+    target_id: uuid.UUID
+    razorpay_payment_id: str
+    razorpay_refund_id: str | None
+    failure_reason: str | None
+    initiated_by: uuid.UUID | None
+
+
+class AdminRefundIn(BaseModel):
+    """Refund on a prepaid order; leave amount empty to refund in full."""
+
+    amount: float | None = Field(default=None, gt=0, le=1_000_000)
+    reason: str = Field(min_length=3, max_length=200)
 
 
 class ShopCouponIn(BaseModel):
@@ -175,7 +215,16 @@ class ShopOrderOut(BaseModel):
     shipping_address: str
     shipping_state: str | None = None
     shipping_pincode: str | None = None
+    contact_email: str | None = None
     invoice_number: str | None = None
+    invoiced_at: datetime | None = None
+    payment_method: str = "online"
+    payment_status: str = "unpaid"
+    amount_paid: float = 0
+    amount_refunded: float = 0
+    cod_fee: float = 0
+    confirmed_at: datetime | None = None
+    delivered_at: datetime | None = None
     total_amount: float
     status: str
     created_at: datetime
@@ -191,7 +240,7 @@ class ShopOrderOut(BaseModel):
     tracking_url: str | None = None
     cancelled_at: datetime | None = None
     cancel_reason: str | None = None
-    refund_status: str | None = None
+    refunds: list[ShopRefundOut] = []
 
     class Config:
         from_attributes = True

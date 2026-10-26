@@ -62,6 +62,10 @@ class PlatformSettingsOut(BaseModel):
     shop_shipping_fee: float
     shop_free_shipping_above: float
     shop_payment_window_minutes: int
+    shop_cod_enabled: bool
+    shop_cod_max_order: float
+    shop_cod_fee: float
+    shop_cod_max_open_orders: int
 
 
 class PlatformSettingsIn(BaseModel):
@@ -74,6 +78,10 @@ class PlatformSettingsIn(BaseModel):
     shop_shipping_fee: float | None = Field(default=None, ge=0, le=10_000)
     shop_free_shipping_above: float | None = Field(default=None, ge=0, le=1_000_000)
     shop_payment_window_minutes: int | None = Field(default=None, ge=10, le=24 * 60)
+    shop_cod_enabled: bool | None = None
+    shop_cod_max_order: float | None = Field(default=None, ge=0, le=1_000_000)
+    shop_cod_fee: float | None = Field(default=None, ge=0, le=1_000)
+    shop_cod_max_open_orders: int | None = Field(default=None, ge=1, le=20)
 
 
 class AdminUserOut(BaseModel):

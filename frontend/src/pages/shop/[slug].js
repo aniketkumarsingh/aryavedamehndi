@@ -4,6 +4,7 @@ import Link from "next/link";
 import SocialMeta, { SITE_URL, absoluteUrl } from "@/components/SocialMeta";
 import { IllustrativeBadge, ProductDetails, SHOP_CATEGORIES, VariantPicker, addProductToCart, productImages, useVariant } from "@/components/ShopProduct";
 import { track } from "@/lib/analytics";
+import { api } from "@/lib/api";
 import { fetchBackend } from "@/lib/serverApi";
 
 /** Product details are server-rendered (ISR) so search engines, ad
@@ -43,7 +44,16 @@ function productJsonLd(product, images) {
   };
 }
 
-export default function ProductPage({ product }) {
+export default function ProductPage({ product: built }) {
+  // The page is pre-built and refreshed every couple of minutes; fetch the
+  // live record on open so stock and prices are never stale.
+  const [product, setProduct] = useState(built);
+  useEffect(() => {
+    setProduct(built);
+    if (!built?.slug) return;
+    api.get(`/shop/products/by-slug/${encodeURIComponent(built.slug)}`).then(setProduct).catch(() => {});
+  }, [built]);
+
   if (!product) return <p className="text-ink-soft">This product couldn&apos;t be loaded right now. Please try again shortly.</p>;
   return <Product product={product} />;
 }

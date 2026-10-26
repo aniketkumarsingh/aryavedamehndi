@@ -1,4 +1,4 @@
-from tests.conftest import auth_headers, make_user
+from tests.conftest import auth_headers, make_user, run_jobs
 
 
 def _make_product(client, admin, price=49, stock=10, name="Organic Mehndi Cone"):
@@ -107,7 +107,8 @@ def test_payment_order_and_verify_dev_mode(client, db, consumer):
         headers=auth_headers(consumer),
     )
     assert verify_res.status_code == 200
-    assert verify_res.json()["status"] == "paid"
+    assert verify_res.json()["status"] == "confirmed"
+    assert verify_res.json()["payment_status"] == "paid"
     assert verify_res.json()["paid_at"] is not None
 
 
@@ -375,11 +376,14 @@ def test_customer_cancel_restocks_and_refunds_paid_order(client, db, consumer):
     product = _make_product(client, admin, price=100, stock=5)
     order = _order(client, consumer, [{"product_id": product["id"], "quantity": 3}]).json()
     assert client.get(f"/shop/products/{product['id']}").json()["stock_quantity"] == 2
-    assert _pay(client, consumer, order["id"]).json()["status"] == "paid"
+    assert _pay(client, consumer, order["id"]).json()["payment_status"] == "paid"
 
     res = client.post(f"/shop/orders/{order['id']}/cancel", json={"reason": "Changed my mind"}, headers=auth_headers(consumer))
     assert res.status_code == 200
-    assert res.json()["status"] == "cancelled" and res.json()["refund_status"] == "refunded"
+    assert res.json()["status"] == "cancelled" and res.json()["payment_status"] == "refund_pending"
+    run_jobs()
+    after = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
+    assert after["payment_status"] == "refunded" and after["refunds"][0]["status"] == "processed"
     assert client.get(f"/shop/products/{product['id']}").json()["stock_quantity"] == 5
     # Already cancelled.
     assert client.post(f"/shop/orders/{order['id']}/cancel", json={}, headers=auth_headers(consumer)).status_code == 400
@@ -427,25 +431,65 @@ def test_coupon_dates_with_timezone_are_stored_as_utc(client, db):
     assert toggled["expires_at"] == c["expires_at"] and toggled["is_active"] is False
 
 
-def test_admin_retries_a_failed_refund(client, db, consumer, monkeypatch):
-    import app.services.shop_orders as shop_orders
+def test_rejected_refund_fails_then_admin_retries(client, db, consumer, monkeypatch):
+    import httpx
+
+    from app.models.notification import Notification
+    from app.services import refunds as refunds_service
 
     admin = make_user(db, role="admin")
     product = _make_product(client, admin, price=100, stock=5)
     order = _order(client, consumer, [{"product_id": product["id"], "quantity": 1}]).json()
     _pay(client, consumer, order["id"])
 
-    def boom(*args, **kwargs):
-        raise RuntimeError("gateway down")
+    def rejected(*args, **kwargs):
+        request = httpx.Request("POST", "https://api.razorpay.com/v1/payments/x/refund")
+        raise httpx.HTTPStatusError("bad", request=request, response=httpx.Response(400, json={"error": {"description": "Refund amount exceeds captured amount"}}, request=request))
 
-    monkeypatch.setattr(shop_orders, "refund_payment", boom)
-    cancelled = client.post(f"/admin/shop-orders/{order['id']}/status", json={"status": "cancelled"}, headers=auth_headers(admin)).json()
-    assert cancelled["status"] == "cancelled" and cancelled["refund_status"] == "failed"
+    monkeypatch.setattr(refunds_service.razorpay_client, "refund_payment", rejected)
+    client.post(f"/admin/shop-orders/{order['id']}/status", json={"status": "cancelled"}, headers=auth_headers(admin))
+    run_jobs()
+    refunds = client.get("/admin/payments/refunds", headers=auth_headers(admin)).json()
+    assert refunds[0]["status"] == "failed" and "exceeds" in refunds[0]["failure_reason"]
+    assert client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()["payment_status"] == "paid"
+    assert db.query(Notification).filter(Notification.user_id == admin.id, Notification.title == "Refund failed").count() == 1
+
     monkeypatch.undo()
+    retried = client.post(f"/admin/payments/refunds/{refunds[0]['id']}/retry", headers=auth_headers(admin))
+    assert retried.status_code == 200 and retried.json()["status"] == "pending"
+    run_jobs()
+    assert client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()["payment_status"] == "refunded"
+    assert client.post(f"/admin/payments/refunds/{refunds[0]['id']}/retry", headers=auth_headers(admin)).status_code == 400
 
-    retried = client.post(f"/admin/shop-orders/{order['id']}/retry-refund", headers=auth_headers(admin))
-    assert retried.status_code == 200 and retried.json()["refund_status"] == "refunded"
-    assert client.post(f"/admin/shop-orders/{order['id']}/retry-refund", headers=auth_headers(admin)).status_code == 400
+
+def test_temporary_gateway_errors_are_retried_with_backoff(client, db, consumer, monkeypatch):
+    import httpx
+
+    from app.models.job import Job
+    from app.services import refunds as refunds_service
+
+    admin = make_user(db, role="admin")
+    product = _make_product(client, admin, price=100, stock=5)
+    order = _order(client, consumer, [{"product_id": product["id"], "quantity": 1}]).json()
+    _pay(client, consumer, order["id"])
+
+    def down(*args, **kwargs):
+        raise httpx.ConnectError("gateway unreachable")
+
+    monkeypatch.setattr(refunds_service.razorpay_client, "refund_payment", down)
+    client.post(f"/shop/orders/{order['id']}/cancel", json={}, headers=auth_headers(consumer))
+    run_jobs()
+    job = db.query(Job).filter(Job.kind == "refunds.submit").one()
+    assert job.status == "queued" and job.attempts == 1 and "unreachable" in job.last_error
+    assert job.run_at > job.created_at  # backed off, not retried in a tight loop
+
+    monkeypatch.undo()
+    job.run_at = job.created_at
+    db.commit()
+    run_jobs()
+    db.expire_all()
+    assert db.get(Job, job.id).status == "done"
+    assert client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()["payment_status"] == "refunded"
 
 
 def test_paid_orders_get_consecutive_invoice_numbers_and_gst_snapshot(client, db, consumer):
@@ -467,9 +511,18 @@ def test_paid_orders_get_consecutive_invoice_numbers_and_gst_snapshot(client, db
 
     first, second = place(), place()
     assert first["items"][0]["hsn_code"] == "3305" and first["items"][0]["gst_rate"] == 18
-    assert first["shipping_state"] == "Delhi" and first["invoice_number"] is None  # numbered only once paid
-    a = _pay(client, consumer, second["id"]).json()["invoice_number"]
-    b = _pay(client, consumer, first["id"]).json()["invoice_number"]
+    assert first["shipping_state"] == "Delhi"
+    _pay(client, consumer, first["id"])
+    _pay(client, consumer, second["id"])
+    # The invoice is issued at dispatch (time of supply for goods), not payment.
+    assert client.get(f"/shop/orders/{first['id']}", headers=auth_headers(consumer)).json()["invoice_number"] is None
+
+    def ship(order_id):
+        res = client.post(f"/admin/shop-orders/{order_id}/status", json={"status": "shipped"}, headers=auth_headers(admin))
+        assert res.status_code == 200, res.text
+        return res.json()["invoice_number"]
+
+    a, b = ship(second["id"]), ship(first["id"])
     assert a.startswith("AV") and len(a) <= 16
     assert int(b.split("-")[1]) == int(a.split("-")[1]) + 1
 

@@ -2,14 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { api } from "@/lib/api";
-
-const STATUS_LABELS = {
-  pending: "Awaiting Payment",
-  paid: "Paid — Preparing to Ship",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
+import { orderSummaryLabel } from "@/lib/orderStatus";
 
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
@@ -47,9 +40,12 @@ export default function MyOrders() {
               <p className="font-semibold text-sm">
                 {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")}
               </p>
-              <p className="text-xs text-ink-soft">{new Date(o.created_at).toLocaleDateString()} · ₹{o.total_amount}</p>
+              <p className="text-xs text-ink-soft">
+                {new Date(o.created_at).toLocaleDateString()} · ₹{o.total_amount}
+                {o.payment_method === "cod" ? " · Cash on Delivery" : ""}
+              </p>
             </div>
-            <span className="chip whitespace-nowrap">{STATUS_LABELS[o.status] || o.status}</span>
+            <span className="chip whitespace-nowrap">{orderSummaryLabel(o)}</span>
           </Link>
         ))}
       </div>

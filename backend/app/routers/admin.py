@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_role
+from app.core.deps import get_current_user, require_role
 from app.database import get_db
 from app.models.booking import Booking
 from app.models.design import DesignUpload
@@ -12,8 +12,8 @@ from app.models.payment import Payment
 from app.models.review import Report
 from app.models.user import ArtistProfile, User
 from app.models.shop import SHOP_ORDER_TRANSITIONS, ShopOrder
-from app.services.razorpay_client import refund_payment
-from app.services.shop_orders import cancel_order, release_stale_orders
+from app.services.refunds import RefundError
+from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, mark_shipped, refund_order
 from app.schemas.admin import (
     AdminArtistOut,
     AdminBookingOut,
@@ -25,7 +25,7 @@ from app.schemas.admin import (
     PlatformSettingsOut,
 )
 from app.schemas.review import ReportOut, ReportResolveIn
-from app.schemas.shop import ShopOrderOut, ShopOrderStatusIn
+from app.schemas.shop import AdminRefundIn, ShopOrderOut, ShopOrderStatusIn
 from app.schemas.user import ArtistProfileOut
 from app.services.notifications import notify
 from app.services.platform_settings import get_platform_settings, update_platform_settings
@@ -156,7 +156,7 @@ def resolve_dispute(booking_id: uuid.UUID, payload: DisputeResolveIn, db: Sessio
         artist_msg = "Our team resolved the dispute in your favour."
     else:
         booking.status = "cancelled"
-        refund_note = refund_advance(booking) if booking.advance_status == "paid" else ""
+        refund_note = refund_advance(db, booking) if booking.advance_status == "paid" else ""
         consumer_msg = f"Our team cancelled this booking after reviewing the dispute - no platform fee is due. {refund_note}".strip()
         artist_msg = "Our team cancelled this booking after reviewing the dispute."
 
@@ -381,68 +381,78 @@ def resolve_report(report_id: uuid.UUID, payload: ReportResolveIn, db: Session =
 @router.get("/shop-orders", response_model=list[ShopOrderOut])
 def list_shop_orders(
     status_filter: str = "all",
+    payment_status: str = "all",
+    payment_method: str = "all",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     from app.routers.shop import _order_out
 
-    if release_stale_orders(db):
-        db.commit()
     query = db.query(ShopOrder).order_by(ShopOrder.created_at.desc())
     if status_filter != "all":
         query = query.filter(ShopOrder.status == status_filter)
+    if payment_status != "all":
+        query = query.filter(ShopOrder.payment_status == payment_status)
+    if payment_method != "all":
+        query = query.filter(ShopOrder.payment_method == payment_method)
     orders = query.offset(offset).limit(limit).all()
     return [_order_out(db, o) for o in orders]
 
 
 @router.post("/shop-orders/{order_id}/status", response_model=ShopOrderOut)
-def update_shop_order_status(order_id: uuid.UUID, payload: ShopOrderStatusIn, db: Session = Depends(get_db)):
-
+def update_shop_order_status(
+    order_id: uuid.UUID,
+    payload: ShopOrderStatusIn,
+    admin: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     from app.routers.shop import _order_out
 
-    order = db.get(ShopOrder, order_id)
+    order = db.get(ShopOrder, order_id, with_for_update=True)
     if order is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
     if payload.status not in SHOP_ORDER_TRANSITIONS[order.status]:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"A {order.status} order can't be marked {payload.status}")
 
-    message = f"Your order is now '{payload.status}'."
     if payload.status == "cancelled":
-        cancel_order(db, order, payload.reason or "Cancelled by AryaVeda")
-        if order.refund_status == "refunded":
-            message = f"Your order was cancelled and ₹{order.total_amount} has been refunded."
-    else:
-        order.status = payload.status
-    if payload.status == "shipped":
-        order.shipped_at = order.shipped_at or utcnow()
-        order.courier_name = payload.courier_name or order.courier_name
-        order.tracking_number = payload.tracking_number or order.tracking_number
-        order.tracking_url = payload.tracking_url or order.tracking_url
-        if order.tracking_number:
-            message = f"Your order has shipped with {order.courier_name or 'our courier'} - tracking no. {order.tracking_number}."
-    notify(db, order.consumer_id, "shop", "Order update", message, f"/shop/orders/{order.id}")
+        cancel_order(db, order, payload.reason or "Cancelled by AryaVeda", initiated_by=admin.id)
+        message = "Your order was cancelled."
+        if order.payment_status == "refund_pending":
+            message += " Your payment is being refunded in full."
+        notify(db, order.consumer_id, "shop", "Order cancelled", message, f"/shop/orders/{order.id}")
+    elif payload.status == "shipped":
+        mark_shipped(db, order, payload.courier_name, payload.tracking_number, payload.tracking_url)
+    elif payload.status == "delivered":
+        mark_delivered(db, order)
+    elif payload.status == "returned":
+        mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id)
     db.commit()
     db.refresh(order)
     return _order_out(db, order)
 
 
-@router.post("/shop-orders/{order_id}/retry-refund", response_model=ShopOrderOut)
-def retry_shop_refund(order_id: uuid.UUID, db: Session = Depends(get_db)):
-    """Retries a refund that failed when a paid order was cancelled."""
+@router.post("/shop-orders/{order_id}/refunds", response_model=ShopOrderOut)
+def refund_shop_order(
+    order_id: uuid.UUID,
+    payload: AdminRefundIn,
+    admin: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Full (no amount) or partial refund on a prepaid order, e.g. for a
+    damaged item, without cancelling it."""
     from app.routers.shop import _order_out
 
-    order = db.get(ShopOrder, order_id)
+    order = db.get(ShopOrder, order_id, with_for_update=True)
     if order is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
-    if order.status != "cancelled" or order.refund_status != "failed" or not order.razorpay_payment_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This order has no failed refund to retry")
     try:
-        refund = refund_payment(order.razorpay_payment_id)
-    except Exception:  # noqa: BLE001 - surfaced to the admin
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Razorpay rejected the refund again - check the payment in the Razorpay dashboard")
-    order.refund_status, order.refund_id = "refunded", refund.get("id")
-    notify(db, order.consumer_id, "shop", "Refund issued", f"₹{order.total_amount} has been refunded to your original payment method.", f"/shop/orders/{order.id}")
+        refund_order(db, order, payload.amount, payload.reason, admin.id)
+    except RefundError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    notify(db, order.consumer_id, "shop", "Refund started",
+           f"We've started a refund of {'₹' + format(payload.amount, 'g') if payload.amount else 'your full payment'} for your order: {payload.reason}",
+           f"/shop/orders/{order.id}")
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

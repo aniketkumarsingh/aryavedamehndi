@@ -53,6 +53,23 @@ class Settings(BaseSettings):
     # Public addresses, used in links that leave the site (ad product feeds,
     # notifications): the website, and the API that serves /media files.
     public_site_url: str = "https://www.aryavedamehndi.com"
+    # Seller details printed on invoices, credit notes and emails (keep in
+    # step with the NEXT_PUBLIC_BUSINESS_* values on the website).
+    business_legal_name: str = ""
+    business_address: str = ""
+    business_state: str = ""  # state of GST registration, e.g. "Delhi"
+    business_gstin: str = ""
+    support_email: str = ""
+    support_phone: str = ""
+
+    # Outgoing email (receipts, invoices, refunds). Leave SMTP_HOST empty to
+    # turn email off - jobs then complete without sending.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # e.g. "AryaVeda Mehndi <orders@aryavedamehndi.com>"
+    smtp_starttls: bool = True
     public_api_url: str = "http://localhost:8000"
 
     design_match_threshold: int = 90

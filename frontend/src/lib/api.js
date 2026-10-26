@@ -116,8 +116,8 @@ function refreshSession(failedToken) {
   return refreshInFlight;
 }
 
-async function request(path, { method = "GET", body, isForm = false, auth = true, query } = {}, isRetry = false) {
-  const headers = {};
+async function request(path, { method = "GET", body, isForm = false, auth = true, query, headers: extraHeaders, as = "json" } = {}, isRetry = false) {
+  const headers = { ...(extraHeaders || {}) };
   if (!isForm) headers["Content-Type"] = "application/json";
   const token = auth ? getToken() : null;
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -133,7 +133,7 @@ async function request(path, { method = "GET", body, isForm = false, auth = true
   if (res.status === 401 && token && !isRetry) {
     // Access tokens are short-lived - refresh once and replay the request.
     if (await refreshSession(token)) {
-      return request(path, { method, body, isForm, auth, query }, true);
+      return request(path, { method, body, isForm, auth, query, headers: extraHeaders, as }, true);
     }
     // Refresh failed too - drop the stale local session so the UI reflects
     // "logged out" instead of silently failing forever.
@@ -152,12 +152,14 @@ async function request(path, { method = "GET", body, isForm = false, auth = true
   }
 
   if (res.status === 204) return null;
-  return res.json();
+  return as === "blob" ? res.blob() : res.json();
 }
 
 export const api = {
   get: (path, query) => request(path, { query }),
-  post: (path, body, query) => request(path, { method: "POST", body, query }),
+  post: (path, body, query, headers) => request(path, { method: "POST", body, query, headers }),
+  // Binary responses (e.g. invoice PDFs) as a Blob, with the session attached.
+  blob: (path) => request(path, { as: "blob" }),
   put: (path, body) => request(path, { method: "PUT", body }),
   del: (path) => request(path, { method: "DELETE" }),
   upload: (path, file) => {

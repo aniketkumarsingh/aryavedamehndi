@@ -131,22 +131,46 @@ app (Chrome: open the app → ⋮ → Uninstall) and clear site data.
 
 The backend refuses to start with `APP_ENV=production` until the unsafe
 dev settings are gone: a real `JWT_SECRET` (32+ chars), `OTP_DEV_MODE=false`,
-`CORS_ORIGINS` set to the real site, Razorpay live keys, and MSG91 key +
-OTP template (registered on TRAI DLT).
+`CORS_ORIGINS` set to the real site, Razorpay live keys + webhook secret,
+and MSG91 key + OTP template (registered on TRAI DLT).
+
+**Run the worker.** Refunds, the Razorpay event inbox, emails, releasing
+unpaid orders and the daily reconciliation all run in a background worker.
+Run it as its own always-on process next to the API (one is enough; more
+are safe):
+
+```
+cd backend
+venv/bin/python -m app.worker
+```
+
+If it isn't running, Admin → Payments shows a "jobs have been waiting"
+alert.
+
+**Razorpay webhook** (Dashboard → Settings → Webhooks): URL
+`<PUBLIC_API_URL>/payments/razorpay/webhook`, events `payment.captured`,
+`order.paid`, `refund.processed`, `refund.failed`, and the secret you put
+in `RAZORPAY_WEBHOOK_SECRET`.
 
 Also set before launch:
 
 - **Backend `.env`:** `S3_*` (so uploads survive server replacement),
-  `PUBLIC_SITE_URL`, `PUBLIC_API_URL`, and optionally `EXOTEL_*` for masked
-  calling (without it the call button is hidden in production).
+  `PUBLIC_SITE_URL`, `PUBLIC_API_URL`, seller details for invoices
+  (`BUSINESS_LEGAL_NAME`, `BUSINESS_ADDRESS`, `BUSINESS_STATE`,
+  `BUSINESS_GSTIN`, `SUPPORT_EMAIL`, `SUPPORT_PHONE`), `SMTP_*` for order
+  emails with the receipt, invoice and credit-note PDFs, and optionally
+  `EXOTEL_*` for masked calling (without it the call button is hidden in
+  production).
 - **Frontend env:** `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_SITE_URL`, the
   seller and grievance-officer details (`NEXT_PUBLIC_BUSINESS_*`,
   `NEXT_PUBLIC_SUPPORT_*`, `NEXT_PUBLIC_GRIEVANCE_OFFICER_*` — the policy
   pages highlight anything missing), and `NEXT_PUBLIC_GA_MEASUREMENT_ID` /
   `NEXT_PUBLIC_META_PIXEL_ID` for analytics and ad tracking.
-- **Admin panel:** stock for each pack size and licence numbers for licensed
-  products (Shop Products), delivery charge and payment window (Settings),
-  and any launch coupons (Coupons).
+- **Admin panel:** stock for each pack size, licence numbers for licensed
+  products and HSN code + GST rate for invoices (Shop Products); delivery
+  charge, payment window and Cash on Delivery limits (Settings); any launch
+  coupons (Coupons). Admin → Payments is the place to watch refunds,
+  reconciliation and failed jobs.
 - **Ads:** point Meta Commerce Manager / Google Merchant Center at
   `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed.
 

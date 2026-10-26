@@ -253,7 +253,7 @@ def test_admin_cancels_dispute_and_refunds_advance(client, db, consumer, artist_
     assert res.status_code == 200
     body = res.json()
     assert body["booking"]["status"] == "cancelled"
-    assert body["advance_status"] == "refunded"
+    assert body["advance_status"] == "refund_pending"  # "refunded" once Razorpay confirms
     assert all(r["status"] == "resolved" for r in body["reports"])
 
     again = client.post(f"/admin/bookings/{booking_id}/resolve-dispute", json={"outcome": "released"}, headers=auth_headers(admin))

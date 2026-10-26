@@ -83,7 +83,19 @@ def test_advance_refunded_on_early_cancel(client, db, consumer, artist_with_prof
     cancel_res = client.post(f"/bookings/{booking_id}/cancel", headers=auth_headers(consumer))
     assert cancel_res.status_code == 200
     assert cancel_res.json()["status"] == "cancelled"
-    assert cancel_res.json()["advance_status"] == "refunded"
+    assert cancel_res.json()["advance_status"] == "refund_pending"
+
+    # The refund is tracked and goes through the queue to Razorpay; the
+    # advance only reads "refunded" once Razorpay has processed it.
+    from app.models.payment_ops import Refund
+    from tests.conftest import run_jobs
+
+    refund = db.query(Refund).one()
+    assert refund.target_type == "booking_advance" and refund.status == "pending"
+    run_jobs()
+    db.expire_all()
+    assert db.get(Refund, refund.id).status == "processed"
+    assert client.get(f"/bookings/{booking_id}", headers=auth_headers(consumer)).json()["advance_status"] == "refunded"
 
 
 def test_advance_forfeited_on_cancel_after_artist_enroute(client, db, consumer, artist_with_profile):
