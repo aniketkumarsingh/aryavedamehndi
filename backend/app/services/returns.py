@@ -110,6 +110,9 @@ def create_request(db: Session, order: ShopOrder, user_id, lines: list[dict], re
         refund_amount=refund_for(order, items, clean, reason), refund_upi=refund_upi if order.payment_method == "cod" else None,
     )
     db.add(request)
+    from app.services.referrals import on_return_requested
+
+    on_return_requested(db, order)
     notify_admins(db, "Return requested", f"Order {str(order.id)[:8]}: {reason.replace('_', ' ')}, ₹{request.refund_amount:g}.", "/admin")
     return request
 

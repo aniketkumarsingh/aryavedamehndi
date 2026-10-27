@@ -22,6 +22,7 @@ const TABS = [
   "Shipping",
   "Coupons",
   "Payments",
+  "Growth",
   "Brand Content",
   "Settings",
 ];
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
       {tab === "Shipping" && <ShippingTab />}
       {tab === "Coupons" && <CouponsTab />}
       {tab === "Payments" && <PaymentsTab />}
+      {tab === "Growth" && <GrowthTab />}
       {tab === "Brand Content" && <CmsTab />}
     </div>
   );
@@ -328,6 +330,10 @@ const SETTING_FIELDS = [
   { key: "shipping_eta_max_days", label: "Delivery estimate: slowest (days)", hint: "", step: "1" },
   { key: "shop_return_window_days", label: "Return window (days after delivery)", hint: "Keep in step with the refund policy page", step: "1" },
   { key: "booking_sla_grace_minutes", label: "Artist late alert (minutes after the slot)", hint: "Admins are alerted if the artist hasn't set out by then", step: "5" },
+  { key: "growth_cart_coupon_percent", label: "Abandoned-cart coupon (% off)", hint: "Sent 24 h after the first reminder; one use, valid 72 h. 0 = no coupon", step: "1" },
+  { key: "growth_referral_friend_discount", label: "Referral: friend's first-order discount (₹)", hint: "Off the first shop order of someone who joins with a code", step: "10" },
+  { key: "growth_referral_reward", label: "Referral: reward to the referrer (₹ wallet credit)", hint: "Credited once the friend's order is delivered and the return window has passed", step: "10" },
+  { key: "growth_wallet_expiry_days", label: "Wallet credit validity (days)", hint: "Unused credit expires after this", step: "30" },
 ];
 
 // Comma-separated PIN-code prefixes, e.g. "744, 796".
@@ -2571,6 +2577,309 @@ function ShippingTab() {
           {shipments.length === 0 && <p className="text-ink-soft text-sm">No shipments here.</p>}
         </div>
       </div>
+    </div>
+  );
+}
+
+const EMPTY_OCCASION = { name: "", occasion_date: "", lead_days: 12, message: "", is_active: true };
+
+function OccasionCalendar() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_OCCASION);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/growth/occasions").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Occasion reminders</h2>
+      <p className="text-xs text-ink-soft">
+        Before each occasion, past customers who opted in get one reminder (app + WhatsApp) with a link to book their last artist again.
+      </p>
+      <form
+        className="grid sm:grid-cols-5 gap-2 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => {
+            await api.post("/admin/growth/occasions", { ...form, lead_days: Number(form.lead_days), message: form.message || null });
+            setForm(EMPTY_OCCASION);
+          });
+        }}
+      >
+        <input className="input" placeholder="Occasion (e.g. Karva Chauth)" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className="input" type="date" required value={form.occasion_date} onChange={(e) => setForm({ ...form, occasion_date: e.target.value })} />
+        <label className="text-xs flex items-center gap-1">
+          Send
+          <input className="input !w-16" type="number" min="1" max="60" value={form.lead_days} onChange={(e) => setForm({ ...form, lead_days: e.target.value })} />
+          days before
+        </label>
+        <input className="input" placeholder="Extra line (optional)" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        <button className="btn-primary" disabled={busy}>Add</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((o) => (
+          <div key={o.id} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <b>{o.name}</b> · {new Date(o.occasion_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {o.lead_days} days before
+              {o.sent_at ? <span className="chip ml-1">sent · {o.reached} reached</span> : !o.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            {!o.sent_at && (
+              <span className="flex gap-2 text-xs">
+                <button className="underline" disabled={busy} onClick={() => run(() => api.put(`/admin/growth/occasions/${o.id}`, { ...o, is_active: !o.is_active }))}>
+                  {o.is_active ? "Turn off" : "Turn on"}
+                </button>
+                <button className="underline" disabled={busy} onClick={() => window.confirm(`Send the ${o.name} reminder now?`) && run(() => api.post(`/admin/growth/occasions/${o.id}/send-now`, {}))}>
+                  Send now
+                </button>
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No occasions yet — add Karva Chauth, Teej, Eid, Diwali and the wedding season.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ReviewModeration() {
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("published");
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/product-reviews", { status: filter }).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]);
+
+  async function setStatus(review, status) {
+    try {
+      await api.post(`/admin/product-reviews/${review.id}/status`, { status });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Product reviews</h2>
+        <select className="input !w-auto text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="published">Live</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </div>
+      <p className="text-xs text-ink-soft">Only customers with a delivered order can review. Hide spam or abuse — never a review just because it&apos;s negative.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-2 text-sm">
+        {rows.map((r) => (
+          <div key={r.id} className="border-b border-line pb-2 flex flex-col gap-1">
+            <div className="flex justify-between gap-2 flex-wrap">
+              <span>
+                <b>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</b> · {r.product_name} · {r.author}
+              </span>
+              <button className="underline text-xs" onClick={() => setStatus(r, r.status === "published" ? "hidden" : "published")}>
+                {r.status === "published" ? "Hide" : "Restore"}
+              </button>
+            </div>
+            {r.title && <span className="font-semibold">{r.title}</span>}
+            {r.body && <span className="text-ink-soft">{r.body}</span>}
+            {r.photo_urls && (
+              <span className="flex gap-1">
+                {r.photo_urls.split(",").map((u) => <img key={u} src={u} alt="" className="h-12 w-12 object-cover rounded" />)}
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No reviews here.</p>}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_LANDING = { slug: "", title: "", heading: "", intro: "", city: "", occasion: "", meta_description: "", is_active: true };
+
+function LandingPagesEditor() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_LANDING);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/landing-pages").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const { slug, ...body } = form;
+      await api.put(`/admin/landing-pages/${encodeURIComponent(slug.trim())}`, {
+        ...body,
+        intro: body.intro || null,
+        city: body.city || null,
+        occasion: body.occasion || null,
+        meta_description: body.meta_description || null,
+      });
+      setForm(EMPTY_LANDING);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(slug) {
+    if (!window.confirm(`Delete /mehndi/${slug}?`)) return;
+    await api.del(`/admin/landing-pages/${slug}`).catch((e) => setError(e.message));
+    load();
+  }
+
+  const field = (key) => ({ value: form[key] ?? "", onChange: (e) => setForm({ ...form, [key]: e.target.value }) });
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">City &amp; occasion pages</h2>
+      <p className="text-xs text-ink-soft">
+        Search landing pages at /mehndi/&lt;slug&gt;. Each one lists verified artists in the city and designs for the occasion, and goes into the sitemap.
+      </p>
+      <form className="grid sm:grid-cols-2 gap-2 text-sm" onSubmit={save}>
+        <input className="input" placeholder="slug, e.g. bridal-mehndi-artist-jaipur" required pattern="[a-z0-9]+(-[a-z0-9]+)*" {...field("slug")} />
+        <input className="input" placeholder="Page title (browser tab / Google)" required minLength={3} {...field("title")} />
+        <input className="input" placeholder="Heading on the page" required minLength={3} {...field("heading")} />
+        <input className="input" placeholder="City (matches artists' city)" {...field("city")} />
+        <select className="input" {...field("occasion")}>
+          <option value="">Any occasion</option>
+          {OCCASIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+        <input className="input" placeholder="Meta description (≤ 160 chars ideal)" maxLength={300} {...field("meta_description")} />
+        <textarea className="input sm:col-span-2" rows={4} placeholder="Intro copy — write it for people, mention the area and what's included" {...field("intro")} />
+        <label className="text-xs flex items-center gap-2">
+          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Live
+        </label>
+        <button className="btn-primary sm:justify-self-end" disabled={busy}>Save page</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((p) => (
+          <div key={p.slug} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <a className="underline" href={`/mehndi/${p.slug}`} target="_blank" rel="noopener noreferrer">/mehndi/{p.slug}</a> · {p.heading}
+              {!p.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            <span className="flex gap-2 text-xs">
+              <button className="underline" onClick={() => setForm({ ...EMPTY_LANDING, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v ?? ""])) })}>Edit</button>
+              <button className="underline text-red-700" onClick={() => remove(p.slug)}>Delete</button>
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No pages yet — start with your top cities × bridal, Karva Chauth and Eid.</p>}
+      </div>
+    </div>
+  );
+}
+
+const DASHBOARD_COLUMNS = [
+  ["new_customers", "New customers"],
+  ["shop_orders", "Shop orders"],
+  ["shop_revenue", "Shop revenue (₹)"],
+  ["avg_order_value", "Avg order (₹)"],
+  ["repeat_orders", "Repeat orders"],
+  ["cart_recovered", "Carts recovered"],
+  ["bookings", "Bookings"],
+  ["bookings_completed", "Completed"],
+  ["bulk_requests", "Event requests"],
+  ["referral_signups", "Referral sign-ups"],
+  ["referral_rewards", "Rewards paid (₹)"],
+  ["wallet_spent", "Wallet used (₹)"],
+];
+
+function GrowthDashboard() {
+  const [weeks, setWeeks] = useState(8);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.get("/admin/growth/dashboard", { weeks }).then(setData).catch((e) => setError(e.message));
+  }, [weeks]);
+
+  const sources = {};
+  for (const w of data?.weeks || []) for (const [k, n] of Object.entries(w.sources)) sources[k] = (sources[k] || 0) + n;
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Weekly growth</h2>
+        <span className="flex gap-2 items-center text-sm">
+          <select className="input !w-auto text-sm" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+            {[4, 8, 12, 26].map((n) => <option key={n} value={n}>Last {n} weeks</option>)}
+          </select>
+          <button className="btn-secondary text-sm" onClick={() => downloadFile(`/admin/growth/dashboard.csv?weeks=${weeks}`, "aryaveda-growth-weekly.csv").catch((e) => setError(e.message))}>
+            Download CSV
+          </button>
+        </span>
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {data && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full">
+              <thead>
+                <tr className="text-left text-ink-soft">
+                  <th className="pr-3 py-1 font-semibold">Week of</th>
+                  {DASHBOARD_COLUMNS.map(([k, label]) => <th key={k} className="pr-3 py-1 font-semibold whitespace-nowrap">{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[...data.weeks].reverse().map((w) => (
+                  <tr key={w.week_start} className="border-t border-line">
+                    <td className="pr-3 py-1 whitespace-nowrap">{new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    {DASHBOARD_COLUMNS.map(([k]) => <td key={k} className="pr-3 py-1">{w[k]}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-ink-soft">
+            Where orders came from:{" "}
+            {Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(" · ") || "no orders yet"}
+          </p>
+          <p className="text-xs text-ink-soft">
+            Referrals: {Object.entries(data.totals.referrals).map(([k, n]) => `${n} ${k}`).join(", ") || "none yet"} · wallet credit outstanding ₹{data.totals.wallet_outstanding} ·
+            server-side purchase events: Meta {data.server_conversions.meta ? "on" : "off"}, GA4 {data.server_conversions.ga4 ? "on" : "off"}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function GrowthTab() {
+  return (
+    <div className="flex flex-col gap-4">
+      <GrowthDashboard />
+      <OccasionCalendar />
+      <ReviewModeration />
+      <LandingPagesEditor />
     </div>
   );
 }

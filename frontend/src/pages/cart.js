@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Script from "next/script";
+import { attributionPayload } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { useLanguage } from "@/lib/useLanguage";
@@ -29,6 +30,8 @@ export default function Cart() {
   const [coupon, setCoupon] = useState("");
   const [quote, setQuote] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("online");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [useWallet, setUseWallet] = useState(true);
   const [contactEmail, setContactEmail] = useState(() => {
     try {
       return localStorage.getItem("aryaveda_contact_email") || "";
@@ -73,16 +76,16 @@ export default function Cart() {
       return;
     }
     api
-      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod, shipping_pincode: pincodeReady ? pincode : null })
+      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod, shipping_pincode: pincodeReady ? pincode : null, use_wallet: useWallet })
       .then(setQuote)
       .catch(() => setQuote(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, linesKey, coupon, paymentMethod, pincode, pincodeReady]);
+  }, [user, linesKey, coupon, paymentMethod, pincode, pincodeReady, useWallet]);
 
   // A changed cart is a different request, so it gets a fresh key.
   useEffect(() => {
     idempotencyKey.current = null;
-  }, [linesKey, coupon, paymentMethod]);
+  }, [linesKey, coupon, paymentMethod, useWallet]);
 
   // COD stopped being available (e.g. the total went over the limit).
   useEffect(() => {
@@ -142,8 +145,11 @@ export default function Cart() {
           shipping_pincode: shippingPincode.trim(),
           contact_email: email || null,
           payment_method: paymentMethod,
+          marketing_opt_in: marketingOptIn || null,
           items: lines,
           coupon_code: quote?.coupon_code || null,
+          use_wallet: useWallet && quote?.wallet_amount > 0,
+          attribution: attributionPayload(),
         },
         undefined,
         { "Idempotency-Key": idempotencyKey.current }
@@ -185,7 +191,8 @@ export default function Cart() {
   const localShipping = config && itemsTotal < config.free_shipping_above ? config.shipping_fee : 0;
   const summary = quote || { items_amount: itemsTotal, discount_amount: 0, shipping_fee: localShipping, cod_fee: 0, total_amount: itemsTotal + localShipping };
   const total = summary.total_amount;
-  const toFreeShipping = config ? config.free_shipping_above - (summary.items_amount - summary.discount_amount) : 0;
+  // Delivery is free above the threshold measured before wallet credit.
+  const toFreeShipping = config ? config.free_shipping_above - (summary.items_amount - summary.discount_amount + (summary.wallet_amount || 0)) : 0;
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-5">
@@ -194,13 +201,13 @@ export default function Cart() {
       </Head>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      <h1 className="text-2xl">Your Cart</h1>
+      <h1 className="text-2xl">{t("cart_heading")}</h1>
 
       {items.length === 0 ? (
         <div className="card p-6 text-center">
-          <p className="text-sm text-ink-soft mb-3">Your cart is empty.</p>
+          <p className="text-sm text-ink-soft mb-3">{t("cart_empty")}</p>
           <Link href="/shop" className="btn-primary text-sm">
-            Browse Products
+            {t("cart_browse")}
           </Link>
         </div>
       ) : (
@@ -216,7 +223,7 @@ export default function Cart() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{item.name}</p>
                   {item.variant_label && <p className="text-xs text-ink-soft">{item.variant_label}</p>}
-                  <p className="text-xs text-ink-soft">₹{item.price} each</p>
+                  <p className="text-xs text-ink-soft">{t("cart_each", { price: item.price })}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -237,7 +244,7 @@ export default function Cart() {
                 </div>
                 <p className="text-sm font-semibold w-16 text-right">₹{item.price * item.quantity}</p>
                 <button className="text-red-700 text-xs" onClick={() => removeFromCart(lineKey(item))}>
-                  Remove
+                  {t("cart_remove")}
                 </button>
               </div>
             ))}
@@ -271,8 +278,20 @@ export default function Cart() {
             )}
             <div className="flex flex-col gap-1 text-sm pt-2 border-t border-line">
               <div className="flex justify-between"><span>{t("cart_items")}</span><span>₹{summary.items_amount}</span></div>
-              {summary.discount_amount > 0 && (
-                <div className="flex justify-between text-green-800"><span>{t("cart_discount")}</span><span>−₹{summary.discount_amount}</span></div>
+              {(summary.coupon_discount ?? summary.discount_amount) > 0 && (
+                <div className="flex justify-between text-green-800"><span>{t("cart_discount")}</span><span>−₹{summary.coupon_discount ?? summary.discount_amount}</span></div>
+              )}
+              {summary.referral_discount > 0 && (
+                <div className="flex justify-between text-green-800"><span>{t("cart_referral_discount")}</span><span>−₹{summary.referral_discount}</span></div>
+              )}
+              {summary.wallet_balance > 0 && (
+                <label className="flex justify-between items-center gap-2 text-green-800">
+                  <span className="flex items-center gap-2">
+                    <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} />
+                    {t("cart_use_wallet", { balance: summary.wallet_balance })}
+                  </span>
+                  {summary.wallet_amount > 0 && <span>−₹{summary.wallet_amount}</span>}
+                </label>
               )}
               <div className="flex justify-between">
                 <span>{t("cart_delivery")}</span>
@@ -299,12 +318,12 @@ export default function Cart() {
           </div>
 
           <div className="card p-5 flex flex-col gap-3">
-            <h2 className="font-semibold">Delivery Details</h2>
-            <input className="input" placeholder="Full name" value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
-            <input className="input" placeholder="Phone number" value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
+            <h2 className="font-semibold">{t("cart_delivery_details")}</h2>
+            <input className="input" placeholder={t("cart_full_name")} value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
+            <input className="input" placeholder={t("cart_phone")} value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
             <textarea
               className="input"
-              placeholder="Full delivery address"
+              placeholder={t("cart_address")}
               value={shippingAddress}
               onChange={(e) => setShippingAddress(e.target.value)}
             />
@@ -377,15 +396,19 @@ export default function Cart() {
               )}
             </fieldset>
 
+            <label className="flex items-start gap-2 text-xs text-ink-soft">
+              <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+              {t("cart_marketing_opt_in")}
+            </label>
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button className="btn-primary" disabled={busy} onClick={checkout}>
               {busy
-                ? "Placing order…"
+                ? t("cart_placing")
                 : !user
-                  ? "Log in to Checkout"
+                  ? t("cart_login_checkout")
                   : paymentMethod === "cod"
-                    ? `Place order · pay ₹${total} at delivery`
-                    : `Pay ₹${total} & Place Order`}
+                    ? t("cart_place_cod", { total })
+                    : t("cart_pay_place", { total })}
             </button>
           </div>
         </>

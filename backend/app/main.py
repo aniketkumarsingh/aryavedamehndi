@@ -19,9 +19,13 @@ from app.routers import (
     packages,
     payments,
     pricing,
+    product_reviews,
+    referrals,
     reviews,
+    seo_pages,
     shop,
     admin_payments,
+    growth,
     returns,
     shipping,
     users,
@@ -125,7 +129,15 @@ app.include_router(shipping.router)
 app.include_router(shipping.admin_router)
 app.include_router(returns.router)
 app.include_router(returns.admin_router)
+app.include_router(growth.router)
+app.include_router(growth.admin_router)
+app.include_router(referrals.router)
+app.include_router(referrals.admin_router)
 app.include_router(reviews.router)
+app.include_router(product_reviews.router)
+app.include_router(product_reviews.admin_router)
+app.include_router(seo_pages.router)
+app.include_router(seo_pages.admin_router)
 app.include_router(cms.router)
 app.include_router(admin.router)
 

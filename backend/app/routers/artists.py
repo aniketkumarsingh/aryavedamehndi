@@ -64,6 +64,8 @@ def upsert_my_profile(
     profile.bio = payload.bio
     profile.service_radius_km = payload.service_radius_km
     profile.address_text = payload.address_text
+    if payload.city is not None:
+        profile.city = payload.city.strip() or None
     profile.base_lat = payload.base_lat
     profile.base_lng = payload.base_lng
 

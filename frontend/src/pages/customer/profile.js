@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import CameraCapture from "@/components/CameraCapture";
 import SectionDivider from "@/components/SectionDivider";
@@ -132,6 +133,31 @@ export default function CustomerProfilePage() {
           I agree
           {me?.consent_given_at && <span className="chip">given {new Date(me.consent_given_at).toLocaleDateString()}</span>}
         </label>
+      </div>
+
+      <div className="card p-6">
+        <h2 className="font-semibold mb-2">Offers &amp; reminders</h2>
+        <p className="text-sm mb-2">
+          <Link href="/shop/wallet" className="underline text-maroon-soft">Wallet &amp; refer a friend →</Link>
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={!!me?.marketing_opt_in}
+            disabled={busy}
+            onChange={async (e) => {
+              const opt_in = e.target.checked;
+              try {
+                await api.put("/users/me/marketing", { opt_in });
+                setMe({ ...me, marketing_opt_in: opt_in });
+              } catch (err) {
+                setError(err.message);
+              }
+            }}
+          />
+          Send me offers and occasion reminders on WhatsApp
+        </label>
+        <p className="text-xs text-ink-soft mt-1">Order and booking updates are always sent, whatever you choose here.</p>
       </div>
 
       <div className="card p-6">

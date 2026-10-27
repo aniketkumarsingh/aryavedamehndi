@@ -22,8 +22,10 @@ from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
 from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.services.conversions import queue_purchase
 from app.services.doc_numbers import next_document_number
 from app.services.jobs import enqueue, job_handler, periodic
+from app.services.messaging import order_ref, whatsapp_user
 from app.services.notifications import notify, notify_admins
 from app.services.platform_settings import get_platform_settings
 from app.services.refunds import RefundError, issue_refund
@@ -54,7 +56,7 @@ def coupon_discount(coupon: ShopCoupon, items_amount: float) -> float:
 
 def coupon_problem(db: Session, coupon: ShopCoupon | None, user_id, items_amount: float) -> str | None:
     """Why this coupon can't be used on this order, or None if it can."""
-    if coupon is None or not coupon.is_active:
+    if coupon is None or not coupon.is_active or (coupon.user_id and coupon.user_id != user_id):
         return "This coupon code isn't valid"
     now = utcnow()
     if coupon.starts_at and now < coupon.starts_at:
@@ -71,21 +73,30 @@ def coupon_problem(db: Session, coupon: ShopCoupon | None, user_id, items_amount
     return None
 
 
-def price_order(db: Session, items_amount: float, coupon: ShopCoupon | None, payment_method: str = "online") -> dict:
+def price_order(db: Session, items_amount: float, coupon: ShopCoupon | None, payment_method: str = "online",
+                referral_discount: float = 0.0, wallet_available: float = 0.0) -> dict:
     """Discount, delivery, COD fee and total for an items total (coupon
-    already checked)."""
+    already checked). The referral discount stacks with a coupon; wallet
+    credit (up to `wallet_available`) comes off last and leaves at least ₹1
+    of items. discount_amount is the sum of all three; delivery is free
+    above the threshold measured before wallet credit."""
     s = get_platform_settings(db)
-    discount = coupon_discount(coupon, items_amount) if coupon else 0.0
-    after_discount = money(items_amount - discount)
+    coupon_off = coupon_discount(coupon, items_amount) if coupon else 0.0
+    referral_off = money(max(0.0, min(referral_discount, items_amount - coupon_off - 1)))
+    after_discount = money(items_amount - coupon_off - referral_off)
     free_above = float(s["shop_free_shipping_above"])
     shipping = 0.0 if after_discount >= free_above else money(float(s["shop_shipping_fee"]))
     cod_fee = money(float(s["shop_cod_fee"])) if payment_method == "cod" else 0.0
+    wallet = money(max(0.0, min(wallet_available, after_discount - 1)))
     return {
         "items_amount": money(items_amount),
-        "discount_amount": discount,
+        "discount_amount": money(coupon_off + referral_off + wallet),
+        "coupon_discount": coupon_off,
+        "referral_discount": referral_off,
+        "wallet_amount": wallet,
         "shipping_fee": shipping,
         "cod_fee": cod_fee,
-        "total_amount": money(after_discount + shipping + cod_fee),
+        "total_amount": money(after_discount - wallet + shipping + cod_fee),
         "free_shipping_above": free_above,
     }
 
@@ -119,8 +130,10 @@ def _restock(db: Session, order: ShopOrder) -> None:
 def confirm_cod(db: Session, order: ShopOrder) -> None:
     """A Cash on Delivery order is confirmed as soon as it's placed."""
     order.status, order.payment_status, order.confirmed_at = "confirmed", "cod_due", utcnow()
+    queue_purchase(db, order)
     notify(db, order.consumer_id, "shop", "Order confirmed",
            f"Your Cash on Delivery order is confirmed. Please keep ₹{order.total_amount:g} ready at delivery.", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_confirmed", order_ref=order_ref(order), amount=f"{order.total_amount:g}")
     enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
 
 
@@ -132,6 +145,9 @@ def cancel_order(db: Session, order: ShopOrder, reason: str, initiated_by=None) 
     order.cancelled_at = utcnow()
     order.cancel_reason = reason[:200]
     _restock(db, order)
+    from app.services.referrals import on_order_cancelled
+
+    on_order_cancelled(db, order)  # wallet credit back, friend discount freed
     if order.payment_status == "paid" and order.razorpay_payment_id:
         issue_refund(db, target_type="shop_order", target_id=order.id, payment_id=order.razorpay_payment_id,
                      reason=f"Order cancelled: {reason}", initiated_by=initiated_by)
@@ -154,6 +170,8 @@ def mark_shipped(db: Session, order: ShopOrder, courier: str | None, tracking_nu
     if order.tracking_number:
         message = f"Your order has shipped with {order.courier_name or 'our courier'} - tracking no. {order.tracking_number}."
     notify(db, order.consumer_id, "shop", "Order shipped", message, f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_shipped", order_ref=order_ref(order), courier=order.courier_name or "our courier",
+                  tracking=order.tracking_url or order.tracking_number or "your order page")
     enqueue(db, "email.shop_order_shipped", {"order_id": str(order.id)}, dedupe_key=f"email-shipped:{order.id}")
 
 
@@ -167,6 +185,9 @@ def mark_returned(db: Session, order: ShopOrder, reason: str, initiated_by=None,
     order.return_condition = condition
     if condition == "good":
         _restock(db, order)
+    from app.services.referrals import on_order_cancelled
+
+    on_order_cancelled(db, order)  # never delivered: wallet credit back
     if order.payment_method == "cod" and order.payment_status == "cod_due":
         order.payment_status = "void"
     elif order.payment_status in ("paid", "partially_refunded") and order.razorpay_payment_id:
@@ -186,6 +207,7 @@ def mark_delivered(db: Session, order: ShopOrder) -> None:
         # The customer has paid the courier; it's ours once remitted.
         order.payment_status = "cod_with_courier"
     notify(db, order.consumer_id, "shop", "Order delivered", "Your order has been delivered. We hope you love it!", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_delivered", order_ref=order_ref(order))
     enqueue(db, "email.shop_delivered", {"order_id": str(order.id)}, dedupe_key=f"email-delivered:{order.id}")
 
 
@@ -252,7 +274,9 @@ def settle_payment(db: Session, order: ShopOrder, payment_id: str, signature: st
     order.status, order.payment_status = "confirmed", "paid"
     order.amount_paid = money(amount if amount else order.total_amount)
     order.paid_at = order.confirmed_at = now
+    queue_purchase(db, order)
     notify(db, order.consumer_id, "shop", "Order confirmed", f"Your ₹{order.amount_paid:g} payment is received and your order will ship soon.", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_confirmed", order_ref=order_ref(order), amount=f"{order.amount_paid:g}")
     enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
     return "paid"
 

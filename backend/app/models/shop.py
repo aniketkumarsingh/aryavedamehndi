@@ -42,6 +42,9 @@ class ShopProduct(Base):
     # For GST tax invoices; set by the admin (confirm with your accountant).
     hsn_code: Mapped[str] = mapped_column(String(8), nullable=True)
     gst_rate: Mapped[float] = mapped_column(Float, nullable=True)  # percent, included in the MRP
+    # Kept in step with published product_reviews (for cards and search results).
+    rating_avg: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # Henna, hair and skin products can be returned only if damaged or wrong.
     returnable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Packed size, for courier quotes and bookings (pack sizes carry their own).
@@ -121,6 +124,7 @@ class ShopCoupon(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     usage_limit: Mapped[int] = mapped_column(Integer, nullable=True)  # total uses, null = unlimited
     per_user_limit: Mapped[int] = mapped_column(Integer, nullable=True, default=1)  # null = unlimited
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # personal coupon
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -150,6 +154,13 @@ class ShopOrder(Base):
     discount_amount: Mapped[float] = mapped_column(Float, default=0)
     shipping_fee: Mapped[float] = mapped_column(Float, default=0)
     coupon_code: Mapped[str] = mapped_column(String(40), nullable=True, index=True)
+    # Where the order came from: "abandoned_cart", "referral", a utm_source, or "direct".
+    source: Mapped[str] = mapped_column(String(40), nullable=True)
+    # Parts of discount_amount: the referred friend's first-order discount and
+    # wallet credit spent (both promotional, so they reduce the taxable value).
+    referral_discount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    wallet_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)  # last-touch UTM/click ids at checkout
 
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_number: Mapped[str] = mapped_column(String(80), nullable=True)

@@ -70,6 +70,11 @@ export function removeFromCart(key) {
   return items;
 }
 
+/** Replaces the whole cart (used when merging a server-saved cart). */
+export function replaceCart(items) {
+  saveCart(items);
+}
+
 export function clearCart() {
   saveCart([]);
 }

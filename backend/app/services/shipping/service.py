@@ -225,6 +225,9 @@ def _on_status(db: Session, shipment: Shipment, update: TrackingUpdate) -> None:
     if update.status == "out_for_delivery":
         cod = f" Please keep ₹{shipment.cod_amount:g} ready." if shipment.cod_amount else ""
         notify(db, order.consumer_id, "shop", "Out for delivery", f"Your order is out for delivery today.{cod}", link)
+        from app.services.messaging import order_ref, whatsapp_user
+
+        whatsapp_user(db, order.consumer_id, "order_out_for_delivery", order_ref=order_ref(order), cod_note=cod.strip() or "No payment due.")
         enqueue(db, "email.shop_out_for_delivery", {"order_id": str(order.id)}, dedupe_key=f"email-ofd:{shipment.id}")
     elif update.status == "delivered":
         shipment.delivered_at = update.occurred_at

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from typing import Literal
 
+from app.services.attribution import AttributionIn
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.shop import SHOP_ORDER_STATUSES
@@ -82,6 +83,8 @@ class ShopProductOut(BaseModel):
     hsn_code: str | None = None
     gst_rate: float | None = None
     returnable: bool = True
+    rating_avg: float = 0
+    rating_count: int = 0
     weight_g: int | None = None
     length_cm: float | None = None
     breadth_cm: float | None = None
@@ -109,6 +112,10 @@ class ShopOrderCreateIn(BaseModel):
     payment_method: Literal["online", "cod"] = "online"
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
+    # Ticked "send me offers": records marketing consent (never withdraws it).
+    marketing_opt_in: bool | None = None
+    use_wallet: bool = False
+    attribution: AttributionIn | None = None
 
 
 class ShopQuoteIn(BaseModel):
@@ -119,11 +126,16 @@ class ShopQuoteIn(BaseModel):
     payment_method: Literal["online", "cod"] = "online"
     # With a PIN code, COD availability also reflects the courier.
     shipping_pincode: str | None = Field(default=None, pattern=r"^[1-9]\d{5}$")
+    use_wallet: bool = False
 
 
 class ShopQuoteOut(BaseModel):
     items_amount: float
-    discount_amount: float
+    discount_amount: float  # coupon + referral + wallet
+    coupon_discount: float = 0
+    referral_discount: float = 0
+    wallet_amount: float = 0
+    wallet_balance: float = 0
     shipping_fee: float
     cod_fee: float = 0
     total_amount: float
@@ -312,6 +324,9 @@ class ShopOrderOut(BaseModel):
     shipments: list[ShipmentOut] = []
     returns: list[ShopReturnOut] = []
     return_window_ends: datetime | None = None  # last day a return can be asked for
+    source: str | None = None  # abandoned_cart, referral, utm source, direct
+    referral_discount: float = 0
+    wallet_amount: float = 0
 
     class Config:
         from_attributes = True

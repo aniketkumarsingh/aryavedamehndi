@@ -14,6 +14,7 @@ from app.models.payment import Payment
 from app.models.platform_settings import PlatformSetting
 from app.models.refresh_token import RefreshToken
 from app.models.review import Report, Review
+from app.models.growth import CampaignSend, Cart, ConsentRecord, ConversionEvent, LandingPage, Occasion, ProductReview, Referral, WalletEntry
 from app.models.job import Job
 from app.models.ops import RateLimitCounter
 from app.models.shipping import PincodeServiceability, Shipment, ShipmentEvent, ShippingWebhookEvent
@@ -62,4 +63,13 @@ __all__ = [
     "PincodeServiceability",
     "ShippingWebhookEvent",
     "ReturnRequest",
+    "ConsentRecord",
+    "Cart",
+    "Occasion",
+    "CampaignSend",
+    "ProductReview",
+    "LandingPage",
+    "Referral",
+    "WalletEntry",
+    "ConversionEvent",
 ]

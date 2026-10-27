@@ -1,8 +1,9 @@
+import re
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, event, select
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -34,6 +35,16 @@ class User(Base):
     consent_given_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Promotional messages (offers, reminders) only with this; order and
+    # booking updates don't need it. History in consent_records.
+    marketing_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    marketing_opt_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    # Growth G3: the code they share, who referred them, first-touch UTM data,
+    # and whether they accepted analytics cookies (gates server-side conversions).
+    referral_code: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)
+    referred_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    analytics_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Traditional username/password login - only meaningful for role="admin"
     # accounts, as a convenience alternative to phone-OTP (the business
@@ -103,6 +114,9 @@ class ArtistProfile(Base):
     consent_given_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     portfolio_urls: Mapped[str] = mapped_column(Text, nullable=True)  # comma-separated for simplicity
+    # Public portfolio page /artists/<slug>, and the city for local pages.
+    slug: Mapped[str] = mapped_column(String(90), nullable=True, unique=True)
+    city: Mapped[str] = mapped_column(String(60), nullable=True)
     rating_avg: Mapped[float] = mapped_column(Float, default=0)
     rating_count: Mapped[int] = mapped_column(Integer, default=0)
     strike_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -110,3 +124,12 @@ class ArtistProfile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="artist_profile")
+
+
+@event.listens_for(ArtistProfile, "before_insert")
+def _give_artist_a_slug(mapper, connection, target):
+    """Every artist gets a stable public address, /artists/<name>-<id6>."""
+    if not target.slug:
+        name = connection.execute(select(User.name).where(User.id == target.user_id)).scalar() or "artist"
+        base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "artist"
+        target.slug = f"{base}-{str(target.user_id)[:6]}"

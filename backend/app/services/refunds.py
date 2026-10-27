@@ -192,6 +192,9 @@ def mark_processed(db: Session, refund: Refund) -> None:
             notify(db, order.consumer_id, "shop", "Refund processed",
                    f"{amount} has been refunded {where}. Banks usually show it within 5-7 working days.",
                    f"/shop/orders/{order.id}")
+            from app.services.messaging import order_ref, whatsapp_user
+
+            whatsapp_user(db, order.consumer_id, "refund_processed", amount=amount.replace("₹", ""), order_ref=order_ref(order))
             enqueue(db, "email.shop_refund", {"refund_id": str(refund.id)}, dedupe_key=f"email-refund:{refund.id}")
             from app.services.returns import on_refund_processed
 
