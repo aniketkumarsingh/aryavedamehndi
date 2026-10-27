@@ -170,6 +170,12 @@ Environments: secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
 which are baked into the website image. Without `DEPLOY_SSH_KEY` the
 images are still pushed and nothing is deployed.
 
+Deploy drill log:
+
+| Date | Where | Result |
+|---|---|---|
+| 27 Oct 2026 | Local Docker (Compose 5.6): `deploy.sh` with local images | First release from an empty database migrated 0001→0034 and passed the smoke test; a release whose API crashes on start failed the smoke test and was rolled back automatically (exit 1, old release serving); a good release followed by `--rollback` returned to the previous one. `X-Request-ID` set by Caddy, JSON access lines in the API logs |
+
 Building on the server instead (no CI): leave `BACKEND_IMAGE`/`WEB_IMAGE`
 empty and run `IMAGE_TAG=$(git rev-parse --short HEAD) docker compose up -d --build`.
 
