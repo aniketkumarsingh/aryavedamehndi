@@ -113,6 +113,18 @@ def _finish(job_id, **values) -> None:
 
 
 def _run_one(job: ClaimedJob) -> None:
+    from app.core.logging import job_var, order_id_var
+
+    payload = job.payload or {}
+    tokens = (job_var.set(f"{job.kind}:{job.id}"), order_id_var.set(payload.get("order_id") if isinstance(payload, dict) else None))
+    try:
+        _run_handler(job)
+    finally:
+        job_var.reset(tokens[0])
+        order_id_var.reset(tokens[1])
+
+
+def _run_handler(job: ClaimedJob) -> None:
     handler = HANDLERS.get(job.kind)
     try:
         if handler is None:

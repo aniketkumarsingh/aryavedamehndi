@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     ga4_measurement_id: str = ""
     ga4_api_secret: str = ""
 
+    # Requests slower than this are logged as warnings ("slow request").
+    slow_request_ms: int = 1500
+
     # Error tracking (Sentry). Leave SENTRY_DSN empty to turn it off.
     # GIT_SHA (set by the deploy) tags each error with the release.
     sentry_dsn: str = ""

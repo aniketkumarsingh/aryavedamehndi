@@ -1,9 +1,10 @@
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.logging import user_id_var
 from app.core.security import decode_token
 from app.database import get_db
 from app.models.user import User
@@ -12,6 +13,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
@@ -26,6 +28,8 @@ def get_current_user(
     user = db.get(User, uuid.UUID(payload["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
+    request.state.user_id = str(user.id)  # for the access log line
+    user_id_var.set(str(user.id))  # for log lines written while handling the request
     return user
 
 

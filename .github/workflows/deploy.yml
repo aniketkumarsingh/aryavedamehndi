@@ -1,0 +1,57 @@
+name: Deploy
+
+# main -> checks -> images on GHCR -> production over SSH (deploy/deploy.sh:
+# migrate, start, smoke-test /health/ready + the website, roll back on failure).
+#
+# Needs, in Settings -> Secrets and variables -> Actions (environment "production"):
+#   secrets  DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+#   vars     DEPLOY_PATH (e.g. /opt/aryaveda), SITE_DOMAIN, API_DOMAIN and the
+#            NEXT_PUBLIC_* values below (baked into the website image)
+# Without DEPLOY_SSH_KEY the images are still built and pushed; nothing is deployed.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: checks
+    uses: ./.github/workflows/images.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      tag: ${{ github.sha }}
+      environment: production
+      also_latest: true
+    secrets: inherit
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.SITE_DOMAIN }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ssh-deploy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known_hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          path: ${{ vars.DEPLOY_PATH }}
+          tag: ${{ needs.images.outputs.tag }}
+          registry_token: ${{ secrets.GITHUB_TOKEN }}
+          site_url: https://${{ vars.SITE_DOMAIN }}

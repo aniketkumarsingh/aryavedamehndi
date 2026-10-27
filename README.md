@@ -134,18 +134,54 @@ the background worker, the website and Caddy (HTTPS with automatic
 certificates). Long-running services restart on failure and have health
 checks; the API and worker start only after migrations succeed.
 
+**Server, once.** Install Docker, then:
+
 ```
-cd deploy
-cp .env.example .env          # fill in domains, secrets, keys
-GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
-docker compose ps             # all "healthy"
-docker compose logs -f worker
+mkdir -p /opt/aryaveda/deploy && cd /opt/aryaveda/deploy
+# copy deploy/.env.example here as .env and fill in domains, secrets, keys
+# (BACKEND_IMAGE / WEB_IMAGE already point at this repo's GHCR images)
 ```
+
+**Releases are shipped by CI** (`.github/workflows/`):
+
+| Workflow | When | What |
+|---|---|---|
+| `Pull request` (`staging.yml`) | every PR | Checks (`ci.yml`). With repo variable `STAGING_ENABLED=true`, also builds images tagged `pr-<n>-<sha>` and deploys them to the staging server |
+| `Deploy` (`deploy.yml`) | push to `main` | Checks, then builds the backend and website images once, pushes them to GHCR (`ghcr.io/aniketkumarsingh/aryavedamehndi-{backend,web}:<sha>` and `:latest`), then deploys over SSH |
+| `CI` (`ci.yml`) | called by both | Backend tests, migration round trip + safety check, frontend lint/tests/build |
+
+The deploy copies `deploy/` to the server and runs `deploy.sh <sha>`: pull
+the images, run migrations, start the new release, then smoke-test it -
+`/health/ready` must report the new release with a working database, and
+the website must answer. If it doesn't, the previous release is started
+again (`deploy.sh --rollback` does the same by hand). Migrations are never
+rolled back, so they must stay compatible with the previous release: add
+columns and tables first, drop them in a later release.
+`scripts/check_migrations.py` fails a PR that drops, renames or retypes
+anything without a reviewed `# migration-safe: <reason>` note.
+
+GitHub setup, per environment (`production`, `staging`) in Settings →
+Environments: secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
+(a key for a user in the `docker` group), `DEPLOY_KNOWN_HOSTS`
+(`ssh-keyscan <host>` output); variables `DEPLOY_PATH` (`/opt/aryaveda`),
+`SITE_DOMAIN`, `API_DOMAIN` and the website's public values
+(`NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
+`NEXT_PUBLIC_SENTRY_DSN`, `BUSINESS_*`, `SUPPORT_*`, `GRIEVANCE_OFFICER_*`)
+which are baked into the website image. Without `DEPLOY_SSH_KEY` the
+images are still pushed and nothing is deployed.
+
+Building on the server instead (no CI): leave `BACKEND_IMAGE`/`WEB_IMAGE`
+empty and run `IMAGE_TAG=$(git rev-parse --short HEAD) docker compose up -d --build`.
 
 First run only: load the catalogue with
 `docker compose run --rm api python seed.py` (and `seed_designs.py`,
 `seed_shop.py`), then `docker compose run --rm api python set_admin_password.py admin`.
-To update: `git pull` and rerun the `up -d --build` line.
+
+**Logs.** Each line is JSON with `request_id` (also the `X-Request-ID`
+response header, set by Caddy), `user_id`, `order_id` and, in the worker,
+`job`. Follow one order through the API and the worker:
+`docker compose logs api worker | grep '"order_id": "<id>"'`. Requests
+slower than `SLOW_REQUEST_MS` (1500) are logged as `slow request` warnings.
 
 **Monitoring.** Point an uptime monitor (UptimeRobot, Better Stack) at
 `https://<API_DOMAIN>/health/ready`, alerting your phone. It returns 503

@@ -1,4 +1,8 @@
+import logging
 import posixpath
+import re
+import time
+import uuid
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +35,7 @@ from app.routers import (
     users,
     webhooks,
 )
+from app.core.logging import configure_logging, order_id_var, request_id_var, user_id_var
 from app.core.observability import init_sentry
 from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
 
@@ -68,7 +73,12 @@ def _check_production_safety() -> None:
 
 
 _check_production_safety()
+configure_logging("api")
 init_sentry("api")
+access_log = logging.getLogger("app.access")
+REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+ORDER_IN_PATH = re.compile(r"/(?:orders|shop-orders|bulk-orders|bookings)/([0-9a-f]{8}-[0-9a-f-]{27})")
+QUIET_PATHS = ("/health", "/health/ready")
 
 app = FastAPI(title="AryaVeda Mehndi API", version="0.1.0")
 
@@ -103,6 +113,34 @@ async def security_headers(request: Request, call_next):
     if settings.app_env == "production":
         response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Outermost: gives every request an id (kept from Caddy/the client when
+    sane), tags log lines with it, the user and the order, and writes one
+    access line per request - a warning when slower than SLOW_REQUEST_MS."""
+    incoming = request.headers.get("x-request-id", "")
+    request_id = incoming if REQUEST_ID.match(incoming) else uuid.uuid4().hex[:16]
+    match = ORDER_IN_PATH.search(request.url.path)
+    tokens = [request_id_var.set(request_id), order_id_var.set(match.group(1) if match else None), user_id_var.set(None)]
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        duration_ms = round((time.perf_counter() - started) * 1000, 1)
+        user_id = getattr(request.state, "user_id", None)
+        extra = {"method": request.method, "path": request.url.path, "status": status_code, "duration_ms": duration_ms, "user_id": user_id}
+        if duration_ms > settings.slow_request_ms:
+            access_log.warning("slow request", extra=extra)
+        elif request.url.path not in QUIET_PATHS or status_code >= 400:
+            access_log.info("request", extra=extra)
+        for var, token in zip((request_id_var, order_id_var, user_id_var), tokens):
+            var.reset(token)
 
 
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")

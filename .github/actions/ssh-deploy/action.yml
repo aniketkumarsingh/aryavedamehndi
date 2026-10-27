@@ -1,0 +1,43 @@
+name: SSH deploy
+description: Copies deploy/ to the server and runs deploy.sh <tag> there (skipped when no SSH key is configured).
+
+inputs:
+  host: { required: false }
+  user: { required: false }
+  ssh_key: { required: false }
+  known_hosts: { required: false }
+  path: { required: false, default: /opt/aryaveda }
+  tag: { required: true }
+  registry_token: { required: true }
+  site_url: { required: false }
+
+runs:
+  using: composite
+  steps:
+    - name: Deploy
+      shell: bash
+      env:
+        HOST: ${{ inputs.host }}
+        USER_NAME: ${{ inputs.user }}
+        SSH_KEY: ${{ inputs.ssh_key }}
+        KNOWN_HOSTS: ${{ inputs.known_hosts }}
+        DEPLOY_PATH: ${{ inputs.path }}
+        TAG: ${{ inputs.tag }}
+        REGISTRY_TOKEN: ${{ inputs.registry_token }}
+        SITE_URL: ${{ inputs.site_url }}
+      run: |
+        if [ -z "$SSH_KEY" ] || [ -z "$HOST" ]; then
+          echo "::notice::No deploy server configured for this environment - images were pushed, nothing deployed."
+          exit 0
+        fi
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+        if [ -n "$KNOWN_HOSTS" ]; then printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts; else ssh-keyscan -H "$HOST" > ~/.ssh/known_hosts; fi
+        SSH="ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes $USER_NAME@$HOST"
+        DEPLOY_PATH="${DEPLOY_PATH:-/opt/aryaveda}"
+        # Compose file, Caddyfile and deploy.sh ship with each release; .env stays on the server.
+        $SSH "mkdir -p '$DEPLOY_PATH/deploy'"
+        scp -i ~/.ssh/deploy_key -o BatchMode=yes deploy/docker-compose.yml deploy/Caddyfile deploy/deploy.sh "$USER_NAME@$HOST:$DEPLOY_PATH/deploy/"
+        printf '%s' "$REGISTRY_TOKEN" | $SSH "docker login ghcr.io -u '${{ github.actor }}' --password-stdin >/dev/null"
+        $SSH "cd '$DEPLOY_PATH/deploy' && chmod +x deploy.sh && ./deploy.sh '$TAG'"
+        echo "### Deployed \`$TAG\` to ${SITE_URL:-$HOST}" >> "$GITHUB_STEP_SUMMARY"
