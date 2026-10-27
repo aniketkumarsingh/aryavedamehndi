@@ -30,6 +30,7 @@ from app.schemas.bulk_order import (
     BulkOrderOut,
     BulkOrderQuoteIn,
 )
+from app.services import attribution
 from app.services.notifications import notify, notify_admins
 from app.services.pricing import quote_totals
 from app.services.razorpay_client import create_order, verify_payment_signature
@@ -139,6 +140,9 @@ def create_bulk_order(payload: BulkOrderCreateIn, user: User = Depends(require_r
     )
     if payload.marketing_opt_in:
         set_marketing_consent(db, user, True, "bulk_order")
+    order.attribution = attribution.clean(payload.attribution)
+    order.source = attribution.source_of(order.attribution or user.attribution)
+    attribution.remember_first_touch(user, payload.attribution)
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

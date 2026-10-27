@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from app.services.attribution import AttributionIn
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -45,6 +46,7 @@ class BookingCreateIn(BaseModel):
     availability_slot_id: uuid.UUID | None = None
     # Ticked "send me offers": records marketing consent (never withdraws it).
     marketing_opt_in: bool | None = None
+    attribution: AttributionIn | None = None
 
     @field_validator("reference_design_image_url")
     @classmethod

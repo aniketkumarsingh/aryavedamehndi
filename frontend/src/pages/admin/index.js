@@ -331,6 +331,9 @@ const SETTING_FIELDS = [
   { key: "shop_return_window_days", label: "Return window (days after delivery)", hint: "Keep in step with the refund policy page", step: "1" },
   { key: "booking_sla_grace_minutes", label: "Artist late alert (minutes after the slot)", hint: "Admins are alerted if the artist hasn't set out by then", step: "5" },
   { key: "growth_cart_coupon_percent", label: "Abandoned-cart coupon (% off)", hint: "Sent 24 h after the first reminder; one use, valid 72 h. 0 = no coupon", step: "1" },
+  { key: "growth_referral_friend_discount", label: "Referral: friend's first-order discount (₹)", hint: "Off the first shop order of someone who joins with a code", step: "10" },
+  { key: "growth_referral_reward", label: "Referral: reward to the referrer (₹ wallet credit)", hint: "Credited once the friend's order is delivered and the return window has passed", step: "10" },
+  { key: "growth_wallet_expiry_days", label: "Wallet credit validity (days)", hint: "Unused credit expires after this", step: "30" },
 ];
 
 // Comma-separated PIN-code prefixes, e.g. "744, 796".
@@ -2796,9 +2799,84 @@ function LandingPagesEditor() {
   );
 }
 
+const DASHBOARD_COLUMNS = [
+  ["new_customers", "New customers"],
+  ["shop_orders", "Shop orders"],
+  ["shop_revenue", "Shop revenue (₹)"],
+  ["avg_order_value", "Avg order (₹)"],
+  ["repeat_orders", "Repeat orders"],
+  ["cart_recovered", "Carts recovered"],
+  ["bookings", "Bookings"],
+  ["bookings_completed", "Completed"],
+  ["bulk_requests", "Event requests"],
+  ["referral_signups", "Referral sign-ups"],
+  ["referral_rewards", "Rewards paid (₹)"],
+  ["wallet_spent", "Wallet used (₹)"],
+];
+
+function GrowthDashboard() {
+  const [weeks, setWeeks] = useState(8);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.get("/admin/growth/dashboard", { weeks }).then(setData).catch((e) => setError(e.message));
+  }, [weeks]);
+
+  const sources = {};
+  for (const w of data?.weeks || []) for (const [k, n] of Object.entries(w.sources)) sources[k] = (sources[k] || 0) + n;
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Weekly growth</h2>
+        <span className="flex gap-2 items-center text-sm">
+          <select className="input !w-auto text-sm" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+            {[4, 8, 12, 26].map((n) => <option key={n} value={n}>Last {n} weeks</option>)}
+          </select>
+          <button className="btn-secondary text-sm" onClick={() => downloadFile(`/admin/growth/dashboard.csv?weeks=${weeks}`, "aryaveda-growth-weekly.csv").catch((e) => setError(e.message))}>
+            Download CSV
+          </button>
+        </span>
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {data && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full">
+              <thead>
+                <tr className="text-left text-ink-soft">
+                  <th className="pr-3 py-1 font-semibold">Week of</th>
+                  {DASHBOARD_COLUMNS.map(([k, label]) => <th key={k} className="pr-3 py-1 font-semibold whitespace-nowrap">{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[...data.weeks].reverse().map((w) => (
+                  <tr key={w.week_start} className="border-t border-line">
+                    <td className="pr-3 py-1 whitespace-nowrap">{new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    {DASHBOARD_COLUMNS.map(([k]) => <td key={k} className="pr-3 py-1">{w[k]}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-ink-soft">
+            Where orders came from:{" "}
+            {Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(" · ") || "no orders yet"}
+          </p>
+          <p className="text-xs text-ink-soft">
+            Referrals: {Object.entries(data.totals.referrals).map(([k, n]) => `${n} ${k}`).join(", ") || "none yet"} · wallet credit outstanding ₹{data.totals.wallet_outstanding} ·
+            server-side purchase events: Meta {data.server_conversions.meta ? "on" : "off"}, GA4 {data.server_conversions.ga4 ? "on" : "off"}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function GrowthTab() {
   return (
     <div className="flex flex-col gap-4">
+      <GrowthDashboard />
       <OccasionCalendar />
       <ReviewModeration />
       <LandingPagesEditor />

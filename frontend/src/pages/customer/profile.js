@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import CameraCapture from "@/components/CameraCapture";
 import SectionDivider from "@/components/SectionDivider";
@@ -136,6 +137,9 @@ export default function CustomerProfilePage() {
 
       <div className="card p-6">
         <h2 className="font-semibold mb-2">Offers &amp; reminders</h2>
+        <p className="text-sm mb-2">
+          <Link href="/shop/wallet" className="underline text-maroon-soft">Wallet &amp; refer a friend →</Link>
+        </p>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"

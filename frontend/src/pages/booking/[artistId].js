@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { track } from "@/lib/analytics";
+import { attributionPayload } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { formatPriceRange } from "@/lib/designs";
 import FileUpload from "@/components/FileUpload";
@@ -101,6 +102,7 @@ export default function NewBooking() {
     setLoading(true);
     try {
       const booking = await api.post("/bookings", {
+        attribution: attributionPayload(),
         artist_id: artistId,
         package_id: packageId,
         address_text: address,

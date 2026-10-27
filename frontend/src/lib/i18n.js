@@ -158,6 +158,8 @@ export const STRINGS = {
     order_refunds: "Refunds",
     order_items: "Items",
     order_address: "Delivery Address",
+    cart_referral_discount: "Friend's referral discount",
+    cart_use_wallet: "Use wallet (₹{balance} available)",
   },
   hi: {
     nav_find_artist: "आर्टिस्ट खोजें",
@@ -316,6 +318,8 @@ export const STRINGS = {
     order_refunds: "रिफ़ंड",
     order_items: "सामान",
     order_address: "डिलीवरी का पता",
+    cart_referral_discount: "दोस्त के रेफ़रल की छूट",
+    cart_use_wallet: "वॉलेट इस्तेमाल करें (₹{balance} उपलब्ध)",
   },
 };
 

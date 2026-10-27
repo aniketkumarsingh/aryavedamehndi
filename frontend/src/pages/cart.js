@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Script from "next/script";
+import { attributionPayload } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/useAuth";
 import { useLanguage } from "@/lib/useLanguage";
@@ -30,6 +31,7 @@ export default function Cart() {
   const [quote, setQuote] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("online");
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [useWallet, setUseWallet] = useState(true);
   const [contactEmail, setContactEmail] = useState(() => {
     try {
       return localStorage.getItem("aryaveda_contact_email") || "";
@@ -74,16 +76,16 @@ export default function Cart() {
       return;
     }
     api
-      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod, shipping_pincode: pincodeReady ? pincode : null })
+      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod, shipping_pincode: pincodeReady ? pincode : null, use_wallet: useWallet })
       .then(setQuote)
       .catch(() => setQuote(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, linesKey, coupon, paymentMethod, pincode, pincodeReady]);
+  }, [user, linesKey, coupon, paymentMethod, pincode, pincodeReady, useWallet]);
 
   // A changed cart is a different request, so it gets a fresh key.
   useEffect(() => {
     idempotencyKey.current = null;
-  }, [linesKey, coupon, paymentMethod]);
+  }, [linesKey, coupon, paymentMethod, useWallet]);
 
   // COD stopped being available (e.g. the total went over the limit).
   useEffect(() => {
@@ -146,6 +148,8 @@ export default function Cart() {
           marketing_opt_in: marketingOptIn || null,
           items: lines,
           coupon_code: quote?.coupon_code || null,
+          use_wallet: useWallet && quote?.wallet_amount > 0,
+          attribution: attributionPayload(),
         },
         undefined,
         { "Idempotency-Key": idempotencyKey.current }
@@ -187,7 +191,8 @@ export default function Cart() {
   const localShipping = config && itemsTotal < config.free_shipping_above ? config.shipping_fee : 0;
   const summary = quote || { items_amount: itemsTotal, discount_amount: 0, shipping_fee: localShipping, cod_fee: 0, total_amount: itemsTotal + localShipping };
   const total = summary.total_amount;
-  const toFreeShipping = config ? config.free_shipping_above - (summary.items_amount - summary.discount_amount) : 0;
+  // Delivery is free above the threshold measured before wallet credit.
+  const toFreeShipping = config ? config.free_shipping_above - (summary.items_amount - summary.discount_amount + (summary.wallet_amount || 0)) : 0;
 
   return (
     <div className="max-w-xl mx-auto flex flex-col gap-5">
@@ -273,8 +278,20 @@ export default function Cart() {
             )}
             <div className="flex flex-col gap-1 text-sm pt-2 border-t border-line">
               <div className="flex justify-between"><span>{t("cart_items")}</span><span>₹{summary.items_amount}</span></div>
-              {summary.discount_amount > 0 && (
-                <div className="flex justify-between text-green-800"><span>{t("cart_discount")}</span><span>−₹{summary.discount_amount}</span></div>
+              {(summary.coupon_discount ?? summary.discount_amount) > 0 && (
+                <div className="flex justify-between text-green-800"><span>{t("cart_discount")}</span><span>−₹{summary.coupon_discount ?? summary.discount_amount}</span></div>
+              )}
+              {summary.referral_discount > 0 && (
+                <div className="flex justify-between text-green-800"><span>{t("cart_referral_discount")}</span><span>−₹{summary.referral_discount}</span></div>
+              )}
+              {summary.wallet_balance > 0 && (
+                <label className="flex justify-between items-center gap-2 text-green-800">
+                  <span className="flex items-center gap-2">
+                    <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} />
+                    {t("cart_use_wallet", { balance: summary.wallet_balance })}
+                  </span>
+                  {summary.wallet_amount > 0 && <span>−₹{summary.wallet_amount}</span>}
+                </label>
               )}
               <div className="flex justify-between">
                 <span>{t("cart_delivery")}</span>

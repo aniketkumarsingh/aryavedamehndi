@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Head from "next/head";
 import { Manrope, Petrona } from "next/font/google";
 import Analytics from "@/components/Analytics";
+import AttributionSync from "@/components/AttributionSync";
 import CartSync from "@/components/CartSync";
 import { SITE_URL } from "@/components/SocialMeta";
 import Layout from "@/components/Layout";
@@ -54,6 +55,7 @@ export default function App({ Component, pageProps }) {
         </Layout>
         <Analytics />
         <CartSync />
+        <AttributionSync />
       </div>
     </LanguageProvider>
   );

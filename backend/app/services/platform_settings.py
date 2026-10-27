@@ -51,6 +51,10 @@ def _defaults() -> dict:
         "booking_sla_grace_minutes": 15,
         # Growth: the abandoned-cart coupon (percent off, one use, 72 h).
         "growth_cart_coupon_percent": 5.0,
+        # Referrals: friend's first-order discount, referrer's wallet reward, credit validity.
+        "growth_referral_friend_discount": 50.0,
+        "growth_referral_reward": 50.0,
+        "growth_wallet_expiry_days": 180,
     }
 
 

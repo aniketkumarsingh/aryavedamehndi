@@ -73,6 +73,13 @@ class Settings(BaseSettings):
     shipping_provider: str = "manual"
     shipping_webhook_secret: str = ""
 
+    # Server-side conversions (app/services/conversions.py). Both pairs
+    # optional; each platform is off until its two values are set.
+    meta_pixel_id: str = ""
+    meta_capi_token: str = ""
+    ga4_measurement_id: str = ""
+    ga4_api_secret: str = ""
+
     # Error tracking (Sentry). Leave SENTRY_DSN empty to turn it off.
     # GIT_SHA (set by the deploy) tags each error with the release.
     sentry_dsn: str = ""

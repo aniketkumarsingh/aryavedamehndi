@@ -156,6 +156,11 @@ class ShopOrder(Base):
     coupon_code: Mapped[str] = mapped_column(String(40), nullable=True, index=True)
     # Where the order came from: "abandoned_cart", "referral", a utm_source, or "direct".
     source: Mapped[str] = mapped_column(String(40), nullable=True)
+    # Parts of discount_amount: the referred friend's first-order discount and
+    # wallet credit spent (both promotional, so they reduce the taxable value).
+    referral_discount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    wallet_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)  # last-touch UTM/click ids at checkout
 
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_number: Mapped[str] = mapped_column(String(80), nullable=True)

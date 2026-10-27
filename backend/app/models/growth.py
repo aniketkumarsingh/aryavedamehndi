@@ -4,7 +4,7 @@ occasion campaigns and who they reached."""
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -106,3 +106,63 @@ class LandingPage(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
+
+
+class Referral(Base):
+    """A friend who signed up with someone's code. The friend gets money off
+    their first shop order; the referrer gets wallet credit once that order
+    is delivered and its return window has passed without a return."""
+
+    __tablename__ = "referrals"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    referrer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    referee_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True)
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending")  # pending | credited | void
+    first_order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=True)
+    reward_amount: Mapped[float] = mapped_column(Float, nullable=True)
+    credited_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    void_reason: Mapped[str] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class WalletEntry(Base):
+    """The wallet ledger. Credits carry `remaining` and `expires_at` and are
+    used oldest-expiry first; a spend records which credits it drew from
+    (`allocations`) so a cancelled order can put exactly that back.
+
+    kind: credit (+) | spend (-) | restore (+) | expire (-) | void (-)
+    """
+
+    __tablename__ = "wallet_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(12), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    remaining: Mapped[float] = mapped_column(Float, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=True)
+    referral_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("referrals.id"), nullable=True)
+    allocations: Mapped[list] = mapped_column(JSONB, nullable=True)  # spend: [{"credit_id": "...", "amount": 20.0}]
+    reversed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # spend put back (order cancelled)
+    note: Mapped[str] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class ConversionEvent(Base):
+    """One server-side conversion sent (or skipped) per event/platform, so a
+    retry never double-counts. event_id is shared with the browser pixel for
+    de-duplication (the order id for purchases)."""
+
+    __tablename__ = "conversion_events"
+    __table_args__ = (UniqueConstraint("event_id", "platform", "event_name", name="uq_conversion_once"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    platform: Mapped[str] = mapped_column(String(10), nullable=False)  # meta | ga4
+    event_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(10), nullable=False)  # sent | skipped | failed
+    detail: Mapped[str] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

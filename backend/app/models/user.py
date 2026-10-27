@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, event, select
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -39,6 +39,12 @@ class User(Base):
     # booking updates don't need it. History in consent_records.
     marketing_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     marketing_opt_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    # Growth G3: the code they share, who referred them, first-touch UTM data,
+    # and whether they accepted analytics cookies (gates server-side conversions).
+    referral_code: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)
+    referred_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    analytics_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Traditional username/password login - only meaningful for role="admin"
     # accounts, as a convenience alternative to phone-OTP (the business

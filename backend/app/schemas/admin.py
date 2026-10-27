@@ -78,6 +78,9 @@ class PlatformSettingsOut(BaseModel):
     shop_return_window_days: int
     booking_sla_grace_minutes: int
     growth_cart_coupon_percent: float
+    growth_referral_friend_discount: float
+    growth_referral_reward: float
+    growth_wallet_expiry_days: int
 
 
 class PlatformSettingsIn(BaseModel):
@@ -106,6 +109,9 @@ class PlatformSettingsIn(BaseModel):
     shop_return_window_days: int | None = Field(default=None, ge=0, le=60)
     booking_sla_grace_minutes: int | None = Field(default=None, ge=0, le=240)
     growth_cart_coupon_percent: float | None = Field(default=None, ge=0, le=50)
+    growth_referral_friend_discount: float | None = Field(default=None, ge=0, le=1000)
+    growth_referral_reward: float | None = Field(default=None, ge=0, le=1000)
+    growth_wallet_expiry_days: int | None = Field(default=None, ge=7, le=730)
 
 
 class AdminUserOut(BaseModel):

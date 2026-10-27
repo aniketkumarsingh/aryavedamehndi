@@ -25,6 +25,7 @@ from app.schemas.booking import (
     NegotiationRespondIn,
 )
 from app.schemas.dashboard import SettlementIn
+from app.services import attribution
 from app.schemas.design import ConsumerConfirmIn, DesignUploadOut
 from app.services.geo import estimate_travel_minutes, haversine_km
 from app.services.platform_settings import get_platform_settings
@@ -218,6 +219,9 @@ def create_booking(
 
     if payload.marketing_opt_in:
         set_marketing_consent(db, user, True, "booking")
+    booking.attribution = attribution.clean(payload.attribution)
+    booking.source = attribution.source_of(booking.attribution or user.attribution)
+    attribution.remember_first_touch(user, payload.attribution)
     db.commit()
     db.refresh(booking)
     return booking

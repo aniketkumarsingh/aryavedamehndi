@@ -7,6 +7,7 @@ import { Icon, OrnateHero, QuantityStepper, Receipt, StepHeading } from "@/compo
 import PricePromise from "@/components/PricePromise";
 import SectionDivider from "@/components/SectionDivider";
 import { track } from "@/lib/analytics";
+import { attributionPayload } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { categoryLabel, formatDuration, formatPriceRange } from "@/lib/designs";
 import { BULK_OCCASIONS, bulkOccasionLabel, estimateSummary } from "@/lib/pricing";
@@ -311,6 +312,7 @@ function BulkOrder({ packages }) {
         );
       });
       const order = await api.post("/bulk-orders", {
+        attribution: attributionPayload(),
         occasion,
         event_at: new Date(eventAt).toISOString(),
         address_text: address,
