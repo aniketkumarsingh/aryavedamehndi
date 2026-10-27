@@ -9,7 +9,7 @@ export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   useEffect(() => {
     api
@@ -47,7 +47,7 @@ export default function MyOrders() {
                 {o.payment_method === "cod" ? " · Cash on Delivery" : ""}
               </p>
             </div>
-            <span className="chip whitespace-nowrap">{orderSummaryLabel(o)}</span>
+            <span className="chip whitespace-nowrap">{orderSummaryLabel(o, lang)}</span>
           </Link>
         ))}
       </div>

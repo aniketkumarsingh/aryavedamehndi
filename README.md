@@ -248,8 +248,9 @@ Repeat the drill on production data after launch and add a row.
 ### Growth
 
 Admin → **Growth** holds the weekly dashboard (new customers, orders,
-revenue, repeat orders, recovered carts, bookings, event requests,
-referrals, wallet use and where orders came from; **Download CSV**), the
+revenue, repeat orders, carts reminded / recovered / recovery rate, coupon
+cost, referral orders and discounts, bookings, event requests, referral
+rewards, wallet use and where orders came from; **Download CSV**), the
 occasion calendar, product-review moderation and the city/occasion landing
 pages.
 
@@ -270,7 +271,8 @@ pages.
   (amounts and validity are in Settings).
 - **Attribution**: UTM tags, Google/Meta click ids and `?ref=` codes are
   kept from the landing page and stored on the customer (first visit) and on
-  each order, booking and event request (latest visit).
+  each order, booking and event request (latest visit). Admin → Shop Orders
+  and Bookings show the source and can be filtered by it.
 - **Server-side purchases**: with `META_PIXEL_ID` + `META_CAPI_TOKEN` and/or
   `GA4_MEASUREMENT_ID` + `GA4_API_SECRET`, each confirmed shop order is
   also sent from the server (Meta Conversions API, GA4 Measurement
@@ -302,7 +304,10 @@ period, and accounts with an open booking or order can't be deleted until
 it's finished. Consent changes (marketing, analytics, deletion) are kept as
 evidence. The daily `privacy.retention` job removes OTP codes, old rate-limit
 counters, finished jobs, old webhook payloads, read notifications older than
-a year and carts untouched for 90 days.
+a year, carts untouched for 90 days, the KYC documents and ID/PAN numbers
+of artists whose KYC was rejected (90 days after the rejection, unless they
+resubmit), and chat messages of finished bookings after 180 days (2 years
+when the booking had a dispute).
 
 ### Media and CDN
 

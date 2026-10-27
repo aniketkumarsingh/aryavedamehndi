@@ -37,6 +37,7 @@ FIRST_REMINDER_AFTER = timedelta(hours=2)
 SECOND_REMINDER_AFTER = timedelta(hours=24)
 RECOVERY_WINDOW = timedelta(days=7)
 MAX_LINES = 20
+CART_REMINDER_TITLE = "Still thinking it over?"  # the first reminder; the dashboard counts these
 
 
 class CartError(Exception):
@@ -112,7 +113,7 @@ def abandoned_cart_job(db: Session, payload: dict) -> str:
         if user is None or not user.is_active or not _live_items(db, cart):
             continue
         if cart.reminder_stage == 0 and now - cart.updated_at >= FIRST_REMINDER_AFTER:
-            notify(db, user.id, "shop", "Still thinking it over?", "Your cart is saved - finish your order whenever you're ready.", "/cart")
+            notify(db, user.id, "shop", CART_REMINDER_TITLE, "Your cart is saved - finish your order whenever you're ready.", "/cart")
             send_template(db, user, "cart_reminder", {"name": (user.name or "there").split(" ")[0], "link": link})
             cart.reminder_stage, cart.last_reminded_at = 1, now
             first += 1

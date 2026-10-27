@@ -6,10 +6,12 @@ import { Icon, Receipt, StatusTracker } from "@/components/OrderParts";
 import PricePromise from "@/components/PricePromise";
 import { api } from "@/lib/api";
 import { categoryLabel, formatPriceRange } from "@/lib/designs";
-import { SHIPMENT_STATUS_LABELS } from "@/lib/orderStatus";
+import { statusLabel } from "@/lib/orderStatus";
+import { useLanguage } from "@/lib/useLanguage";
 import { DEPOSIT_LABELS, bulkOccasionLabel, estimateSummary, formatInr } from "@/lib/pricing";
 
 export default function BulkOrderDetail() {
+  const { lang } = useLanguage();
   const router = useRouter();
   const { id } = router.query;
   const [order, setOrder] = useState(null);
@@ -219,7 +221,7 @@ export default function BulkOrderDetail() {
           {order.shipments.map((s) => (
             <div key={s.id} className="text-sm border-b border-line pb-2 last:border-b-0">
               <p>
-                <b>{SHIPMENT_STATUS_LABELS[s.status] || s.status}</b>
+                <b>{statusLabel("shipment", s.status, lang)}</b>
                 {s.courier_name && ` · ${s.courier_name}`}
                 {s.awb && ` · AWB ${s.awb}`}
                 {s.tracking_url && (
@@ -231,7 +233,7 @@ export default function BulkOrderDetail() {
               </p>
               {s.events.length > 0 && (
                 <p className="text-xs text-ink-soft">
-                  Last update: {SHIPMENT_STATUS_LABELS[s.events[s.events.length - 1].status] || s.events[s.events.length - 1].status},{" "}
+                  Last update: {statusLabel("shipment", s.events[s.events.length - 1].status, lang)},{" "}
                   {new Date(s.events[s.events.length - 1].occurred_at + "Z").toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
                 </p>
               )}

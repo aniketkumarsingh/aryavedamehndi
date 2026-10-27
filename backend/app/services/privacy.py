@@ -18,13 +18,17 @@ Not possible while a booking, event request or shop order is still open.
 privacy.retention (daily) removes what's no longer needed: OTP codes after a
 day, rate-limit counters after two, finished jobs after 30 days, webhook
 payloads after 180 days, read notifications after a year, carts untouched
-for 90 days.
+for 90 days; KYC documents and ID/PAN numbers of artists whose KYC was
+rejected and not resubmitted, 90 days after the rejection (approved
+artists keep theirs while they work with us - the verification record);
+chat messages of finished bookings after 180 days (2 years when the booking
+had a dispute, as evidence).
 """
 
 import uuid
 from datetime import timedelta
 
-from sqlalchemy import or_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
@@ -42,6 +46,7 @@ from app.models.shop import ShopOrder
 from app.models.user import ArtistProfile, User
 from app.services.auth_tokens import revoke_all_for_user
 from app.services.jobs import job_handler, periodic
+from app.services.storage import delete_media
 
 OPEN_BOOKING = ("requested", "negotiating", "confirmed", "artist_enroute", "arrived", "in_progress", "design_uploaded", "disputed")
 CLOSED_BULK = ("completed", "cancelled")
@@ -52,6 +57,10 @@ ARTIST_PRIVATE_FIELDS = (
     "bank_account_number", "bank_ifsc_code", "bank_account_holder_name", "profile_photo_url", "portfolio_urls", "bio",
 )
 REMOVED = "[removed]"
+KYC_DOC_FIELDS = ("kyc_selfie_url", "id_proof_doc_url", "pan_doc_url", "address_proof_doc_url")
+KYC_REJECTED_DAYS = 90
+CHAT_DAYS = 180
+DISPUTED_CHAT_DAYS = 730
 
 
 class PrivacyError(Exception):
@@ -159,6 +168,29 @@ def retention_job(db: Session, payload: dict) -> str:
         if cart.items:
             cart.items = []
             done["carts"] += 1
+
+    done["rejected_kyc"] = 0
+    rejected = db.query(ArtistProfile).filter(ArtistProfile.kyc_status == "rejected",
+                                              ArtistProfile.kyc_reviewed_at < now - timedelta(days=KYC_REJECTED_DAYS))
+    for profile in rejected:
+        urls = [getattr(profile, f) for f in KYC_DOC_FIELDS if getattr(profile, f)]
+        if not urls and not profile.id_proof_number and not profile.pan_number:
+            continue
+        for url in urls:
+            try:
+                delete_media(url)
+            except Exception:  # noqa: BLE001 - the record is cleared even if a file is already gone
+                pass
+        for field in (*KYC_DOC_FIELDS, "id_proof_number", "pan_number"):
+            setattr(profile, field, None)
+        done["rejected_kyc"] += 1
+
+    finished = Booking.status.in_(("completed", "cancelled"))
+    old_chats = select(Booking.id).where(finished, or_(
+        and_(Booking.dispute_resolved_at.is_(None), Booking.scheduled_at < now - timedelta(days=CHAT_DAYS)),
+        Booking.dispute_resolved_at < now - timedelta(days=DISPUTED_CHAT_DAYS),
+    ))
+    done["chat_messages"] = db.query(ChatMessage).filter(ChatMessage.booking_id.in_(old_chats)).delete(synchronize_session=False)
     db.flush()
     return ", ".join(f"{k} {v}" for k, v in done.items())
 

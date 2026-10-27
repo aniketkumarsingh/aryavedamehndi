@@ -110,11 +110,11 @@ export default function Cart() {
       return;
     }
     if (!shippingName.trim() || !shippingPhone.trim() || !shippingAddress.trim() || !shippingState) {
-      setError("Please fill in your name, phone, delivery address and state.");
+      setError(t("cart_err_fields"));
       return;
     }
     if (!/^[1-9]\d{5}$/.test(shippingPincode.trim())) {
-      setError("Please enter a valid 6-digit PIN code.");
+      setError(t("cart_err_pincode"));
       return;
     }
     if (serviceability && !serviceability.deliverable) {
@@ -122,7 +122,7 @@ export default function Cart() {
       return;
     }
     if (contactEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail.trim())) {
-      setError("Please check your email address, or leave it empty.");
+      setError(t("cart_err_email"));
       return;
     }
     setBusy(true);
@@ -229,7 +229,7 @@ export default function Cart() {
                   <button
                     className="chip"
                     onClick={() => updateCartQuantity(lineKey(item), item.quantity - 1)}
-                    aria-label="Decrease quantity"
+                    aria-label={t("cart_decrease")}
                   >
                     −
                   </button>
@@ -237,7 +237,7 @@ export default function Cart() {
                   <button
                     className="chip"
                     onClick={() => updateCartQuantity(lineKey(item), item.quantity + 1)}
-                    aria-label="Increase quantity"
+                    aria-label={t("cart_increase")}
                   >
                     +
                   </button>
@@ -298,7 +298,7 @@ export default function Cart() {
                 <span>{summary.shipping_fee > 0 ? `₹${summary.shipping_fee}` : t("cart_free")}</span>
               </div>
               {summary.cod_fee > 0 && (
-                <div className="flex justify-between"><span>Cash on Delivery charge</span><span>₹{summary.cod_fee}</span></div>
+                <div className="flex justify-between"><span>{t("order_cod_charge")}</span><span>₹{summary.cod_fee}</span></div>
               )}
               {summary.shipping_fee > 0 && toFreeShipping > 0 && (
                 <p className="text-xs text-ink-soft">{t("cart_free_delivery_hint", { amount: Math.ceil(toFreeShipping) })}</p>
@@ -329,7 +329,7 @@ export default function Cart() {
             />
             <div className="grid grid-cols-2 gap-3">
               <select className="input" aria-label="State" value={shippingState} onChange={(e) => setShippingState(e.target.value)}>
-                <option value="">State</option>
+                <option value="">{t("cart_state")}</option>
                 {INDIAN_STATES.map((st) => (
                   <option key={st} value={st}>{st}</option>
                 ))}
@@ -338,8 +338,8 @@ export default function Cart() {
                 className="input"
                 inputMode="numeric"
                 maxLength={6}
-                placeholder="PIN code"
-                aria-label="PIN code"
+                placeholder={t("pin_code")}
+                aria-label={t("pin_code")}
                 value={shippingPincode}
                 onChange={(e) => setShippingPincode(e.target.value.replace(/\D/g, ""))}
               />
@@ -348,28 +348,29 @@ export default function Cart() {
               <p className={`text-xs ${serviceability.deliverable ? "text-leaf" : "text-red-700"}`} role="status">
                 {serviceability.deliverable
                   ? serviceability.estimated_delivery
-                    ? `Delivers to ${pincode} by ${serviceability.estimated_delivery[0]} – ${serviceability.estimated_delivery[1]}${serviceability.cod_available ? "" : " · Cash on Delivery not available here"}`
-                    : `We deliver to ${pincode}.`
-                  : `Sorry, we don't deliver to ${pincode} yet.`}
+                    ? t("cart_delivers_by", { pincode, from: serviceability.estimated_delivery[0], to: serviceability.estimated_delivery[1] }) +
+                      (serviceability.cod_available ? "" : ` · ${t("cart_no_cod_here")}`)
+                    : t("cart_we_deliver", { pincode })
+                  : t("cart_no_delivery", { pincode })}
               </p>
             )}
             <input
               className="input"
               type="email"
               autoComplete="email"
-              placeholder="Email for receipt & invoice (optional)"
-              aria-label="Email for receipt and invoice"
+              placeholder={t("cart_email")}
+              aria-label={t("cart_email")}
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
             />
 
             <fieldset className="flex flex-col gap-2 mt-1">
-              <legend className="font-semibold text-sm mb-1">Payment</legend>
+              <legend className="font-semibold text-sm mb-1">{t("cart_payment")}</legend>
               <label className="option-card p-3 flex gap-3 items-start cursor-pointer" aria-pressed={paymentMethod === "online"}>
                 <input type="radio" name="payment" className="mt-1" checked={paymentMethod === "online"} onChange={() => setPaymentMethod("online")} />
                 <span className="text-sm">
-                  <b>Pay online</b>
-                  <span className="block text-xs text-ink-soft">UPI, cards, net banking or wallets via Razorpay. Bank and UPI offers appear on the payment screen.</span>
+                  <b>{t("cart_pay_online")}</b>
+                  <span className="block text-xs text-ink-soft">{t("cart_pay_online_hint")}</span>
                 </span>
               </label>
               {config?.cod_enabled && (
@@ -386,10 +387,10 @@ export default function Cart() {
                     onChange={() => setPaymentMethod("cod")}
                   />
                   <span className="text-sm">
-                    <b>Cash on Delivery</b>
+                    <b>{t("order_cod")}</b>
                     {config.cod_fee > 0 ? ` (+₹${config.cod_fee})` : ""}
                     <span className="block text-xs text-ink-soft">
-                      {quote && !quote.cod_available ? quote.cod_error : user ? "Pay the courier in cash or UPI when your order arrives." : "Log in to choose Cash on Delivery."}
+                      {quote && !quote.cod_available ? quote.cod_error : user ? t("cart_cod_hint") : t("cart_cod_login")}
                     </span>
                   </span>
                 </label>

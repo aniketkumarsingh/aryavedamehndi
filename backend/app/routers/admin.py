@@ -69,6 +69,7 @@ def list_all_bookings(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     flagged_only: bool = False,
+    source: str = "all",
     db: Session = Depends(get_db),
 ):
     query = db.query(Booking, Package.name).join(Package, Package.id == Booking.package_id).order_by(Booking.created_at.desc())
@@ -76,6 +77,8 @@ def list_all_bookings(
         query = query.filter(Booking.status == status_filter)
     if flagged_only:
         query = query.filter(Booking.arrival_flagged.is_(True))
+    if source != "all":
+        query = query.filter(Booking.source == source)
     query = query.offset(offset).limit(limit)
     return [_admin_booking_out(db, booking, package_name) for booking, package_name in query.all()]
 
@@ -95,6 +98,7 @@ def _admin_booking_out(db: Session, booking: Booking, package_name: str) -> Admi
         total_amount=booking.total_amount,
         arrival_distance_m=booking.arrival_distance_m,
         arrival_flagged=booking.arrival_flagged,
+        source=booking.source,
         created_at=booking.created_at,
     )
 
@@ -322,7 +326,7 @@ def approve_kyc(artist_id: uuid.UUID, db: Session = Depends(get_db)):
     profile = db.get(ArtistProfile, artist_id)
     if profile is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Artist not found")
-    profile.kyc_status = "approved"
+    profile.kyc_status, profile.kyc_reviewed_at = "approved", utcnow()
     notify(db, artist_id, "kyc", "KYC approved", "You're now visible to consumers searching nearby.", "/artist/profile")
     db.commit()
     db.refresh(profile)
@@ -334,7 +338,7 @@ def reject_kyc(artist_id: uuid.UUID, db: Session = Depends(get_db)):
     profile = db.get(ArtistProfile, artist_id)
     if profile is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Artist not found")
-    profile.kyc_status = "rejected"
+    profile.kyc_status, profile.kyc_reviewed_at = "rejected", utcnow()
     notify(db, artist_id, "kyc", "KYC rejected", "Please review and re-upload your documents.", "/artist/profile")
     db.commit()
     db.refresh(profile)
@@ -386,6 +390,7 @@ def list_shop_orders(
     status_filter: str = "all",
     payment_status: str = "all",
     payment_method: str = "all",
+    source: str = "all",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -399,6 +404,8 @@ def list_shop_orders(
         query = query.filter(ShopOrder.payment_status == payment_status)
     if payment_method != "all":
         query = query.filter(ShopOrder.payment_method == payment_method)
+    if source != "all":
+        query = query.filter(ShopOrder.source == source)
     orders = query.offset(offset).limit(limit).all()
     return [_order_out(db, o) for o in orders]
 

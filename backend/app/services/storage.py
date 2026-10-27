@@ -69,6 +69,27 @@ def verify_media_signature(path: str, expires: str | None, signature: str | None
     return hmac.compare_digest(_media_signature(path, int(expires)), signature)
 
 
+def delete_media(url: str | None) -> bool:
+    """Removes a file saved by save_upload (local disk or S3). Unknown or
+    outside URLs are left alone. Returns whether something was deleted."""
+    if not url:
+        return False
+    key = None
+    if url.startswith(S3_PRIVATE_SCHEME):
+        key = url.removeprefix(S3_PRIVATE_SCHEME)
+    elif settings.s3_bucket and settings.s3_public_base_url and url.startswith(settings.s3_public_base_url.rstrip("/") + "/"):
+        key = url.removeprefix(settings.s3_public_base_url.rstrip("/") + "/")
+    if key is not None:
+        _s3_client().delete_object(Bucket=settings.s3_bucket, Key=key)
+        return True
+    if url.startswith("/media/"):
+        path = (MEDIA_DIR / url.removeprefix("/media/").split("?")[0]).resolve()
+        if MEDIA_DIR.resolve() in path.parents and path.is_file():
+            path.unlink()
+            return True
+    return False
+
+
 def _s3_client():
     return boto3.client(
         "s3",

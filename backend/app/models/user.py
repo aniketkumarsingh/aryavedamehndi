@@ -92,6 +92,7 @@ class ArtistProfile(Base):
     # ---- Verification --------------------------------------------------
     # "pending" | "approved" | "rejected" - the overall admin approval gate
     kyc_status: Mapped[str] = mapped_column(String(20), default="pending")
+    kyc_reviewed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # last approve/reject (retention)
     kyc_selfie_url: Mapped[str] = mapped_column(String(500), nullable=True)
     # "aadhaar" | "driving_license" | "passport"
     id_proof_type: Mapped[str] = mapped_column(String(20), nullable=True)

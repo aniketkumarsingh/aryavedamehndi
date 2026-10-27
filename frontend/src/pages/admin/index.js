@@ -287,20 +287,21 @@ function AllBookingsTab() {
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   function load() {
     api
-      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, limit: PAGE_SIZE, offset: 0 })
+      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, source: sourceFilter, limit: PAGE_SIZE, offset: 0 })
       .then((rows) => {
         setBookings(rows);
         setHasMore(rows.length === PAGE_SIZE);
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, flaggedOnly]);
+  useEffect(load, [statusFilter, flaggedOnly, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -308,6 +309,7 @@ function AllBookingsTab() {
       const rows = await api.get("/admin/bookings", {
         status_filter: statusFilter,
         flagged_only: flaggedOnly,
+        source: sourceFilter,
         limit: PAGE_SIZE,
         offset: bookings.length,
       });
@@ -329,6 +331,7 @@ function AllBookingsTab() {
             <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
             Far-away check-ins only
           </label>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
           <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             {["all", "requested", "negotiating", "confirmed", "artist_enroute", "arrived", "in_progress", "design_uploaded", "completed", "disputed", "cancelled"].map((s) => (
               <option key={s} value={s}>
@@ -348,6 +351,7 @@ function AllBookingsTab() {
               <th className="pb-2 pr-3">Artist</th>
               <th className="pb-2 pr-3">Scheduled</th>
               <th className="pb-2 pr-3">Amount</th>
+              <th className="pb-2 pr-3">Source</th>
               <th className="pb-2">Status</th>
             </tr>
           </thead>
@@ -363,6 +367,7 @@ function AllBookingsTab() {
                 <td className="py-2 pr-3">{b.artist_name || b.artist_phone}</td>
                 <td className="py-2 pr-3">{new Date(b.scheduled_at).toLocaleDateString()}</td>
                 <td className="py-2 pr-3">{b.total_amount != null ? `₹${b.total_amount}` : "—"}</td>
+                <td className="py-2 pr-3 text-xs">{(b.source || "—").replace(/_/g, " ")}</td>
                 <td className="py-2">
                   <span className="chip">{b.status.replaceAll("_", " ")}</span>
                   {b.arrival_flagged && (
@@ -1818,11 +1823,12 @@ function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
-  const filters = { status_filter: statusFilter, payment_status: paymentFilter };
+  const filters = { status_filter: statusFilter, payment_status: paymentFilter, source: sourceFilter };
 
   function load() {
     api
@@ -1833,7 +1839,7 @@ function ShopOrdersTab() {
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [statusFilter, paymentFilter, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -1868,6 +1874,7 @@ function ShopOrdersTab() {
               </option>
             ))}
           </select>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
         </div>
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
@@ -1951,6 +1958,7 @@ function ShopOrderRow({ order: o, onChanged }) {
             <span className={`chip ml-1 ${o.payment_status === "refund_pending" || o.refunds.some((r) => r.status === "failed") ? "text-red-700" : ""}`}>
               {o.payment_method === "cod" ? "COD · " : ""}{o.payment_status.replace(/_/g, " ")}
             </span>
+            {o.source && <span className="chip ml-1" title="Where this order came from">from {o.source.replace(/_/g, " ")}</span>}
           </p>
           <p className="text-xs text-ink-soft">
             {o.shipping_phone} · {o.shipping_address}
@@ -1962,7 +1970,10 @@ function ShopOrderRow({ order: o, onChanged }) {
           </p>
           <p className="text-xs text-ink-soft">
             {o.items_amount != null && `Items ₹${o.items_amount}`}
-            {o.discount_amount > 0 && ` · ${o.coupon_code} −₹${o.discount_amount}`}
+            {o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0) > 0 &&
+              ` · ${o.coupon_code || "Coupon"} −₹${Math.round((o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0)) * 100) / 100}`}
+            {o.referral_discount > 0 && ` · Referral −₹${o.referral_discount}`}
+            {o.wallet_amount > 0 && ` · Wallet −₹${o.wallet_amount}`}
             {` · Delivery ${o.shipping_fee > 0 ? `₹${o.shipping_fee}` : "free"}`}
             {o.cod_fee > 0 && ` · COD ₹${o.cod_fee}`}
             {o.amount_paid > 0 && ` · Paid ₹${o.amount_paid}`}
@@ -2985,13 +2996,41 @@ function LandingPagesEditor() {
   );
 }
 
+// Common sources; any utm_source can be typed in.
+const SOURCES = ["direct", "referral", "abandoned_cart", "google_ads", "meta_ads", "instagram", "facebook", "whatsapp", "google"];
+
+/** "Where it came from" filter for order and booking lists. */
+function SourceFilter({ value, onChange }) {
+  return (
+    <>
+      <input
+        className="input w-auto text-sm"
+        list="admin-sources"
+        aria-label="Source"
+        placeholder="Any source"
+        defaultValue={value === "all" ? "" : value}
+        onKeyDown={(e) => e.key === "Enter" && onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+        onBlur={(e) => onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+      />
+      <datalist id="admin-sources">
+        {SOURCES.map((s) => <option key={s} value={s} />)}
+      </datalist>
+    </>
+  );
+}
+
 const DASHBOARD_COLUMNS = [
   ["new_customers", "New customers"],
   ["shop_orders", "Shop orders"],
   ["shop_revenue", "Shop revenue (₹)"],
   ["avg_order_value", "Avg order (₹)"],
   ["repeat_orders", "Repeat orders"],
+  ["carts_reminded", "Carts reminded"],
   ["cart_recovered", "Carts recovered"],
+  ["cart_recovery_rate", "Recovery %"],
+  ["coupon_cost", "Coupon cost (₹)"],
+  ["referral_orders", "Referral orders"],
+  ["referral_discounts", "Referral discounts (₹)"],
   ["bookings", "Bookings"],
   ["bookings_completed", "Completed"],
   ["bulk_requests", "Event requests"],
@@ -3174,6 +3213,7 @@ function BulkOrderRow({ order, onChanged }) {
         </div>
         <div className="flex gap-1 flex-wrap">
           <span className="chip">{BULK_STATUS_LABELS[order.status]}</span>
+          {order.source && <span className="chip">from {order.source.replace(/_/g, " ")}</span>}
           {order.advance_amount > 0 && <span className="chip">{DEPOSIT_LABELS[order.advance_status]} {formatInr(order.advance_amount)}</span>}
         </div>
       </div>

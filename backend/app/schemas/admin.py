@@ -31,6 +31,7 @@ class AdminBookingOut(BaseModel):
     total_amount: float | None
     arrival_distance_m: float | None = None
     arrival_flagged: bool = False
+    source: str | None = None  # referral, a utm_source, google_ads, meta_ads, direct
     created_at: datetime
 
 
