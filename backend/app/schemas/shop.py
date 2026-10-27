@@ -82,6 +82,8 @@ class ShopProductOut(BaseModel):
     hsn_code: str | None = None
     gst_rate: float | None = None
     returnable: bool = True
+    rating_avg: float = 0
+    rating_count: int = 0
     weight_g: int | None = None
     length_cm: float | None = None
     breadth_cm: float | None = None

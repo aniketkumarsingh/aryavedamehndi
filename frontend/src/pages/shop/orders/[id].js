@@ -247,7 +247,7 @@ export default function OrderDetail() {
       <div className="card p-5">
         <div className="flex justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+            <h1 className="text-xl">{t("order_heading", { ref: order.id.slice(0, 8).toUpperCase() })}</h1>
             <p className="text-xs text-ink-soft mt-1">Placed {formatDate(order.created_at)}</p>
           </div>
           <span className="chip whitespace-nowrap">{ORDER_STATUS_LABELS[order.status] || order.status}</span>
@@ -306,7 +306,7 @@ export default function OrderDetail() {
 
       {order.returns.length > 0 && (
         <div className="card p-5">
-          <h2 className="font-semibold mb-2">Returns</h2>
+          <h2 className="font-semibold mb-2">{t("order_returns")}</h2>
           {order.returns.map((r) => (
             <div key={r.id} className="text-sm border-b border-line pb-2 last:border-b-0">
               <p><b>{RETURN_STATUS_LABELS[r.status] || r.status}</b> · ₹{r.refund_amount}</p>
@@ -328,7 +328,7 @@ export default function OrderDetail() {
 
       {order.refunds.length > 0 && (
         <div className="card p-5">
-          <h2 className="font-semibold mb-2">Refunds</h2>
+          <h2 className="font-semibold mb-2">{t("order_refunds")}</h2>
           <div className="flex flex-col gap-2 text-sm">
             {order.refunds.map((r) => (
               <div key={r.id} className="flex justify-between items-start gap-3 border-b border-line pb-2 last:border-b-0">
@@ -355,7 +355,7 @@ export default function OrderDetail() {
 
       <div className="card p-5">
         <div className="flex justify-between items-center mb-2">
-          <h2 className="font-semibold">Items</h2>
+          <h2 className="font-semibold">{t("order_items")}</h2>
           {hasDocument(order) && order.status !== "pending" && (
             <div className="flex gap-3 text-xs">
               <Link href={`/shop/orders/${order.id}/invoice`} className="underline text-maroon-soft">{t("order_receipt")}</Link>
@@ -391,7 +391,7 @@ export default function OrderDetail() {
       </div>
 
       <div className="card p-5">
-        <h2 className="font-semibold mb-2">Delivery Address</h2>
+        <h2 className="font-semibold mb-2">{t("order_address")}</h2>
         <p className="text-sm">{order.shipping_name}</p>
         <p className="text-sm text-ink-soft">{order.shipping_phone}{order.contact_email ? ` · ${order.contact_email}` : ""}</p>
         <p className="text-sm text-ink-soft whitespace-pre-line">{order.shipping_address}</p>

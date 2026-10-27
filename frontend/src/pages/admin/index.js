@@ -2656,10 +2656,152 @@ function OccasionCalendar() {
   );
 }
 
+function ReviewModeration() {
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("published");
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/product-reviews", { status: filter }).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]);
+
+  async function setStatus(review, status) {
+    try {
+      await api.post(`/admin/product-reviews/${review.id}/status`, { status });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Product reviews</h2>
+        <select className="input !w-auto text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="published">Live</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </div>
+      <p className="text-xs text-ink-soft">Only customers with a delivered order can review. Hide spam or abuse — never a review just because it&apos;s negative.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-2 text-sm">
+        {rows.map((r) => (
+          <div key={r.id} className="border-b border-line pb-2 flex flex-col gap-1">
+            <div className="flex justify-between gap-2 flex-wrap">
+              <span>
+                <b>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</b> · {r.product_name} · {r.author}
+              </span>
+              <button className="underline text-xs" onClick={() => setStatus(r, r.status === "published" ? "hidden" : "published")}>
+                {r.status === "published" ? "Hide" : "Restore"}
+              </button>
+            </div>
+            {r.title && <span className="font-semibold">{r.title}</span>}
+            {r.body && <span className="text-ink-soft">{r.body}</span>}
+            {r.photo_urls && (
+              <span className="flex gap-1">
+                {r.photo_urls.split(",").map((u) => <img key={u} src={u} alt="" className="h-12 w-12 object-cover rounded" />)}
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No reviews here.</p>}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_LANDING = { slug: "", title: "", heading: "", intro: "", city: "", occasion: "", meta_description: "", is_active: true };
+
+function LandingPagesEditor() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_LANDING);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/landing-pages").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const { slug, ...body } = form;
+      await api.put(`/admin/landing-pages/${encodeURIComponent(slug.trim())}`, {
+        ...body,
+        intro: body.intro || null,
+        city: body.city || null,
+        occasion: body.occasion || null,
+        meta_description: body.meta_description || null,
+      });
+      setForm(EMPTY_LANDING);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(slug) {
+    if (!window.confirm(`Delete /mehndi/${slug}?`)) return;
+    await api.del(`/admin/landing-pages/${slug}`).catch((e) => setError(e.message));
+    load();
+  }
+
+  const field = (key) => ({ value: form[key] ?? "", onChange: (e) => setForm({ ...form, [key]: e.target.value }) });
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">City &amp; occasion pages</h2>
+      <p className="text-xs text-ink-soft">
+        Search landing pages at /mehndi/&lt;slug&gt;. Each one lists verified artists in the city and designs for the occasion, and goes into the sitemap.
+      </p>
+      <form className="grid sm:grid-cols-2 gap-2 text-sm" onSubmit={save}>
+        <input className="input" placeholder="slug, e.g. bridal-mehndi-artist-jaipur" required pattern="[a-z0-9]+(-[a-z0-9]+)*" {...field("slug")} />
+        <input className="input" placeholder="Page title (browser tab / Google)" required minLength={3} {...field("title")} />
+        <input className="input" placeholder="Heading on the page" required minLength={3} {...field("heading")} />
+        <input className="input" placeholder="City (matches artists' city)" {...field("city")} />
+        <select className="input" {...field("occasion")}>
+          <option value="">Any occasion</option>
+          {OCCASIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+        <input className="input" placeholder="Meta description (≤ 160 chars ideal)" maxLength={300} {...field("meta_description")} />
+        <textarea className="input sm:col-span-2" rows={4} placeholder="Intro copy — write it for people, mention the area and what's included" {...field("intro")} />
+        <label className="text-xs flex items-center gap-2">
+          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Live
+        </label>
+        <button className="btn-primary sm:justify-self-end" disabled={busy}>Save page</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((p) => (
+          <div key={p.slug} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <a className="underline" href={`/mehndi/${p.slug}`} target="_blank" rel="noopener noreferrer">/mehndi/{p.slug}</a> · {p.heading}
+              {!p.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            <span className="flex gap-2 text-xs">
+              <button className="underline" onClick={() => setForm({ ...EMPTY_LANDING, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v ?? ""])) })}>Edit</button>
+              <button className="underline text-red-700" onClick={() => remove(p.slug)}>Delete</button>
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No pages yet — start with your top cities × bridal, Karva Chauth and Eid.</p>}
+      </div>
+    </div>
+  );
+}
+
 function GrowthTab() {
   return (
     <div className="flex flex-col gap-4">
       <OccasionCalendar />
+      <ReviewModeration />
+      <LandingPagesEditor />
     </div>
   );
 }

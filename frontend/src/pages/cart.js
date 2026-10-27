@@ -196,13 +196,13 @@ export default function Cart() {
       </Head>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      <h1 className="text-2xl">Your Cart</h1>
+      <h1 className="text-2xl">{t("cart_heading")}</h1>
 
       {items.length === 0 ? (
         <div className="card p-6 text-center">
-          <p className="text-sm text-ink-soft mb-3">Your cart is empty.</p>
+          <p className="text-sm text-ink-soft mb-3">{t("cart_empty")}</p>
           <Link href="/shop" className="btn-primary text-sm">
-            Browse Products
+            {t("cart_browse")}
           </Link>
         </div>
       ) : (
@@ -218,7 +218,7 @@ export default function Cart() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sm truncate">{item.name}</p>
                   {item.variant_label && <p className="text-xs text-ink-soft">{item.variant_label}</p>}
-                  <p className="text-xs text-ink-soft">₹{item.price} each</p>
+                  <p className="text-xs text-ink-soft">{t("cart_each", { price: item.price })}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -239,7 +239,7 @@ export default function Cart() {
                 </div>
                 <p className="text-sm font-semibold w-16 text-right">₹{item.price * item.quantity}</p>
                 <button className="text-red-700 text-xs" onClick={() => removeFromCart(lineKey(item))}>
-                  Remove
+                  {t("cart_remove")}
                 </button>
               </div>
             ))}
@@ -301,12 +301,12 @@ export default function Cart() {
           </div>
 
           <div className="card p-5 flex flex-col gap-3">
-            <h2 className="font-semibold">Delivery Details</h2>
-            <input className="input" placeholder="Full name" value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
-            <input className="input" placeholder="Phone number" value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
+            <h2 className="font-semibold">{t("cart_delivery_details")}</h2>
+            <input className="input" placeholder={t("cart_full_name")} value={shippingName} onChange={(e) => setShippingName(e.target.value)} />
+            <input className="input" placeholder={t("cart_phone")} value={shippingPhone} onChange={(e) => setShippingPhone(e.target.value)} />
             <textarea
               className="input"
-              placeholder="Full delivery address"
+              placeholder={t("cart_address")}
               value={shippingAddress}
               onChange={(e) => setShippingAddress(e.target.value)}
             />
@@ -381,17 +381,17 @@ export default function Cart() {
 
             <label className="flex items-start gap-2 text-xs text-ink-soft">
               <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
-              Send me offers and occasion reminders on WhatsApp (optional — unsubscribe any time).
+              {t("cart_marketing_opt_in")}
             </label>
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button className="btn-primary" disabled={busy} onClick={checkout}>
               {busy
-                ? "Placing order…"
+                ? t("cart_placing")
                 : !user
-                  ? "Log in to Checkout"
+                  ? t("cart_login_checkout")
                   : paymentMethod === "cod"
-                    ? `Place order · pay ₹${total} at delivery`
-                    : `Pay ₹${total} & Place Order`}
+                    ? t("cart_place_cod", { total })
+                    : t("cart_pay_place", { total })}
             </button>
           </div>
         </>

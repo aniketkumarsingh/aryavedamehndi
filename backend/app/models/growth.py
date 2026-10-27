@@ -4,7 +4,7 @@ occasion campaigns and who they reached."""
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -64,3 +64,45 @@ class CampaignSend(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     channels: Mapped[str] = mapped_column(String(40), nullable=False)  # e.g. "app,whatsapp"
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+
+
+class ProductReview(Base):
+    """A verified buyer's review: one per product per customer, only after a
+    delivered order containing it. Admins can hide a review."""
+
+    __tablename__ = "product_reviews"
+    __table_args__ = (
+        UniqueConstraint("product_id", "user_id", name="uq_product_review_once"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_product_review_rating"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_products.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=True)
+    photo_urls: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="published")  # published | hidden
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
+
+
+class LandingPage(Base):
+    """A crawlable local page, e.g. /mehndi/bridal-mehndi-artist-south-delhi:
+    intro copy from the admin, plus live artists in the city and designs for
+    the occasion."""
+
+    __tablename__ = "landing_pages"
+
+    slug: Mapped[str] = mapped_column(String(100), primary_key=True)
+    title: Mapped[str] = mapped_column(String(150), nullable=False)  # <title>
+    heading: Mapped[str] = mapped_column(String(150), nullable=False)  # <h1>
+    intro: Mapped[str] = mapped_column(Text, nullable=True)
+    city: Mapped[str] = mapped_column(String(60), nullable=True)
+    occasion: Mapped[str] = mapped_column(String(30), nullable=True)  # a design occasion key, e.g. "bridal"
+    meta_description: Mapped[str] = mapped_column(String(300), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)

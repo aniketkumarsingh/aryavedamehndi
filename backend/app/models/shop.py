@@ -42,6 +42,9 @@ class ShopProduct(Base):
     # For GST tax invoices; set by the admin (confirm with your accountant).
     hsn_code: Mapped[str] = mapped_column(String(8), nullable=True)
     gst_rate: Mapped[float] = mapped_column(Float, nullable=True)  # percent, included in the MRP
+    # Kept in step with published product_reviews (for cards and search results).
+    rating_avg: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # Henna, hair and skin products can be returned only if damaged or wrong.
     returnable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Packed size, for courier quotes and bookings (pack sizes carry their own).
