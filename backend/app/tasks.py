@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from app.core.time import utcnow
 from app.models.payment_ops import IdempotencyKey
-from app.services import email, jobs, payment_events, reconciliation, refunds, shop_orders  # noqa: F401
+from app.services import backups, email, jobs, payment_events, rate_limit, reconciliation, refunds, shop_orders  # noqa: F401
 from app.services.jobs import job_handler, periodic
 
 

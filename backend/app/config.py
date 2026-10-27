@@ -62,6 +62,19 @@ class Settings(BaseSettings):
     support_email: str = ""
     support_phone: str = ""
 
+    # Error tracking (Sentry). Leave SENTRY_DSN empty to turn it off.
+    # GIT_SHA (set by the deploy) tags each error with the release.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
+    git_sha: str = ""
+
+    # Nightly database backups (pg_dump). Uploaded to BACKUP_S3_BUCKET (or
+    # S3_BUCKET) under backups/ when S3 is configured, else kept in
+    # BACKUP_DIR on disk. Older than BACKUP_RETENTION_DAYS are deleted.
+    backup_s3_bucket: str = ""
+    backup_dir: str = "backups"
+    backup_retention_days: int = 30
+
     # Outgoing email (receipts, invoices, refunds). Leave SMTP_HOST empty to
     # turn email off - jobs then complete without sending.
     smtp_host: str = ""

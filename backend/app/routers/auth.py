@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -10,6 +10,7 @@ from app.models.user import User
 from app.schemas.auth import AdminLoginIn, RefreshIn, RequestOtpIn, RequestOtpOut, TokenOut, VerifyOtpIn
 from app.services.auth_tokens import InvalidRefreshToken, issue_token_pair, revoke_refresh_token, rotate_refresh_token
 from app.services.otp import OtpRateLimited, issue_otp, verify_otp
+from app.services.rate_limit import enforce
 from app.core.time import utcnow
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -20,7 +21,8 @@ LOCKOUT_MINUTES = 15
 
 
 @router.post("/request-otp", response_model=RequestOtpOut)
-def request_otp(payload: RequestOtpIn, db: Session = Depends(get_db)):
+def request_otp(payload: RequestOtpIn, request: Request, db: Session = Depends(get_db)):
+    enforce(request, "otp_request", payload.phone)
     try:
         code, sent = issue_otp(db, payload.phone)
     except OtpRateLimited as exc:
@@ -29,13 +31,14 @@ def request_otp(payload: RequestOtpIn, db: Session = Depends(get_db)):
 
 
 @router.post("/admin-login", response_model=TokenOut)
-def admin_login(payload: AdminLoginIn, db: Session = Depends(get_db)):
+def admin_login(payload: AdminLoginIn, request: Request, db: Session = Depends(get_db)):
     """Traditional username/password login, admin-only - a convenience
     alternative to phone-OTP so the business owner doesn't need a
     registered phone number to reach the admin panel. Generic error
     messages throughout (don't reveal whether the username exists) plus a
     lockout after repeated failures, same spirit as the OTP rate limiting
     in app/services/otp.py."""
+    enforce(request, "admin_login", payload.username.lower())
     generic_error = "Invalid username or password"
     user = db.query(User).filter(User.username == payload.username, User.role == "admin").first()
     if user is None or not user.password_hash:
@@ -64,7 +67,8 @@ def admin_login(payload: AdminLoginIn, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-otp", response_model=TokenOut)
-def verify_otp_and_login(payload: VerifyOtpIn, db: Session = Depends(get_db)):
+def verify_otp_and_login(payload: VerifyOtpIn, request: Request, db: Session = Depends(get_db)):
+    enforce(request, "otp_verify", payload.phone)
     if not verify_otp(db, payload.phone, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired OTP")
 

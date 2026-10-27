@@ -2,7 +2,7 @@ import csv
 import io
 import uuid
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -34,6 +34,7 @@ from app.services import idempotency, pdf
 from app.services.documents import credit_note_document, order_document
 from app.services.notifications import notify_admins
 from app.services.platform_settings import get_platform_settings
+from app.services.rate_limit import enforce
 from app.services.razorpay_client import create_order, verify_payment_signature
 from app.services.shop_orders import cancel_order, cod_problem, confirm_cod, coupon_problem, is_stale, normalise_code, price_order, release_stale_orders, settle_payment
 from app.services.storage import save_upload
@@ -294,10 +295,12 @@ def checkout_config(db: Session = Depends(get_db)):
 
 
 @router.post("/quote", response_model=ShopQuoteOut)
-def quote(payload: ShopQuoteIn, user: User = Depends(require_role("consumer")), db: Session = Depends(get_db)):
+def quote(payload: ShopQuoteIn, request: Request, user: User = Depends(require_role("consumer")), db: Session = Depends(get_db)):
     """Prices the cart for the chosen payment method without placing an
     order. A bad coupon or unavailable COD doesn't fail the quote - the
     reasons come back in coupon_error / cod_error."""
+    if payload.coupon_code and payload.coupon_code.strip():
+        enforce(request, "coupon_check", str(user.id))  # no guessing coupon codes
     lines = _priced_lines(db, payload.items)
     items_amount = sum(line["unit_price"] * line["quantity"] for line in lines)
     coupon, error = None, None
@@ -316,6 +319,7 @@ def quote(payload: ShopQuoteIn, user: User = Depends(require_role("consumer")), 
 @router.post("/orders", response_model=ShopOrderOut)
 def create_order_endpoint(
     payload: ShopOrderCreateIn,
+    request: Request,
     user: User = Depends(require_role("consumer")),
     db: Session = Depends(get_db),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
@@ -323,6 +327,7 @@ def create_order_endpoint(
     """Places an order. Send an Idempotency-Key header (a fresh UUID per
     checkout attempt): a retried or double-tapped request then returns the
     same order instead of placing a second one."""
+    enforce(request, "checkout", str(user.id))
     if idempotency_key:
         if replay := idempotency.claim(db, user.id, "shop.create_order", idempotency_key, payload.model_dump(mode="json")):
             return replay

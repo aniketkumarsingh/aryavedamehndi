@@ -127,6 +127,60 @@ To check installability in Chrome: DevTools → Application → Manifest
 (shows install errors) and → Service workers. To start over, uninstall the
 app (Chrome: open the app → ⋮ → Uninstall) and clear site data.
 
+## Deploying (Docker Compose)
+
+Everything runs from `deploy/`: Postgres 17, a one-off migration, the API,
+the background worker, the website and Caddy (HTTPS with automatic
+certificates). Long-running services restart on failure and have health
+checks; the API and worker start only after migrations succeed.
+
+```
+cd deploy
+cp .env.example .env          # fill in domains, secrets, keys
+GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
+docker compose ps             # all "healthy"
+docker compose logs -f worker
+```
+
+First run only: load the catalogue with
+`docker compose run --rm api python seed.py` (and `seed_designs.py`,
+`seed_shop.py`), then `docker compose run --rm api python set_admin_password.py admin`.
+To update: `git pull` and rerun the `up -d --build` line.
+
+**Monitoring.** Point an uptime monitor (UptimeRobot, Better Stack) at
+`https://<API_DOMAIN>/health/ready`, alerting your phone. It returns 503
+when the database is unreachable, the worker has stopped, jobs are piling
+up, or there's been no backup for 36 hours. Set `SENTRY_DSN` and
+`NEXT_PUBLIC_SENTRY_DSN` to get API, worker and browser errors (tagged with
+the release), including any background job that gives up.
+
+**Rate limits.** Per IP and per phone/user, on OTP send and verify, admin
+login, coupon checks and checkout (`app/services/rate_limit.py`); over the
+limit returns 429 with Retry-After.
+
+### Backups and restore
+
+The worker runs `ops.backup_database` nightly at 01:30 IST: `pg_dump`
+(custom format), checked readable with `pg_restore --list`, uploaded to
+`BACKUP_S3_BUCKET` (or `S3_BUCKET`) under `backups/`, kept 30 days. Without
+S3 it writes to the `backups` volume instead - set S3 in production so a
+lost server doesn't take the backups with it. Admin → Payments and
+`/health/ready` warn if a night is missed.
+
+Restore (into a scratch database first, to check it):
+
+```
+scripts/restore_backup.sh s3://<bucket>/backups/aryaveda-YYYYMMDD-HHMMSS.dump postgresql://user:pass@host:5432/aryamehndi_restore
+```
+
+Restore drill log:
+
+| Date | Where | Result |
+|---|---|---|
+| 26 Oct 2026 | Local dev (Postgres 16): backup job → `restore_backup.sh` into a scratch database | All 37 tables, 801 rows matched the source; schema at 0027 |
+
+Repeat the drill on production data after launch and add a row.
+
 ## Going live checklist
 
 The backend refuses to start with `APP_ENV=production` until the unsafe

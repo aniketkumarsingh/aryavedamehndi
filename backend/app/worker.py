@@ -15,6 +15,7 @@ import socket
 import time
 
 from app import tasks  # noqa: F401 - registers every job handler and periodic task
+from app.core.observability import init_sentry
 from app.services.jobs import enqueue_periodic, requeue_stuck, run_due_jobs
 
 log = logging.getLogger("app.worker")
@@ -34,6 +35,7 @@ def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    init_sentry("worker")
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)

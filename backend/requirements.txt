@@ -12,3 +12,4 @@ ImageHash==4.3.1
 httpx==0.27.2
 boto3==1.35.36
 reportlab==4.2.5
+sentry-sdk[fastapi]==2.18.0
