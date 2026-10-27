@@ -5,7 +5,16 @@ import { useRouter } from "next/router";
 import Script from "next/script";
 import { api } from "@/lib/api";
 import { downloadFile } from "@/lib/download";
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, REFUND_STATUS_LABELS, SHIPMENT_STATUS_LABELS, canCancel, hasDocument } from "@/lib/orderStatus";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_STATUS_LABELS,
+  REFUND_STATUS_LABELS,
+  RETURN_REASONS,
+  RETURN_STATUS_LABELS,
+  SHIPMENT_STATUS_LABELS,
+  canCancel,
+  hasDocument,
+} from "@/lib/orderStatus";
 import { payShopOrder } from "@/lib/shopPayment";
 import { useLanguage } from "@/lib/useLanguage";
 
@@ -82,11 +91,83 @@ function DeliveryIssue({ order, shipment, onDone }) {
   );
 }
 
+function ReturnForm({ order, onDone, onCancel }) {
+  const returnedQty = {};
+  for (const r of order.returns.filter((r) => r.status !== "rejected")) for (const l of r.items) returnedQty[l.order_item_id] = (returnedQty[l.order_item_id] || 0) + l.quantity;
+  const [qty, setQty] = useState({});
+  const [reason, setReason] = useState("damaged");
+  const [details, setDetails] = useState("");
+  const [upi, setUpi] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e) {
+    e.preventDefault();
+    const items = Object.entries(qty).filter(([, n]) => n > 0).map(([order_item_id, quantity]) => ({ order_item_id, quantity }));
+    if (!items.length) return setError("Choose at least one item.");
+    const form = new FormData();
+    form.append("items", JSON.stringify(items));
+    form.append("reason_code", reason);
+    if (details.trim()) form.append("details", details.trim());
+    if (upi.trim()) form.append("refund_upi", upi.trim());
+    for (const p of photos) form.append("photos", p);
+    setBusy(true);
+    setError("");
+    try {
+      await api.uploadForm(`/shop/orders/${order.id}/returns`, form);
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="card p-5 flex flex-col gap-3 text-sm">
+      <h2 className="font-semibold">Return items</h2>
+      <p className="text-xs text-ink-soft">
+        Henna, hair and skin products can be returned only if they arrive damaged or wrong (with a photo). See our{" "}
+        <Link href="/legal/refunds" className="underline">refund policy</Link>.
+      </p>
+      {order.items.map((item) => {
+        const left = item.quantity - (returnedQty[item.id] || 0);
+        return (
+          <label key={item.id} className="flex items-center justify-between gap-2">
+            <span>{item.product_name}{item.variant_label ? ` (${item.variant_label})` : ""}</span>
+            <select className="input w-auto text-xs" disabled={left <= 0} value={qty[item.id] || 0} onChange={(e) => setQty({ ...qty, [item.id]: Number(e.target.value) })}>
+              {Array.from({ length: Math.max(left, 0) + 1 }, (_, n) => <option key={n} value={n}>{n === 0 ? "Keep" : `Return ${n}`}</option>)}
+            </select>
+          </label>
+        );
+      })}
+      <select className="input" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason">
+        {RETURN_REASONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      <textarea className="input" placeholder="What happened? (optional)" value={details} onChange={(e) => setDetails(e.target.value)} />
+      <label className="text-xs flex flex-col gap-1">
+        Photos {["damaged", "wrong_item"].includes(reason) ? "(required)" : "(optional)"} — up to 3
+        <input type="file" accept="image/*" multiple onChange={(e) => setPhotos([...e.target.files].slice(0, 3))} />
+      </label>
+      {order.payment_method === "cod" && (
+        <input className="input" required placeholder="Your UPI ID for the refund (e.g. name@okicici)" value={upi} onChange={(e) => setUpi(e.target.value)} />
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
+      <div className="flex gap-2">
+        <button className="btn-primary text-sm" disabled={busy}>{busy ? "Sending…" : "Request return"}</button>
+        <button type="button" className="text-xs underline" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
 function ShipmentTracking({ shipment, trackLabel }) {
   const events = [...shipment.events].reverse(); // newest first
   return (
     <div className="mt-4 border-t border-line pt-3">
       <p className="text-sm">
+        {shipment.direction === "reverse" && <span className="chip mr-1">Return pickup</span>}
         <b>{SHIPMENT_STATUS_LABELS[shipment.status] || shipment.status}</b>
         {shipment.courier_name && ` · ${shipment.courier_name}`}
         {shipment.awb && ` · AWB ${shipment.awb}`}
@@ -119,6 +200,7 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [returning, setReturning] = useState(false);
 
   const load = useCallback(() => api.get(`/shop/orders/${id}`).then(setOrder), [id]);
 
@@ -221,6 +303,28 @@ export default function OrderDetail() {
           </button>
         )}
       </div>
+
+      {order.returns.length > 0 && (
+        <div className="card p-5">
+          <h2 className="font-semibold mb-2">Returns</h2>
+          {order.returns.map((r) => (
+            <div key={r.id} className="text-sm border-b border-line pb-2 last:border-b-0">
+              <p><b>{RETURN_STATUS_LABELS[r.status] || r.status}</b> · ₹{r.refund_amount}</p>
+              {r.admin_note && <p className="text-xs text-ink-soft">{r.admin_note}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {order.status === "delivered" && order.return_window_ends && new Date(order.return_window_ends + "Z") > new Date() && (
+        returning ? (
+          <ReturnForm order={order} onCancel={() => setReturning(false)} onDone={() => { setReturning(false); load().catch(() => {}); }} />
+        ) : (
+          <button className="btn-secondary text-sm self-start" onClick={() => setReturning(true)}>
+            Return items (until {new Date(order.return_window_ends + "Z").toLocaleDateString("en-IN", { day: "numeric", month: "short" })})
+          </button>
+        )
+      )}
 
       {order.refunds.length > 0 && (
         <div className="card p-5">

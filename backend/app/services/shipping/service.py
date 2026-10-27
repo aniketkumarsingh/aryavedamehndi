@@ -107,9 +107,10 @@ def order_package(db: Session, order: ShopOrder) -> Package:
 # ----------------------------------------------------------------- booking --
 
 def active_shipment(db: Session, order_id) -> Shipment | None:
+    """The order's outbound parcel (return pickups are separate)."""
     return (
         db.query(Shipment)
-        .filter(Shipment.order_id == order_id, Shipment.status.notin_(("cancelled",)))
+        .filter(Shipment.order_id == order_id, Shipment.direction == "forward", Shipment.status.notin_(("cancelled",)))
         .order_by(Shipment.created_at.desc())
         .first()
     )
@@ -215,6 +216,10 @@ def apply_update(db: Session, shipment: Shipment, update: TrackingUpdate, source
 
 
 def _on_status(db: Session, shipment: Shipment, update: TrackingUpdate) -> None:
+    if shipment.bulk_order_id:
+        return _on_bulk_status(db, shipment, update)
+    if shipment.direction == "reverse":
+        return _on_return_status(db, shipment, update)
     order = db.get(ShopOrder, shipment.order_id)
     link = f"/shop/orders/{order.id}"
     if update.status == "out_for_delivery":
@@ -469,3 +474,70 @@ def shipping_report(db: Session, months: int = 6) -> list[dict]:
         report.append({"month": month, **{k: round(v, 2) if isinstance(v, float) else v for k, v in r.items()},
                        "margin": round(r["fees_collected"] - r["courier_charges"], 2)})
     return report
+
+
+def _on_return_status(db: Session, shipment: Shipment, update: TrackingUpdate) -> None:
+    """Return pickups never move the order; they keep the customer and
+    admins posted."""
+    order = db.get(ShopOrder, shipment.order_id)
+    if update.status == "picked_up":
+        notify(db, order.consumer_id, "shop", "Return picked up", "The courier has collected your return. We'll refund you once it reaches us.", f"/shop/orders/{order.id}")
+    elif update.status == "delivered":
+        shipment.delivered_at = update.occurred_at
+        notify_admins(db, "Return arrived", f"Order {str(order.id)[:8]}'s return is back - inspect it and confirm in Admin → Shipping → Returns.", "/admin")
+
+
+def _on_bulk_status(db: Session, shipment: Shipment, update: TrackingUpdate) -> None:
+    from app.models.bulk_order import BulkOrder
+
+    bulk = db.get(BulkOrder, shipment.bulk_order_id)
+    link = f"/bulk-orders/{bulk.id}"
+    what = shipment.description or "Your parcel"
+    if update.status == "out_for_delivery":
+        notify(db, bulk.consumer_id, "booking", "Out for delivery", f"{what} for your event is out for delivery today.", link)
+    elif update.status == "delivered":
+        shipment.delivered_at = update.occurred_at
+        notify(db, bulk.consumer_id, "booking", "Delivered", f"{what} for your event has been delivered.", link)
+    elif update.status == "ndr":
+        notify(db, bulk.consumer_id, "booking", "Delivery attempt failed", f"The courier couldn't deliver {what.lower()} - we'll be in touch.", link)
+        notify_admins(db, "Failed delivery (bulk order)", f"Bulk order {str(bulk.id)[:8]}: {update.description or 'attempt failed'}.", "/admin")
+
+
+def shipment_party(db: Session, shipment: Shipment) -> dict:
+    """Who and where a parcel goes to - a shop order or a bulk order."""
+    if shipment.bulk_order_id:
+        from app.models.bulk_order import BulkOrder
+        from app.models.user import User
+
+        bulk = db.get(BulkOrder, shipment.bulk_order_id)
+        user = db.get(User, bulk.consumer_id)
+        return {"name": (user.name if user else None) or "Customer", "phone": user.phone if user else "", "address": bulk.address_text,
+                "state": None, "pincode": None, "ref": f"BULK{str(bulk.id)[:8].upper()}", "consumer_id": bulk.consumer_id}
+    order = db.get(ShopOrder, shipment.order_id)
+    return {"name": order.shipping_name, "phone": order.shipping_phone, "address": order.shipping_address,
+            "state": order.shipping_state, "pincode": order.shipping_pincode, "ref": f"AV{str(order.id)[:8].upper()}", "consumer_id": order.consumer_id}
+
+
+def book_bulk_shipment(db: Session, bulk, details: dict, created_by=None) -> Shipment:
+    """Goods sent for a bulk order (e.g. cones and favours ahead of the
+    event) - same tracking as shop parcels, no shop invoice. Doesn't commit."""
+    if bulk.status not in ("confirmed", "completed"):
+        raise ShippingError("Only a confirmed bulk order can have goods shipped")
+    s = get_platform_settings(db)
+    weight = int(details.get("weight_g") or 0) or int(s["shop_default_item_weight_g"]) + int(s["shop_packaging_weight_g"])
+    package = Package(weight_g=weight, length_cm=float(s["shop_box_length_cm"]), breadth_cm=float(s["shop_box_breadth_cm"]), height_cm=float(s["shop_box_height_cm"]))
+    provider = get_provider()
+    booking = provider.book(db, bulk, package, details)
+    shipment = Shipment(
+        id=uuid.uuid4(), bulk_order_id=bulk.id, provider=provider.name, awb=booking.awb, courier_name=booking.courier_name,
+        tracking_url=booking.tracking_url, label_url=booking.label_url, status="booked", weight_g=package.weight_g,
+        length_cm=package.length_cm, breadth_cm=package.breadth_cm, height_cm=package.height_cm, cod_amount=0,
+        shipping_charge=booking.shipping_charge, last_event_at=utcnow(), description=(details.get("description") or "")[:200] or None,
+        raw=booking.raw or None, created_by=created_by,
+    )
+    db.add(shipment)
+    db.flush()
+    _store_event(db, shipment, "booked", "Shipment booked" + (f" with {booking.courier_name}" if booking.courier_name else ""), None, utcnow(), "system", "booked")
+    notify(db, bulk.consumer_id, "booking", "Shipped", f"{shipment.description or 'Goods for your event'} have been sent"
+           + (f" with {booking.courier_name}" if booking.courier_name else "") + ".", f"/bulk-orders/{bulk.id}")
+    return shipment

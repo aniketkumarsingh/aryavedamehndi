@@ -326,6 +326,8 @@ const SETTING_FIELDS = [
   { key: "shop_box_height_cm", label: "Smallest box: height (cm)", hint: "", step: "1" },
   { key: "shipping_eta_min_days", label: "Delivery estimate: fastest (days)", hint: "Shown at checkout until a courier is connected", step: "1" },
   { key: "shipping_eta_max_days", label: "Delivery estimate: slowest (days)", hint: "", step: "1" },
+  { key: "shop_return_window_days", label: "Return window (days after delivery)", hint: "Keep in step with the refund policy page", step: "1" },
+  { key: "booking_sla_grace_minutes", label: "Artist late alert (minutes after the slot)", hint: "Admins are alerted if the artist hasn't set out by then", step: "5" },
 ];
 
 // Comma-separated PIN-code prefixes, e.g. "744, 796".
@@ -1571,6 +1573,15 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
           ))}
         </div>
       )}
+      <label className="flex items-center gap-2 mt-2 text-xs">
+        <input
+          type="checkbox"
+          checked={product.returnable !== false}
+          disabled={busy}
+          onChange={(e) => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, returnable: e.target.checked }))}
+        />
+        Returnable for any reason (unticked: only if damaged or wrong — henna, hair and skin products)
+      </label>
       <div className="flex flex-col gap-1 mt-2">
         <span className="text-xs text-ink-soft">Packed size of one unit (for courier bookings; unweighed items count as the default weight in Settings):</span>
         <div className="flex gap-x-4 gap-y-1 flex-wrap">
@@ -2248,6 +2259,103 @@ function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
   );
 }
 
+function ReturnsQueue({ onChanged }) {
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("open");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/returns", { status_filter: filter }).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function approve(r) {
+    const courier = window.prompt("Courier for the pickup (optional)", "") ?? null;
+    if (courier === null) return;
+    const awb = window.prompt("Pickup AWB (optional - add later in Shipments)", "") || null;
+    run(() => api.post(`/admin/returns/${r.id}/approve`, { courier_name: courier || null, awb }));
+  }
+
+  function reject(r) {
+    const note = window.prompt("Why can't we accept it? (sent to the customer)");
+    if (note) run(() => api.post(`/admin/returns/${r.id}/reject`, { note }));
+  }
+
+  function receive(r) {
+    const good = window.confirm("Items back in good condition?\n\nOK = good (back into stock)\nCancel = damaged (not restocked)");
+    let upi_reference = null;
+    if (r.payment_method === "cod") {
+      upi_reference = window.prompt(`Send ₹${r.refund_amount} to ${r.refund_upi}, then enter the UPI reference (UTR):`);
+      if (!upi_reference) return;
+    } else if (!window.confirm(`Refund ₹${r.refund_amount} to the customer's original payment?`)) {
+      return;
+    }
+    run(() => api.post(`/admin/returns/${r.id}/receive`, { condition: good ? "good" : "damaged", upi_reference }));
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="font-semibold">Returns</h2>
+        <select className="input w-auto text-xs" aria-label="Return filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="open">Open</option>
+          <option value="requested">New</option>
+          <option value="refunded">Refunded</option>
+          <option value="rejected">Rejected</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-2 text-xs">
+        {rows.map((r) => (
+          <div key={r.id} className="border-b border-line pb-2 flex justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-sm">
+                <b>{r.customer}</b> · {r.reason_code.replace("_", " ")} · ₹{r.refund_amount} <span className="chip ml-1">{r.status}</span>
+                {r.payment_method === "cod" && <span className="chip ml-1">COD → {r.refund_upi}</span>}
+              </p>
+              <p className="text-ink-soft">{r.items.map((i) => `${i.quantity} item(s)`).join(", ")} · {fmt(r.created_at)}{r.details ? ` · "${r.details}"` : ""}</p>
+              {r.photo_urls && (
+                <div className="flex gap-1 mt-1">
+                  {r.photo_urls.split(",").map((u) => (
+                    <a key={u} href={u} target="_blank" rel="noopener noreferrer"><img src={u} alt="Return photo" className="h-12 w-12 object-cover rounded border border-line" /></a>
+                  ))}
+                </div>
+              )}
+              {r.admin_note && <p className="text-ink-soft">Note: {r.admin_note}</p>}
+            </div>
+            <div className="flex gap-2 items-start">
+              {r.status === "requested" && (
+                <>
+                  <button className="btn-primary text-xs" disabled={busy} onClick={() => approve(r)}>Approve & book pickup</button>
+                  <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => reject(r)}>Reject</button>
+                </>
+              )}
+              {r.status === "approved" && <button className="btn-primary text-xs" disabled={busy} onClick={() => receive(r)}>Received – refund</button>}
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No returns here.</p>}
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
+
 function CodRemittances({ onChanged }) {
   const [rows, setRows] = useState([]);
   const [pick, setPick] = useState({});
@@ -2436,6 +2544,8 @@ function ShippingTab() {
         )}
       </div>
 
+      <ReturnsQueue onChanged={load} />
+
       <CodRemittances onChanged={load} />
 
       <div className="card p-5 flex flex-col gap-3">
@@ -2538,6 +2648,17 @@ function BulkOrderRow({ order, onChanged }) {
     );
   }
 
+  function shipGoods() {
+    const description = window.prompt("What are you sending? (e.g. 50 mehndi cones, return favours)");
+    if (!description) return;
+    const courier = window.prompt("Courier (optional)", "") || null;
+    const awb = window.prompt("AWB / tracking number (optional)", "") || null;
+    act(async () => {
+      await api.post(`/admin/shipping/bulk-orders/${order.id}/shipments`, { description, courier_name: courier, awb });
+      return api.get(`/admin/bulk-orders/${order.id}`).catch(() => order);
+    });
+  }
+
   function cancel() {
     const reason = window.prompt("Reason for cancelling (sent to the customer). Any paid deposit is refunded in full.");
     if (reason !== null) act(() => api.post(`/admin/bulk-orders/${order.id}/cancel`, { reason: reason || null }));
@@ -2619,6 +2740,11 @@ function BulkOrderRow({ order, onChanged }) {
         {!["completed", "cancelled"].includes(order.status) && (
           <button className="btn-secondary text-sm" disabled={busy} onClick={cancel}>
             Cancel order
+          </button>
+        )}
+        {["confirmed", "completed"].includes(order.status) && (
+          <button className="btn-secondary text-sm" disabled={busy} onClick={shipGoods}>
+            Ship goods…
           </button>
         )}
       </div>

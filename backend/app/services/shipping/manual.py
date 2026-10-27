@@ -29,6 +29,9 @@ class ManualProvider:
             raise ShippingError("The tracking link must start with http:// or https://")
         return Booking(awb=(details.get("awb") or "").strip() or None, courier_name=courier, tracking_url=tracking_url)
 
+    def book_reverse(self, db, order, package: Package, details: dict) -> Booking:
+        return self.book(db, order, package, details)
+
     def track(self, awb: str) -> list[TrackingUpdate]:
         return []
 

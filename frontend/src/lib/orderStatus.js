@@ -42,6 +42,21 @@ export const SHIPMENT_STATUS_LABELS = {
   cancelled: "Shipment cancelled",
 };
 
+export const RETURN_STATUS_LABELS = {
+  requested: "Return requested — we'll reply within 2 working days",
+  approved: "Return approved — pickup arranged",
+  rejected: "Return not approved",
+  received: "Received — refund on its way",
+  refunded: "Refunded",
+};
+
+export const RETURN_REASONS = [
+  ["damaged", "Arrived damaged"],
+  ["wrong_item", "Wrong item sent"],
+  ["not_as_described", "Not as described"],
+  ["changed_mind", "Changed my mind"],
+];
+
 // Steps of the progress bar for an order that isn't cancelled.
 export const ORDER_STEPS = ["confirmed", "shipped", "delivered"];
 

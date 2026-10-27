@@ -5,7 +5,7 @@ on ShopOrder are kept in step for older orders and simple reads."""
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,10 +24,17 @@ class Shipment(Base):
     __table_args__ = (
         UniqueConstraint("provider", "awb", name="uq_shipments_provider_awb"),
         Index("ix_shipments_status", "status"),
+        CheckConstraint("order_id IS NOT NULL OR bulk_order_id IS NOT NULL", name="ck_shipments_has_order"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=False, index=True)
+    # A shop order's parcel, or goods sent for a bulk order (exactly one is set).
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=True, index=True)
+    bulk_order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bulk_orders.id"), nullable=True, index=True)
+    # "forward" to the customer; "reverse" for a return pickup back to us.
+    direction: Mapped[str] = mapped_column(String(8), nullable=False, default="forward")
+    return_request_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("return_requests.id"), nullable=True)
+    description: Mapped[str] = mapped_column(String(200), nullable=True)  # what's inside (bulk-order goods)
     provider: Mapped[str] = mapped_column(String(30), nullable=False)  # "manual", later e.g. "shiprocket"
     awb: Mapped[str] = mapped_column(String(80), nullable=True)  # courier airway bill / tracking number
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)

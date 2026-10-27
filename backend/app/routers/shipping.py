@@ -19,10 +19,12 @@ from app.services.shipping import ShippingError, WebhookNotSupported
 from app.services.shipping.labels import labels_pdf, manifest_pdf
 from app.services.shipping.service import (
     active_shipment,
+    book_bulk_shipment,
     book_shipment,
     receive_return,
     record_cod_remittance,
     respond_to_ndr,
+    shipment_party,
     shipping_report,
     unremitted_cod,
     check_serviceability,
@@ -91,7 +93,7 @@ class ShipmentUpdateIn(BaseModel):
 
 class AdminShipmentOut(BaseModel):
     id: uuid.UUID
-    order_id: uuid.UUID
+    order_id: uuid.UUID | None
     provider: str
     awb: str | None
     courier_name: str | None
@@ -111,8 +113,13 @@ class AdminShipmentOut(BaseModel):
     ndr_attempts: int = 0
     ndr_note: str | None = None
     ndr_raised_at: datetime | None = None
+    direction: str = "forward"
+    bulk_order_id: uuid.UUID | None = None
+    return_request_id: uuid.UUID | None = None
+    description: str | None = None
     customer: str | None = None
     pincode: str | None = None
+    reference: str | None = None
 
     class Config:
         from_attributes = True
@@ -153,9 +160,9 @@ def _order_or_404(db: Session, order_id) -> ShopOrder:
 
 
 def _out(db: Session, shipment: Shipment) -> AdminShipmentOut:
-    order = db.get(ShopOrder, shipment.order_id)
+    party = shipment_party(db, shipment)
     out = AdminShipmentOut.model_validate(shipment)
-    out.customer, out.pincode = order.shipping_name, order.shipping_pincode
+    out.customer, out.pincode, out.reference = party["name"], party["pincode"], party["ref"]
     return out
 
 
@@ -232,9 +239,8 @@ def _rows(db: Session, ids: str) -> list:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose 1-200 shipments")
     rows = []
     for shipment in db.query(Shipment).filter(Shipment.id.in_(wanted)).order_by(Shipment.created_at).all():
-        order = db.get(ShopOrder, shipment.order_id)
-        items = sum(i.quantity for i in db.query(ShopOrderItem).filter(ShopOrderItem.order_id == order.id))
-        rows.append((shipment, order, items))
+        items = sum(i.quantity for i in db.query(ShopOrderItem).filter(ShopOrderItem.order_id == shipment.order_id)) if shipment.order_id else 1
+        rows.append((shipment, shipment_party(db, shipment), items))
     if not rows:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such shipments")
     return rows
@@ -322,3 +328,25 @@ def cod_unremitted(older_than_days: int = Query(0, ge=0, le=365), db: Session = 
 def report(months: int = Query(6, ge=1, le=24), db: Session = Depends(get_db)):
     """Monthly shipping cost vs. what customers paid for delivery."""
     return shipping_report(db, months)
+
+
+
+class BulkShipIn(ShipIn):
+    description: str | None = Field(default=None, max_length=200)  # what's in the parcel
+    weight_g: int | None = Field(default=None, ge=1, le=50_000)
+
+
+@admin_router.post("/bulk-orders/{bulk_order_id}/shipments", response_model=AdminShipmentOut)
+def ship_bulk_order_goods(bulk_order_id: uuid.UUID, payload: BulkShipIn, admin: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Goods sent ahead of a bulk-order event (cones, favours, decor)."""
+    from app.models.bulk_order import BulkOrder
+
+    bulk = db.get(BulkOrder, bulk_order_id, with_for_update=True)
+    if bulk is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bulk order not found")
+    try:
+        shipment = book_bulk_shipment(db, bulk, payload.model_dump(), created_by=admin.id)
+    except ShippingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    db.commit()
+    return _out(db, shipment)

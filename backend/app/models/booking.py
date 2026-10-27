@@ -114,6 +114,10 @@ class Booking(Base):
 
     # Admin's ruling on a disputed booking - "released" (consumer can pay
     # and complete as normal) | "cancelled" (no fee, advance refunded).
+    # On-time watch: the artist is reminded an hour before, admins are alerted
+    # if they still haven't set out by the slot time.
+    artist_reminded_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    sla_alerted_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     dispute_outcome: Mapped[str] = mapped_column(String(20), nullable=True)
     dispute_notes: Mapped[str] = mapped_column(Text, nullable=True)
     dispute_resolved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)

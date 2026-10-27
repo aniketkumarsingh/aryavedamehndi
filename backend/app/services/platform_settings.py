@@ -44,6 +44,11 @@ def _defaults() -> dict:
         "shipping_eta_max_days": 7,
         "shipping_blocked_pincode_prefixes": "",
         "shipping_cod_blocked_pincode_prefixes": "",
+        # Returns: days after delivery a customer may ask for one.
+        "shop_return_window_days": 7,
+        # Bookings: minutes past the slot before admins hear the artist
+        # hasn't set out.
+        "booking_sla_grace_minutes": 15,
     }
 
 

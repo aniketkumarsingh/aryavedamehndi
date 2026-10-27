@@ -102,6 +102,20 @@ def issue_refund(
     return refund
 
 
+def issue_manual_refund(db: Session, *, target_type: str, target_id, amount: float, reference: str, reason: str, initiated_by=None) -> Refund:
+    """Records a refund paid by hand (COD orders: UPI transfer to the
+    customer), complete on creation; `reference` is the UTR. Doesn't commit."""
+    if amount <= 0:
+        raise RefundError("The refund amount must be more than zero")
+    refund = Refund(id=uuid.uuid4(), target_type=target_type, target_id=target_id, razorpay_payment_id="manual",
+                    method="manual_upi", reference=reference[:100], amount_requested=_money(amount), amount_refunded=_money(amount),
+                    reason=reason[:200], initiated_by=initiated_by, status="pending")
+    db.add(refund)
+    db.flush()
+    mark_processed(db, refund)
+    return refund
+
+
 def retry_refund(db: Session, refund: Refund) -> None:
     """Admin action on a failed refund: queue it for another submission."""
     if refund.status != "failed":
@@ -174,10 +188,14 @@ def mark_processed(db: Session, refund: Refund) -> None:
             if order.invoice_number and not refund.credit_note_number:
                 refund.credit_note_number = next_document_number(db, "credit_note")
             _sync_shop_order(db, order)
+            where = "to your UPI ID" if refund.method == "manual_upi" else "to your original payment method"
             notify(db, order.consumer_id, "shop", "Refund processed",
-                   f"{amount} has been refunded to your original payment method. Banks usually show it within 5-7 working days.",
+                   f"{amount} has been refunded {where}. Banks usually show it within 5-7 working days.",
                    f"/shop/orders/{order.id}")
             enqueue(db, "email.shop_refund", {"refund_id": str(refund.id)}, dedupe_key=f"email-refund:{refund.id}")
+            from app.services.returns import on_refund_processed
+
+            on_refund_processed(db, refund)
     else:
         _mark_target_refunded(db, refund)
         consumer_id = _consumer_for(db, refund)
@@ -222,22 +240,33 @@ def _consumer_for(db: Session, refund: Refund):
     return None
 
 
+def _paid_basis(order: ShopOrder) -> float:
+    """What the customer has paid us for this order."""
+    if order.payment_method == "online":
+        return order.amount_paid
+    # COD: paid at the door, whether or not the courier has remitted yet.
+    return order.total_amount if order.payment_status in ("cod_with_courier", "cod_collected", "refund_pending", "partially_refunded", "refunded") else 0
+
+
 def _sync_shop_order(db: Session, order: ShopOrder | None) -> None:
     """Recomputes a shop order's refunded amount and payment status from its
     refunds - the refunds table is the source of truth."""
-    if order is None or order.payment_method != "online" or order.amount_paid <= 0:
+    if order is None:
+        return
+    basis = _paid_basis(order)
+    if basis <= 0:
         return
     refunds = db.query(Refund).filter(Refund.target_type == "shop_order", Refund.target_id == order.id).all()
     processed = _money(sum(r.amount_refunded or 0 for r in refunds if r.status == "processed"))
     in_flight = any(r.status in ("pending", "submitted") for r in refunds)
     order.amount_refunded = processed
-    if processed >= order.amount_paid - 0.01:
+    if processed >= basis - 0.01:
         order.payment_status = "refunded"
     elif in_flight:
         order.payment_status = "refund_pending"
     elif processed > 0:
         order.payment_status = "partially_refunded"
-    else:
+    elif order.payment_method == "online":
         order.payment_status = "paid"
 
 

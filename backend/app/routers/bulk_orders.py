@@ -46,10 +46,19 @@ MIN_LEAD_TIME = timedelta(hours=24)
 
 
 def _order_out(db: Session, order: BulkOrder) -> BulkOrderOut:
+    from app.models.shipping import Shipment, ShipmentEvent
+    from app.schemas.shop import ShipmentEventOut, ShipmentOut
+
+    shipments = [
+        ShipmentOut(**ShipmentOut.model_validate(s).model_dump(exclude={"events"}),
+                    events=[ShipmentEventOut.model_validate(e) for e in db.query(ShipmentEvent).filter(ShipmentEvent.shipment_id == s.id).order_by(ShipmentEvent.occurred_at)])
+        for s in db.query(Shipment).filter(Shipment.bulk_order_id == order.id).order_by(Shipment.created_at)
+    ]
     return BulkOrderOut(
-        **{f: getattr(order, f) for f in BulkOrderOut.model_fields if f not in ("lines", "estimate")},
+        **{f: getattr(order, f) for f in BulkOrderOut.model_fields if f not in ("lines", "estimate", "shipments")},
         lines=order.lines,
         estimate=estimate_out(db, order.lines),
+        shipments=shipments,
     )
 
 

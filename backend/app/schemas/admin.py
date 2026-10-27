@@ -75,6 +75,8 @@ class PlatformSettingsOut(BaseModel):
     shipping_eta_max_days: int
     shipping_blocked_pincode_prefixes: str
     shipping_cod_blocked_pincode_prefixes: str
+    shop_return_window_days: int
+    booking_sla_grace_minutes: int
 
 
 class PlatformSettingsIn(BaseModel):
@@ -100,6 +102,8 @@ class PlatformSettingsIn(BaseModel):
     shipping_eta_max_days: int | None = Field(default=None, ge=1, le=60)
     shipping_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
     shipping_cod_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
+    shop_return_window_days: int | None = Field(default=None, ge=0, le=60)
+    booking_sla_grace_minutes: int | None = Field(default=None, ge=0, le=240)
 
 
 class AdminUserOut(BaseModel):

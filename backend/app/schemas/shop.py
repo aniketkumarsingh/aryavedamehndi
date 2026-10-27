@@ -27,6 +27,7 @@ class ShopProductIn(BaseModel):
     length_cm: float | None = Field(default=None, gt=0, le=200)
     breadth_cm: float | None = Field(default=None, gt=0, le=200)
     height_cm: float | None = Field(default=None, gt=0, le=200)
+    returnable: bool | None = None
 
 
 class PackageSizeIn(BaseModel):
@@ -80,6 +81,7 @@ class ShopProductOut(BaseModel):
     image_kind: str = "photo"
     hsn_code: str | None = None
     gst_rate: float | None = None
+    returnable: bool = True
     weight_g: int | None = None
     length_cm: float | None = None
     breadth_cm: float | None = None
@@ -216,6 +218,7 @@ class ShopOrderCancelIn(BaseModel):
 
 
 class ShopOrderItemOut(BaseModel):
+    id: uuid.UUID
     product_id: uuid.UUID
     product_name: str
     variant_id: uuid.UUID | None = None
@@ -240,8 +243,22 @@ class ShipmentEventOut(BaseModel):
         from_attributes = True
 
 
+class ShopReturnOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    reason_code: str
+    items: list
+    refund_amount: float
+    admin_note: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ShipmentOut(BaseModel):
     id: uuid.UUID
+    direction: str = "forward"  # "reverse" = return pickup
     courier_name: str | None
     awb: str | None
     tracking_url: str | None
@@ -293,6 +310,8 @@ class ShopOrderOut(BaseModel):
     return_condition: str | None = None
     refunds: list[ShopRefundOut] = []
     shipments: list[ShipmentOut] = []
+    returns: list[ShopReturnOut] = []
+    return_window_ends: datetime | None = None  # last day a return can be asked for
 
     class Config:
         from_attributes = True

@@ -86,6 +86,10 @@ class ShippingProvider(Protocol):
 
     def book(self, db, order, package: Package, details: dict) -> Booking: ...
 
+    def book_reverse(self, db, order, package: Package, details: dict) -> Booking:
+        """Books a pickup from the customer back to us (a return)."""
+        ...
+
     def track(self, awb: str) -> list[TrackingUpdate]: ...
 
     def verify_webhook(self, headers: dict, body: bytes) -> str:

@@ -18,7 +18,7 @@ from app.models.job import Job
 from app.models.ops import RateLimitCounter
 from app.models.shipping import PincodeServiceability, Shipment, ShipmentEvent, ShippingWebhookEvent
 from app.models.payment_ops import IdempotencyKey, PaymentEvent, ReconciliationRun, Refund
-from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.models.shop import ReturnRequest, ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import ArtistProfile, User
 
 __all__ = [
@@ -61,4 +61,5 @@ __all__ = [
     "ShipmentEvent",
     "PincodeServiceability",
     "ShippingWebhookEvent",
+    "ReturnRequest",
 ]

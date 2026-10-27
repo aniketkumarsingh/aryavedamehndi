@@ -56,6 +56,10 @@ class Refund(Base):
     reason: Mapped[str] = mapped_column(String(200), nullable=True)
     initiated_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     failure_reason: Mapped[str] = mapped_column(Text, nullable=True)
+    # "razorpay" (back to the original payment) or "manual_upi" (COD orders:
+    # paid by hand to the customer's UPI ID; `reference` holds the UTR).
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="razorpay")
+    reference: Mapped[str] = mapped_column(String(100), nullable=True)
     # GST credit note, issued when the refunded shop order had been invoiced.
     credit_note_number: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

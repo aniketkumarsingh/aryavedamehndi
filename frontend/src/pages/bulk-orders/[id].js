@@ -6,6 +6,7 @@ import { Icon, Receipt, StatusTracker } from "@/components/OrderParts";
 import PricePromise from "@/components/PricePromise";
 import { api } from "@/lib/api";
 import { categoryLabel, formatPriceRange } from "@/lib/designs";
+import { SHIPMENT_STATUS_LABELS } from "@/lib/orderStatus";
 import { DEPOSIT_LABELS, bulkOccasionLabel, estimateSummary, formatInr } from "@/lib/pricing";
 
 export default function BulkOrderDetail() {
@@ -211,6 +212,33 @@ export default function BulkOrderDetail() {
           <PricePromise compact />
         </aside>
       </div>
+
+      {order.shipments?.length > 0 && (
+        <div className="card p-5 flex flex-col gap-3">
+          <h2 className="font-semibold">Parcels for your event</h2>
+          {order.shipments.map((s) => (
+            <div key={s.id} className="text-sm border-b border-line pb-2 last:border-b-0">
+              <p>
+                <b>{SHIPMENT_STATUS_LABELS[s.status] || s.status}</b>
+                {s.courier_name && ` · ${s.courier_name}`}
+                {s.awb && ` · AWB ${s.awb}`}
+                {s.tracking_url && (
+                  <>
+                    {" · "}
+                    <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" className="underline text-gold font-semibold">Track</a>
+                  </>
+                )}
+              </p>
+              {s.events.length > 0 && (
+                <p className="text-xs text-ink-soft">
+                  Last update: {SHIPMENT_STATUS_LABELS[s.events[s.events.length - 1].status] || s.events[s.events.length - 1].status},{" "}
+                  {new Date(s.events[s.events.length - 1].occurred_at + "Z").toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <Link href="/my-bookings" className="text-sm text-maroon-soft underline self-start">
         ← All my bookings &amp; event orders

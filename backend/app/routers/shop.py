@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.core.deps import get_current_user, require_role
 from app.database import get_db
 from app.models.payment_ops import Refund
-from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.models.shop import ReturnRequest, ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import User
 from app.schemas.shop import (
     ShopCheckoutConfigOut,
@@ -27,6 +27,7 @@ from app.schemas.shop import (
     ShopQuoteIn,
     ShopQuoteOut,
     ShopRefundOut,
+    ShopReturnOut,
     ShipmentEventOut,
     ShipmentOut,
     PackageSizeIn,
@@ -38,6 +39,7 @@ from app.services.documents import credit_note_document, order_document
 from app.services.notifications import notify_admins
 from app.services.platform_settings import get_platform_settings
 from app.services.rate_limit import enforce
+from app.services.returns import return_window_ends
 from app.services.shipping.service import check_serviceability, shipments_for
 from app.services.razorpay_client import create_order, verify_payment_signature
 from app.services.shop_orders import cancel_order, cod_problem, confirm_cod, coupon_problem, is_stale, normalise_code, price_order, release_stale_orders, settle_payment
@@ -248,7 +250,7 @@ def _order_out(db: Session, order: ShopOrder) -> ShopOrderOut:
         .order_by(Refund.created_at)
         .all()
     )
-    fields = {f: getattr(order, f) for f in ShopOrderOut.model_fields if f not in ("items", "refunds", "shipments")}
+    fields = {f: getattr(order, f) for f in ShopOrderOut.model_fields if f not in ("items", "refunds", "shipments", "returns", "return_window_ends")}
     shipments = [
         ShipmentOut(**ShipmentOut.model_validate(s).model_dump(exclude={"events"}), events=[ShipmentEventOut.model_validate(e) for e in events])
         for s, events in shipments_for(db, order.id)
@@ -258,6 +260,8 @@ def _order_out(db: Session, order: ShopOrder) -> ShopOrderOut:
         items=[ShopOrderItemOut.model_validate(i) for i in items],
         refunds=[ShopRefundOut.model_validate(r) for r in refunds],
         shipments=shipments,
+        returns=[ShopReturnOut.model_validate(r) for r in db.query(ReturnRequest).filter(ReturnRequest.order_id == order.id).order_by(ReturnRequest.created_at)],
+        return_window_ends=return_window_ends(db, order),
     )
 
 
