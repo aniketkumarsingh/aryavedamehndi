@@ -35,7 +35,7 @@ from app.services.notifications import notify, notify_admins
 from app.services.razorpay_client import create_order, verify_payment_signature
 from app.services.messaging import set_marketing_consent, whatsapp_user
 from app.services.refunds import issue_refund
-from app.services.storage import save_upload
+from app.services.storage import save_upload, to_webp
 from app.services.telephony import provision_masked_number
 from app.core.time import utcnow
 
@@ -594,7 +594,8 @@ async def upload_design(
     if booking.reference_design_image_url:
         try:
             ref_bytes = _load_reference_bytes(booking.reference_design_image_url)
-            score = score_similarity(content, ref_bytes)
+            # Same WebP pipeline as the stored reference, so encoding doesn't skew the score.
+            score = score_similarity(to_webp(content), ref_bytes)
             if score >= get_platform_settings(db)["design_match_threshold"]:
                 match_status = "auto_matched"
         except Exception:

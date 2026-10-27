@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models.booking import Booking
 from app.models.catalog import ArtistDesign, Design
 from app.models.growth import LandingPage
+from app.models.package import Package
 from app.models.review import Review
 from app.models.user import ArtistProfile, User
 from app.schemas.user import ArtistDesignSummary
@@ -45,9 +46,19 @@ class ArtistCardOut(BaseModel):
     rating_count: int
 
 
+class PackageCardOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    price_min: float
+    price_max: float
+    duration_minutes: int
+
+
 class ArtistPortfolioOut(ArtistCardOut):
     user_id: uuid.UUID
     portfolio_urls: list[str]
+    packages: list[PackageCardOut]
     designs: list[ArtistDesignSummary]
     reviews: list[ArtistReviewOut]
     completed_bookings: int
@@ -123,7 +134,10 @@ def artist_portfolio(slug: str, db: Session = Depends(get_db)):
                for r, name in rows]
     completed = db.query(func.count(Booking.id)).filter(Booking.artist_id == profile.user_id, Booking.status == "completed").scalar()
     card = _card(profile)
+    packages = db.query(Package).filter(Package.is_active.is_(True)).order_by(Package.price_min).all()
     return ArtistPortfolioOut(**card.model_dump(), user_id=profile.user_id,
+                              packages=[PackageCardOut(id=p.id, name=p.name, description=p.description, price_min=p.price_min,
+                                                       price_max=p.price_max, duration_minutes=p.duration_minutes) for p in packages],
                               portfolio_urls=[u for u in (profile.portfolio_urls or "").split(",") if u],
                               designs=designs, reviews=reviews, completed_bookings=completed or 0)
 

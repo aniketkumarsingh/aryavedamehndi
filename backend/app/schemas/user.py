@@ -20,6 +20,7 @@ class UserOut(BaseModel):
     consent_given: bool
     consent_given_at: datetime | None
     marketing_opt_in: bool = False
+    admin_role: str | None = None  # admins only: owner | ops | support
     created_at: datetime
 
     class Config:

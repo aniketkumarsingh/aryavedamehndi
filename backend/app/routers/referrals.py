@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.core.deps import get_current_user, require_role
 from app.database import get_db
-from app.models.growth import Referral, WalletEntry
+from app.models.growth import ConsentRecord, Referral, WalletEntry
 from app.models.user import User
 from app.services import attribution, growth_dashboard, referrals
 from app.services.conversions import enabled as conversions_enabled
@@ -97,8 +97,9 @@ def capture_attribution(payload: AttributionCaptureIn, user: User = Depends(get_
     """Sent by the browser after sign-in: keeps the first touch, mirrors the
     cookie-consent choice, and applies a ?ref= code to a new customer."""
     attribution.remember_first_touch(user, payload)
-    if payload.analytics_consent is not None:
+    if payload.analytics_consent is not None and payload.analytics_consent != user.analytics_consent:
         user.analytics_consent = payload.analytics_consent
+        db.add(ConsentRecord(user_id=user.id, kind="analytics", granted=payload.analytics_consent, source="cookie_banner"))
     referral = None
     if payload.ref and user.role == "consumer":
         try:

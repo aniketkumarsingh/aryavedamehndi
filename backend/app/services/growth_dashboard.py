@@ -13,12 +13,15 @@ from app.core.time import utcnow
 from app.models.booking import Booking
 from app.models.bulk_order import BulkOrder
 from app.models.growth import Referral, WalletEntry
+from app.models.notification import Notification
 from app.models.shop import ShopOrder
 from app.models.user import User
+from app.services.growth import CART_REMINDER_TITLE
 
 IST = timedelta(hours=5, minutes=30)
-COLUMNS = ("week_start", "new_customers", "shop_orders", "shop_revenue", "avg_order_value", "repeat_orders", "cart_recovered",
-           "bookings", "bookings_completed", "bulk_requests", "referral_signups", "referral_rewards", "wallet_spent")
+COLUMNS = ("week_start", "new_customers", "shop_orders", "shop_revenue", "avg_order_value", "repeat_orders", "carts_reminded",
+           "cart_recovered", "cart_recovery_rate", "coupon_cost", "referral_orders", "referral_discounts", "bookings",
+           "bookings_completed", "bulk_requests", "referral_signups", "referral_rewards", "wallet_spent")
 
 
 def _week_start(ts: datetime) -> datetime:
@@ -49,6 +52,11 @@ def weekly(db: Session, weeks: int = 8) -> list[dict]:
         r["shop_orders"] += 1
         r["shop_revenue"] += order.total_amount or 0
         r["cart_recovered"] += order.source == "abandoned_cart"
+        if order.coupon_code:
+            r["coupon_cost"] += (order.discount_amount or 0) - (order.referral_discount or 0) - (order.wallet_amount or 0)
+        if order.referral_discount:
+            r["referral_orders"] += 1
+            r["referral_discounts"] += order.referral_discount
         r["repeat_orders"] += first_order.get(order.consumer_id) != order.created_at
         r["sources"][order.source or "direct"] += 1
 
@@ -61,6 +69,10 @@ def weekly(db: Session, weeks: int = 8) -> list[dict]:
         if (r := bucket(created)) is not None:
             r["bulk_requests"] += 1
             r["sources"][source or "direct"] += 1
+
+    for (created,) in db.query(Notification.created_at).filter(Notification.title == CART_REMINDER_TITLE, Notification.created_at >= since):
+        if (r := bucket(created)) is not None:
+            r["carts_reminded"] += 1
 
     for (created,) in db.query(Referral.created_at).filter(Referral.created_at >= since):
         if (r := bucket(created)) is not None:
@@ -79,6 +91,10 @@ def weekly(db: Session, weeks: int = 8) -> list[dict]:
         r["shop_revenue"] = round(r["shop_revenue"], 2)
         r["avg_order_value"] = round(r["shop_revenue"] / r["shop_orders"], 2) if r["shop_orders"] else 0
         r["wallet_spent"] = round(r["wallet_spent"], 2)
+        r["coupon_cost"] = round(r["coupon_cost"], 2)
+        r["referral_discounts"] = round(r["referral_discounts"], 2)
+        # Orders recovered per 100 carts that got a first reminder that week.
+        r["cart_recovery_rate"] = round(100 * r["cart_recovered"] / r["carts_reminded"], 1) if r["carts_reminded"] else 0
         r["sources"] = dict(r["sources"].most_common())
         out.append(r)
     return out

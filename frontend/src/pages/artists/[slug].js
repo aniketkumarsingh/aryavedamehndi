@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import SocialMeta, { SITE_URL, absoluteUrl } from "@/components/SocialMeta";
 import Stars from "@/components/Stars";
-import { formatPriceRange } from "@/lib/designs";
+import { formatDuration, formatPriceRange } from "@/lib/designs";
 import { fetchBackend } from "@/lib/serverApi";
 
 /** An artist's public portfolio, server-rendered (ISR) for search and for
@@ -60,9 +60,29 @@ export default function ArtistPortfolio({ artist }) {
           </p>
           {artist.rating_count > 0 && <Stars value={artist.rating_avg} count={artist.rating_count} />}
           {artist.bio && <p className="text-sm whitespace-pre-line">{artist.bio}</p>}
-          <Link href="/discover" className="btn-primary self-start text-sm">Book a mehndi artist</Link>
+          <Link href={`/booking/${artist.user_id}`} className="btn-primary self-start text-sm">Book {artist.name.split(" ")[0]}</Link>
         </div>
       </div>
+
+      {artist.packages.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xl">Packages</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {artist.packages.map((p) => (
+              <div key={p.id} className="card p-4 flex flex-col gap-1">
+                <p className="font-semibold">{p.name}</p>
+                {p.description && <p className="text-sm text-ink-soft line-clamp-2">{p.description}</p>}
+                <p className="text-sm">
+                  {formatPriceRange(p.price_min, p.price_max)} · {formatDuration(p.duration_minutes)}
+                </p>
+                <Link href={`/booking/${artist.user_id}?package_id=${p.id}`} className="btn-primary self-start text-sm mt-1">
+                  Book {artist.name.split(" ")[0]}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {artist.designs.length > 0 && (
         <section className="flex flex-col gap-3">

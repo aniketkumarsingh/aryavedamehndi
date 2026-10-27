@@ -45,6 +45,10 @@ class User(Base):
     referred_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)
     analytics_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Admins only: owner | ops | support (app/core/permissions.py).
+    admin_role: Mapped[str] = mapped_column(String(10), nullable=True)
+    # Set when the person deleted their account (personal data anonymised).
+    deleted_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     # Traditional username/password login - only meaningful for role="admin"
     # accounts, as a convenience alternative to phone-OTP (the business
@@ -88,6 +92,7 @@ class ArtistProfile(Base):
     # ---- Verification --------------------------------------------------
     # "pending" | "approved" | "rejected" - the overall admin approval gate
     kyc_status: Mapped[str] = mapped_column(String(20), default="pending")
+    kyc_reviewed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # last approve/reject (retention)
     kyc_selfie_url: Mapped[str] = mapped_column(String(500), nullable=True)
     # "aadhaar" | "driving_license" | "passport"
     id_proof_type: Mapped[str] = mapped_column(String(20), nullable=True)

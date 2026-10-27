@@ -163,6 +163,7 @@ class BulkOrderOut(BaseModel):
     advance_amount: float
     advance_status: str
     advance_paid_at: datetime | None
+    source: str | None = None  # where the request came from
     created_at: datetime
     updated_at: datetime
     shipments: list[ShipmentOut] = []  # goods sent ahead of the event

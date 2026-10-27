@@ -4,6 +4,7 @@ groundwork
 Revision ID: 0004
 Revises: 0003
 Create Date: 2026-09-19
+migration-safe: shipped before rolling deploys (scripts/check_migrations.py); reviewed.
 
 """
 from typing import Sequence, Union

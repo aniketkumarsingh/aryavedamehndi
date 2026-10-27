@@ -25,16 +25,33 @@ const TABS = [
   "Growth",
   "Brand Content",
   "Settings",
+  "Team",
+  "Audit Log",
 ];
+
+// What each admin role sees (the API enforces the same - app/core/permissions.py).
+const HIDDEN_TABS = {
+  owner: [],
+  ops: ["Settings", "Team", "Audit Log"],
+  support: ["Settings", "Team", "Audit Log", "Payments", "KYC Approvals", "Coupons", "Packages", "Shop Products", "Brand Content"],
+};
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState("Overview");
+  const [role, setRole] = useState(null);
 
+  useEffect(() => {
+    api.get("/users/me").then((me) => setRole(me.admin_role || "owner")).catch(() => setRole("owner"));
+  }, []);
+
+  const tabs = TABS.filter((t) => !(HIDDEN_TABS[role] || []).includes(t));
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl">Admin</h1>
+      <h1 className="text-2xl">
+        Admin {role && role !== "owner" && <span className="chip align-middle">{role}</span>}
+      </h1>
       <div className="flex gap-2 flex-wrap">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? "btn-primary text-sm" : "btn-secondary text-sm"}>
             {t}
           </button>
@@ -59,6 +76,174 @@ export default function AdminDashboard() {
       {tab === "Payments" && <PaymentsTab />}
       {tab === "Growth" && <GrowthTab />}
       {tab === "Brand Content" && <CmsTab />}
+      {tab === "Team" && <TeamTab />}
+      {tab === "Audit Log" && <AuditTab />}
+    </div>
+  );
+}
+
+/** Internal notes on an order / booking / event request (never shown to the customer). */
+function AdminNotes({ targetType, targetId }) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState(null);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/notes", { target_type: targetType, target_id: targetId }).then(setNotes).catch((e) => setError(e.message));
+  }
+  useEffect(() => {
+    if (open && notes === null) load();
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function add(e) {
+    e.preventDefault();
+    try {
+      await api.post("/admin/notes", { target_type: targetType, target_id: targetId, body });
+      setBody("");
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div className="text-xs mt-1">
+      <button className="underline text-ink-soft" onClick={() => setOpen(!open)}>
+        {open ? "Hide notes" : `Notes${notes?.length ? ` (${notes.length})` : ""}`}
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1 mt-1 border-l-2 border-gold pl-2">
+          {(notes || []).map((n) => (
+            <p key={n.id}>
+              <b>{n.author || "Admin"}</b> · {new Date(n.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}: {n.body}
+            </p>
+          ))}
+          <form onSubmit={add} className="flex gap-1">
+            <input className="input !py-1 text-xs" placeholder="Add an internal note" value={body} onChange={(e) => setBody(e.target.value)} />
+            <button className="btn-secondary text-xs" disabled={!body.trim()}>Add</button>
+          </form>
+          {error && <p className="text-red-700">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ADMIN_ROLE_HELP = {
+  owner: "Everything, including Settings, the team and the audit log",
+  ops: "Orders, shipping, returns and refunds, payments, products, artists, growth — not Settings or the team",
+  support: "Read-only, plus notes, returns approval, delivery-failure answers, reviews and reports",
+};
+
+function TeamTab() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState({ phone: "", name: "", admin_role: "support" });
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/team").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function run(fn) {
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Admin team</h2>
+      <ul className="text-xs text-ink-soft">
+        {Object.entries(ADMIN_ROLE_HELP).map(([k, v]) => <li key={k}><b>{k}</b> — {v}</li>)}
+      </ul>
+      <form
+        className="grid sm:grid-cols-4 gap-2 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => {
+            await api.post("/admin/team", form);
+            setForm({ phone: "", name: "", admin_role: "support" });
+          });
+        }}
+      >
+        <input className="input" placeholder="10-digit phone" required pattern="\d{10}" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <input className="input" placeholder="Name" required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <select className="input" value={form.admin_role} onChange={(e) => setForm({ ...form, admin_role: e.target.value })}>
+          {Object.keys(ADMIN_ROLE_HELP).map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <button className="btn-primary">Add admin</button>
+      </form>
+      <p className="text-xs text-ink-soft">They sign in with an OTP on that number. Use a number that isn&apos;t a customer or artist account.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((m) => (
+          <div key={m.id} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <b>{m.name || "—"}</b> · {m.phone} {!m.is_active && <span className="chip ml-1">removed</span>}
+            </span>
+            <span className="flex gap-2 items-center text-xs">
+              <select className="input !w-auto !py-1 text-xs" value={m.admin_role} onChange={(e) => run(() => api.put(`/admin/team/${m.id}`, { admin_role: e.target.value }))}>
+                {Object.keys(ADMIN_ROLE_HELP).map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button className="underline" onClick={() => run(() => api.put(`/admin/team/${m.id}`, { is_active: !m.is_active }))}>
+                {m.is_active ? "Remove access" : "Restore access"}
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AuditTab() {
+  const [rows, setRows] = useState([]);
+  const [path, setPath] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.get("/admin/audit", { limit: 300, ...(path.trim() ? { path_contains: path.trim() } : {}) }).then(setRows).catch((e) => setError(e.message));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [path]);
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Audit log</h2>
+        <input className="input !w-64 text-sm" placeholder="Filter by path, e.g. shop-orders" value={path} onChange={(e) => setPath(e.target.value)} />
+      </div>
+      <p className="text-xs text-ink-soft">Every change an admin makes, every refused attempt and every export. The request id matches the server logs.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="overflow-x-auto">
+        <table className="text-xs w-full">
+          <thead>
+            <tr className="text-left text-ink-soft">
+              {["When", "Who", "Role", "Action", "Result", "Request id"].map((h) => <th key={h} className="pr-3 py-1 font-semibold">{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-line align-top">
+                <td className="pr-3 py-1 whitespace-nowrap">{new Date(r.created_at).toLocaleString("en-IN")}</td>
+                <td className="pr-3 py-1">{r.admin_name || "—"}</td>
+                <td className="pr-3 py-1">{r.admin_role}</td>
+                <td className="pr-3 py-1 font-mono break-all">{r.method} {r.path}{r.query ? `?${r.query}` : ""}</td>
+                <td className={`pr-3 py-1 ${r.status_code >= 400 ? "text-red-700" : ""}`}>{r.status_code}</td>
+                <td className="pr-3 py-1 font-mono">{r.request_id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && <p className="text-sm text-ink-soft">Nothing recorded yet.</p>}
+      </div>
     </div>
   );
 }
@@ -102,20 +287,21 @@ function AllBookingsTab() {
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   function load() {
     api
-      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, limit: PAGE_SIZE, offset: 0 })
+      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, source: sourceFilter, limit: PAGE_SIZE, offset: 0 })
       .then((rows) => {
         setBookings(rows);
         setHasMore(rows.length === PAGE_SIZE);
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, flaggedOnly]);
+  useEffect(load, [statusFilter, flaggedOnly, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -123,6 +309,7 @@ function AllBookingsTab() {
       const rows = await api.get("/admin/bookings", {
         status_filter: statusFilter,
         flagged_only: flaggedOnly,
+        source: sourceFilter,
         limit: PAGE_SIZE,
         offset: bookings.length,
       });
@@ -144,6 +331,7 @@ function AllBookingsTab() {
             <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
             Far-away check-ins only
           </label>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
           <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             {["all", "requested", "negotiating", "confirmed", "artist_enroute", "arrived", "in_progress", "design_uploaded", "completed", "disputed", "cancelled"].map((s) => (
               <option key={s} value={s}>
@@ -163,6 +351,7 @@ function AllBookingsTab() {
               <th className="pb-2 pr-3">Artist</th>
               <th className="pb-2 pr-3">Scheduled</th>
               <th className="pb-2 pr-3">Amount</th>
+              <th className="pb-2 pr-3">Source</th>
               <th className="pb-2">Status</th>
             </tr>
           </thead>
@@ -178,6 +367,7 @@ function AllBookingsTab() {
                 <td className="py-2 pr-3">{b.artist_name || b.artist_phone}</td>
                 <td className="py-2 pr-3">{new Date(b.scheduled_at).toLocaleDateString()}</td>
                 <td className="py-2 pr-3">{b.total_amount != null ? `₹${b.total_amount}` : "—"}</td>
+                <td className="py-2 pr-3 text-xs">{(b.source || "—").replace(/_/g, " ")}</td>
                 <td className="py-2">
                   <span className="chip">{b.status.replaceAll("_", " ")}</span>
                   {b.arrival_flagged && (
@@ -1633,11 +1823,12 @@ function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
-  const filters = { status_filter: statusFilter, payment_status: paymentFilter };
+  const filters = { status_filter: statusFilter, payment_status: paymentFilter, source: sourceFilter };
 
   function load() {
     api
@@ -1648,7 +1839,7 @@ function ShopOrdersTab() {
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [statusFilter, paymentFilter, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -1683,6 +1874,7 @@ function ShopOrdersTab() {
               </option>
             ))}
           </select>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
         </div>
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
@@ -1766,6 +1958,7 @@ function ShopOrderRow({ order: o, onChanged }) {
             <span className={`chip ml-1 ${o.payment_status === "refund_pending" || o.refunds.some((r) => r.status === "failed") ? "text-red-700" : ""}`}>
               {o.payment_method === "cod" ? "COD · " : ""}{o.payment_status.replace(/_/g, " ")}
             </span>
+            {o.source && <span className="chip ml-1" title="Where this order came from">from {o.source.replace(/_/g, " ")}</span>}
           </p>
           <p className="text-xs text-ink-soft">
             {o.shipping_phone} · {o.shipping_address}
@@ -1777,7 +1970,10 @@ function ShopOrderRow({ order: o, onChanged }) {
           </p>
           <p className="text-xs text-ink-soft">
             {o.items_amount != null && `Items ₹${o.items_amount}`}
-            {o.discount_amount > 0 && ` · ${o.coupon_code} −₹${o.discount_amount}`}
+            {o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0) > 0 &&
+              ` · ${o.coupon_code || "Coupon"} −₹${Math.round((o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0)) * 100) / 100}`}
+            {o.referral_discount > 0 && ` · Referral −₹${o.referral_discount}`}
+            {o.wallet_amount > 0 && ` · Wallet −₹${o.wallet_amount}`}
             {` · Delivery ${o.shipping_fee > 0 ? `₹${o.shipping_fee}` : "free"}`}
             {o.cod_fee > 0 && ` · COD ₹${o.cod_fee}`}
             {o.amount_paid > 0 && ` · Paid ₹${o.amount_paid}`}
@@ -1815,6 +2011,7 @@ function ShopOrderRow({ order: o, onChanged }) {
               )}
             </p>
           ))}
+          <AdminNotes targetType="shop_order" targetId={o.id} />
         </div>
         <div className="flex gap-2 flex-wrap items-start">
           {SHOP_ORDER_NEXT[o.status].map((next) => (
@@ -2799,13 +2996,41 @@ function LandingPagesEditor() {
   );
 }
 
+// Common sources; any utm_source can be typed in.
+const SOURCES = ["direct", "referral", "abandoned_cart", "google_ads", "meta_ads", "instagram", "facebook", "whatsapp", "google"];
+
+/** "Where it came from" filter for order and booking lists. */
+function SourceFilter({ value, onChange }) {
+  return (
+    <>
+      <input
+        className="input w-auto text-sm"
+        list="admin-sources"
+        aria-label="Source"
+        placeholder="Any source"
+        defaultValue={value === "all" ? "" : value}
+        onKeyDown={(e) => e.key === "Enter" && onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+        onBlur={(e) => onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+      />
+      <datalist id="admin-sources">
+        {SOURCES.map((s) => <option key={s} value={s} />)}
+      </datalist>
+    </>
+  );
+}
+
 const DASHBOARD_COLUMNS = [
   ["new_customers", "New customers"],
   ["shop_orders", "Shop orders"],
   ["shop_revenue", "Shop revenue (₹)"],
   ["avg_order_value", "Avg order (₹)"],
   ["repeat_orders", "Repeat orders"],
+  ["carts_reminded", "Carts reminded"],
   ["cart_recovered", "Carts recovered"],
+  ["cart_recovery_rate", "Recovery %"],
+  ["coupon_cost", "Coupon cost (₹)"],
+  ["referral_orders", "Referral orders"],
+  ["referral_discounts", "Referral discounts (₹)"],
   ["bookings", "Bookings"],
   ["bookings_completed", "Completed"],
   ["bulk_requests", "Event requests"],
@@ -2988,6 +3213,7 @@ function BulkOrderRow({ order, onChanged }) {
         </div>
         <div className="flex gap-1 flex-wrap">
           <span className="chip">{BULK_STATUS_LABELS[order.status]}</span>
+          {order.source && <span className="chip">from {order.source.replace(/_/g, " ")}</span>}
           {order.advance_amount > 0 && <span className="chip">{DEPOSIT_LABELS[order.advance_status]} {formatInr(order.advance_amount)}</span>}
         </div>
       </div>
@@ -3057,6 +3283,7 @@ function BulkOrderRow({ order, onChanged }) {
           </button>
         )}
       </div>
+      <AdminNotes targetType="bulk_order" targetId={order.id} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ reconciliation, idempotency keys; order payment status, COD, credit notes
 Revision ID: 0026
 Revises: 0025
 Create Date: 2026-10-26
+migration-safe: shipped before rolling deploys (scripts/check_migrations.py); reviewed.
 
 """
 from typing import Sequence, Union
