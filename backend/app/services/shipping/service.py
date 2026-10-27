@@ -32,8 +32,8 @@ from app.models.shop import ShopOrder, ShopOrderItem, ShopProduct, ShopProductVa
 from app.services.jobs import enqueue, job_handler, periodic
 from app.services.notifications import notify, notify_admins
 from app.services.platform_settings import get_platform_settings
-from app.services.shipping import Package, Serviceability, ShippingError, TrackingUpdate, get_provider
-from app.services.shop_orders import mark_delivered, mark_shipped
+from app.services.shipping import NDR_ACTIONS, Package, Serviceability, ShippingError, TrackingUpdate, get_provider
+from app.services.shop_orders import mark_delivered, mark_returned, mark_shipped
 
 log = logging.getLogger(__name__)
 CACHE_FOR = timedelta(hours=24)
@@ -158,9 +158,12 @@ def book_shipment(db: Session, order: ShopOrder, details: dict, created_by=None)
     return shipment
 
 
-def update_details(db: Session, shipment: Shipment, courier_name: str | None, awb: str | None, tracking_url: str | None) -> None:
+def update_details(db: Session, shipment: Shipment, courier_name: str | None, awb: str | None, tracking_url: str | None,
+                   shipping_charge: float | None = None) -> None:
     """Admin correction of the courier details (manual provider), kept in
-    step on the order."""
+    step on the order; and the courier's charge once billed."""
+    if shipping_charge is not None:
+        shipment.shipping_charge = round(shipping_charge, 2)
     if courier_name is not None:
         shipment.courier_name = courier_name.strip() or shipment.courier_name
     if awb is not None:
@@ -203,6 +206,8 @@ def apply_update(db: Session, shipment: Shipment, update: TrackingUpdate, source
     stale = shipment.last_event_at and update.occurred_at < shipment.last_event_at - timedelta(minutes=1)
     if stale or not _moves_forward(shipment.status, update.status):
         return True
+    if shipment.status == "ndr" and update.status != "ndr" and shipment.ndr_status in ("open", "answered", "auto"):
+        shipment.ndr_status = "closed"  # delivery moved on after the failed attempt
     shipment.status = update.status
     shipment.last_event_at = max(update.occurred_at, shipment.last_event_at or update.occurred_at)
     _on_status(db, shipment, update)
@@ -223,13 +228,17 @@ def _on_status(db: Session, shipment: Shipment, update: TrackingUpdate) -> None:
             order.delivered_at = update.occurred_at
     elif update.status == "ndr":
         reason = f" ({update.description})" if update.description else ""
+        shipment.ndr_status, shipment.ndr_action, shipment.ndr_raised_at = "open", None, update.occurred_at
+        shipment.ndr_attempts = (shipment.ndr_attempts or 0) + 1
+        shipment.ndr_note = (update.description or "")[:300] or None
         notify(db, order.consumer_id, "shop", "Delivery attempt failed",
-               f"The courier couldn't deliver your order{reason}. They'll try again - check your phone is reachable, or contact us to change the address.", link)
+               f"The courier couldn't deliver your order{reason}. Choose what to do: try again, change the address, or cancel - "
+               "if we don't hear from you in 24 hours we'll ask them to try again.", link)
         notify_admins(db, "Failed delivery attempt", f"Order {str(order.id)[:8]} ({shipment.courier_name or 'courier'} {shipment.awb or ''}){reason}.", "/admin")
     elif update.status == "rto":
         notify_admins(db, "Parcel returning", f"Order {str(order.id)[:8]} is being returned to us by {shipment.courier_name or 'the courier'}.", "/admin")
     elif update.status == "rto_delivered":
-        notify_admins(db, "Returned parcel received", f"Order {str(order.id)[:8]} is back with us - check it and mark the order returned.", "/admin")
+        notify_admins(db, "Returned parcel received", f"Order {str(order.id)[:8]} is back with us - check its condition and confirm the return in Admin → Shipping.", "/admin")
 
 
 def record_manual_update(db: Session, shipment: Shipment, status: str, description: str | None, location: str | None) -> bool:
@@ -303,3 +312,160 @@ def poll_tracking(db: Session, payload: dict) -> str:
 
 
 periodic("shipping.poll", timedelta(hours=2))
+
+
+# ------------------------------------------------------- failed deliveries --
+
+def respond_to_ndr(db: Session, shipment: Shipment, action: str, details: dict, by: str) -> None:
+    """The customer (or an admin, or the 24-hour rule) decides what happens
+    after a failed attempt. `by` is "customer", "admin" or "auto"."""
+    if action not in NDR_ACTIONS:
+        raise ShippingError("Choose reattempt, change_address or cancel")
+    # The customer answers once; an admin can still change course after that.
+    allowed = ("open", "answered") if by == "admin" else ("open",)
+    if shipment.status != "ndr" or shipment.ndr_status not in allowed:
+        raise ShippingError("There's no failed delivery waiting for an answer")
+    order = db.get(ShopOrder, shipment.order_id)
+    note = ""
+    if action == "change_address":
+        address, pincode, phone = (details.get("address") or "").strip(), (details.get("pincode") or "").strip(), (details.get("phone") or "").strip()
+        if not address or not valid_pincode(pincode):
+            raise ShippingError("Enter the new address and a valid 6-digit PIN code")
+        answer = check_serviceability(db, pincode, cod=order.payment_method == "cod")
+        if not answer.deliverable or (order.payment_method == "cod" and not answer.cod_available):
+            raise ShippingError(f"We can't deliver this order to PIN code {pincode}")
+        note = f"Address changed (was: {order.shipping_address}, {order.shipping_pincode})"
+        order.shipping_address, order.shipping_pincode = address[:2000], pincode
+        if phone:
+            order.shipping_phone = phone[:15]
+    get_provider(shipment.provider).ndr_action(shipment.awb or "", action, {
+        "address": order.shipping_address, "pincode": order.shipping_pincode, "phone": order.shipping_phone,
+        "preferred_date": details.get("preferred_date"),
+    })
+    shipment.ndr_status = "auto" if by == "auto" else "answered"
+    shipment.ndr_action = action
+    label = {"reattempt": "Try delivering again", "change_address": "Deliver to a new address", "cancel": "Cancel and return to us"}[action]
+    _store_event(db, shipment, "ndr", f"{label} (requested by {by})" + (f" - {note}" if note else ""), None, utcnow(), "system",
+                 f"ndr-response:{shipment.ndr_attempts}:{action}:{by}")
+    if action == "cancel":
+        notify(db, order.consumer_id, "shop", "Delivery cancelled",
+               "We've asked the courier to return your parcel." + (" Your payment will be refunded once it's back with us." if order.payment_method == "online" else ""),
+               f"/shop/orders/{order.id}")
+    if shipment.provider == "manual" or by != "auto":
+        notify_admins(db, "Failed delivery: action needed" if shipment.provider == "manual" else "Failed delivery answered",
+                      f"Order {str(order.id)[:8]}: {label.lower()} ({by}). " + ("Pass this on to the courier." if shipment.provider == "manual" else ""), "/admin")
+
+
+@job_handler("shipping.ndr_auto")
+def ndr_auto_reattempt(db: Session, payload: dict) -> str:
+    """Failed deliveries nobody answered within 24 hours get one reattempt."""
+    cutoff = utcnow() - timedelta(hours=24)
+    waiting = (
+        db.query(Shipment)
+        .filter(Shipment.status == "ndr", Shipment.ndr_status == "open", Shipment.ndr_raised_at < cutoff)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+    for shipment in waiting:
+        respond_to_ndr(db, shipment, "reattempt", {}, by="auto")
+    return f"{len(waiting)} reattempts requested"
+
+
+periodic("shipping.ndr_auto", timedelta(hours=1))
+
+
+# ------------------------------------------------------------ returns (RTO) --
+
+def receive_return(db: Session, shipment: Shipment, condition: str, note: str | None, admin_id) -> None:
+    """Admin confirms a returned parcel is back and what state it's in:
+    good -> back into stock; damaged -> written off. Prepaid orders are then
+    refunded (with a credit note) via the payments refund path."""
+    if condition not in ("good", "damaged"):
+        raise ShippingError("Condition must be good or damaged")
+    if shipment.status not in ("rto", "rto_delivered", "ndr", "in_transit", "out_for_delivery", "picked_up", "booked"):
+        raise ShippingError(f"A {shipment.status} shipment can't be received back")
+    order = db.get(ShopOrder, shipment.order_id)
+    if order.status != "shipped":
+        raise ShippingError(f"A {order.status} order can't be marked returned")
+    if shipment.status != "rto_delivered":
+        _store_event(db, shipment, "rto_delivered", "Received back at our warehouse", None, utcnow(), "system", f"rto-received:{shipment.id}")
+        shipment.status = "rto_delivered"
+    if shipment.ndr_status in ("open", "answered", "auto"):
+        shipment.ndr_status = "closed"
+    reason = f"Parcel returned ({condition})" + (f": {note}" if note else "")
+    mark_returned(db, order, reason, initiated_by=admin_id, condition=condition)
+
+
+# ---------------------------------------------------------- COD remittance --
+
+def record_cod_remittance(db: Session, shipments: list[Shipment], reference: str, remitted_at=None) -> int:
+    """Marks COD parcels as paid over by the courier: the order's money is
+    now ours (payment status cod_collected). Returns how many changed."""
+    remitted_at = remitted_at or utcnow()
+    changed = 0
+    for shipment in shipments:
+        if not shipment.cod_amount or shipment.cod_remitted_at:
+            continue
+        if shipment.status != "delivered":
+            raise ShippingError(f"Shipment {shipment.awb or shipment.id} isn't delivered yet")
+        shipment.cod_remitted_at, shipment.cod_remittance_ref = remitted_at, reference[:80]
+        order = db.get(ShopOrder, shipment.order_id)
+        if order.payment_status in ("cod_with_courier", "cod_due"):
+            order.payment_status, order.amount_paid, order.paid_at = "cod_collected", order.total_amount, remitted_at
+        changed += 1
+    return changed
+
+
+def unremitted_cod(db: Session, older_than_days: int = 10) -> list[Shipment]:
+    cutoff = utcnow() - timedelta(days=older_than_days)
+    return (
+        db.query(Shipment)
+        .filter(Shipment.cod_amount > 0, Shipment.status == "delivered", Shipment.cod_remitted_at.is_(None), Shipment.delivered_at < cutoff)
+        .order_by(Shipment.delivered_at)
+        .all()
+    )
+
+
+@job_handler("shipping.cod_remittance_sync")
+def sync_cod_remittances(db: Session, payload: dict) -> str:
+    """For couriers that report payouts: match them to parcels by AWB."""
+    provider = get_provider()
+    remittances = provider.cod_remittances(utcnow() - timedelta(days=30))
+    applied = 0
+    for r in remittances:
+        shipment = db.query(Shipment).filter(Shipment.provider == provider.name, Shipment.awb == r.awb).with_for_update().first()
+        if shipment and not shipment.cod_remitted_at and shipment.status == "delivered":
+            applied += record_cod_remittance(db, [shipment], r.reference, r.remitted_at)
+    return f"{applied} remittances recorded"
+
+
+periodic("shipping.cod_remittance_sync", timedelta(hours=6))
+
+
+# ------------------------------------------------------------------ report --
+
+def shipping_report(db: Session, months: int = 6) -> list[dict]:
+    """Per month (IST): parcels, delivery + COD fees we charged customers,
+    what couriers charged us, and the difference."""
+    from collections import defaultdict
+
+    since = utcnow() - timedelta(days=31 * months)
+    rows = defaultdict(lambda: {"parcels": 0, "fees_collected": 0.0, "courier_charges": 0.0, "parcels_without_charge": 0})
+    for shipment, order in (
+        db.query(Shipment, ShopOrder).join(ShopOrder, ShopOrder.id == Shipment.order_id)
+        .filter(Shipment.created_at >= since, Shipment.status != "cancelled").all()
+    ):
+        month = f"{shipment.created_at + IST:%Y-%m}"
+        row = rows[month]
+        row["parcels"] += 1
+        row["fees_collected"] += (order.shipping_fee or 0) + (order.cod_fee or 0)
+        if shipment.shipping_charge is None:
+            row["parcels_without_charge"] += 1
+        else:
+            row["courier_charges"] += shipment.shipping_charge
+    report = []
+    for month in sorted(rows, reverse=True):
+        r = rows[month]
+        report.append({"month": month, **{k: round(v, 2) if isinstance(v, float) else v for k, v in r.items()},
+                       "margin": round(r["fees_collected"] - r["courier_charges"], 2)})
+    return report

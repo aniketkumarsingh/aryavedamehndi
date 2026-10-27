@@ -15,7 +15,7 @@ from app.models.shop import SHOP_ORDER_TRANSITIONS, ShopOrder
 from app.services.refunds import RefundError
 from app.models.shipping import TERMINAL_SHIPMENT_STATUSES
 from app.services.shipping import ShippingError
-from app.services.shipping.service import active_shipment, book_shipment, record_manual_update
+from app.services.shipping.service import active_shipment, book_shipment, receive_return, record_manual_update
 from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, refund_order
 from app.schemas.admin import (
     AdminArtistOut,
@@ -439,9 +439,13 @@ def update_shop_order_status(
             mark_delivered(db, order)
     elif payload.status == "returned":
         shipment = active_shipment(db, order.id)
-        if shipment and shipment.status not in TERMINAL_SHIPMENT_STATUSES:
-            record_manual_update(db, shipment, "rto_delivered", payload.reason or "Returned to us", None)
-        mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id)
+        try:
+            if shipment:
+                receive_return(db, shipment, payload.condition, payload.reason, admin.id)
+            else:
+                mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id, condition=payload.condition)
+        except ShippingError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

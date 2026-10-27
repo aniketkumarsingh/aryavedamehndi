@@ -39,7 +39,13 @@ def test_cod_order_is_confirmed_at_once_with_fee(client, db, consumer, admin):
 
     client.post(f"/admin/shop-orders/{order['id']}/status", json={"status": "shipped"}, headers=auth_headers(admin))
     delivered = client.post(f"/admin/shop-orders/{order['id']}/status", json={"status": "delivered"}, headers=auth_headers(admin)).json()
-    assert delivered["payment_status"] == "cod_collected" and delivered["amount_paid"] == 279
+    # Paid at the door, but it's ours only once the courier remits it.
+    assert delivered["payment_status"] == "cod_with_courier" and delivered["amount_paid"] == 0
+    shipment_id = delivered["shipments"][0]["id"]
+    res = client.post("/admin/shipping/cod-remittances", json={"shipment_ids": [shipment_id], "reference": "UTR123456"}, headers=auth_headers(admin)).json()
+    assert res == {"recorded": 1, "total": 279}
+    after = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
+    assert after["payment_status"] == "cod_collected" and after["amount_paid"] == 279
 
 
 def test_cod_limits(client, db, consumer, admin):

@@ -1610,7 +1610,7 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
 }
 
 const SHOP_ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled", "returned"];
-const SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"];
+const SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_with_courier", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"];
 
 function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
@@ -1719,9 +1719,10 @@ function ShopOrderRow({ order: o, onChanged }) {
     if (status === "returned") {
       const reason = window.prompt("Why did the parcel come back? (e.g. refused at door, address not found)", "Refused at door");
       if (reason === null) return;
+      const good = window.confirm("Is the returned parcel in good condition?\n\nOK = good (items go back into stock)\nCancel = damaged (not restocked)");
       const refundNote = o.payment_method === "online" ? " The payment will be refunded in full." : "";
-      if (!window.confirm(`Mark returned and put the items back in stock?${refundNote}`)) return;
-      extra = { ...extra, reason: reason.trim() || "Returned by the courier" };
+      if (!window.confirm(`Mark returned (${good ? "good - restock" : "damaged - no restock"})?${refundNote}`)) return;
+      extra = { ...extra, reason: reason.trim() || "Returned by the courier", condition: good ? "good" : "damaged" };
     }
     run(() => api.post(`/admin/shop-orders/${o.id}/status`, { status, ...extra }));
   }
@@ -2150,7 +2151,7 @@ const SHIPMENT_UPDATE_OPTIONS = [
 
 function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
   const [panel, setPanel] = useState(null); // "edit" | "update"
-  const [details, setDetails] = useState({ courier_name: sh.courier_name || "", awb: sh.awb || "", tracking_url: sh.tracking_url || "" });
+  const [details, setDetails] = useState({ courier_name: sh.courier_name || "", awb: sh.awb || "", tracking_url: sh.tracking_url || "", shipping_charge: sh.shipping_charge ?? "" });
   const [update, setUpdate] = useState({ status: "in_transit", description: "", location: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2187,7 +2188,29 @@ function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
                 <a href={sh.label_url} target="_blank" rel="noopener noreferrer" className="underline">courier label</a>
               </>
             )}
+            {sh.shipping_charge != null && ` · courier ₹${sh.shipping_charge}`}
+            {sh.cod_remitted_at && ` · COD remitted (${sh.cod_remittance_ref})`}
           </p>
+          {sh.status === "ndr" && (
+            <p className="text-red-700">
+              Failed attempt #{sh.ndr_attempts}{sh.ndr_note ? ` (${sh.ndr_note})` : ""} ·{" "}
+              {sh.ndr_status === "open" ? "waiting for the customer" : `${sh.ndr_action?.replace("_", " ")} (${sh.ndr_status})`}
+              {sh.provider === "manual" && sh.ndr_status !== "open" && " - pass this on to the courier"}
+            </p>
+          )}
+          {["ndr", "rto", "rto_delivered"].includes(sh.status) && (
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {sh.status === "ndr" && ["open", "answered"].includes(sh.ndr_status) && (
+                <>
+                  <button className="underline" disabled={busy} onClick={() => run(() => api.post(`/admin/shipping/shipments/${sh.id}/ndr-action`, { action: "reattempt" }))}>Ask courier to retry</button>
+                  <button className="underline text-red-700" disabled={busy} onClick={() => window.confirm("Ask the courier to return this parcel?") && run(() => api.post(`/admin/shipping/shipments/${sh.id}/ndr-action`, { action: "cancel" }))}>Return to us</button>
+                </>
+              )}
+              <span className="text-ink-soft">Parcel back?</span>
+              <button className="underline" disabled={busy} onClick={() => window.confirm("Received back in good condition? Items go back into stock" + (sh.cod_amount ? "." : " and the customer is refunded.")) && run(() => api.post(`/admin/shipping/shipments/${sh.id}/receive-return`, { condition: "good" }))}>Received – good</button>
+              <button className="underline text-red-700" disabled={busy} onClick={() => window.confirm("Received back damaged? Items are not restocked" + (sh.cod_amount ? "." : "; the customer is refunded.")) && run(() => api.post(`/admin/shipping/shipments/${sh.id}/receive-return`, { condition: "damaged" }))}>Received – damaged</button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary text-xs" onClick={() => setPanel(panel === "update" ? null : "update")}>Tracking update</button>
@@ -2195,7 +2218,15 @@ function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
         </div>
       </div>
       {panel === "edit" && (
-        <form className="grid sm:grid-cols-4 gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); run(() => api.put(`/admin/shipping/shipments/${sh.id}`, details)); }}>
+        <form
+          className="grid sm:grid-cols-5 gap-2 mt-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => api.put(`/admin/shipping/shipments/${sh.id}`, { ...details, shipping_charge: details.shipping_charge === "" ? null : Number(details.shipping_charge) }));
+          }}
+        >
+          <input className="input text-xs" type="number" min="0" step="0.01" placeholder="Courier charge ₹" value={details.shipping_charge}
+            onChange={(e) => setDetails({ ...details, shipping_charge: e.target.value })} />
           <input className="input text-xs" placeholder="Courier" value={details.courier_name} onChange={(e) => setDetails({ ...details, courier_name: e.target.value })} />
           <input className="input text-xs" placeholder="AWB / tracking no." value={details.awb} onChange={(e) => setDetails({ ...details, awb: e.target.value })} />
           <input className="input text-xs" placeholder="Tracking link (https://…)" value={details.tracking_url} onChange={(e) => setDetails({ ...details, tracking_url: e.target.value })} />
@@ -2213,6 +2244,99 @@ function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
         </form>
       )}
       {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function CodRemittances({ onChanged }) {
+  const [rows, setRows] = useState([]);
+  const [pick, setPick] = useState({});
+  const [reference, setReference] = useState("");
+  const [report, setReport] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    Promise.all([api.get("/admin/shipping/cod-unremitted"), api.get("/admin/shipping/report", { months: 6 })])
+      .then(([unremitted, rep]) => {
+        setRows(unremitted);
+        setReport(rep);
+      })
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  const picked = rows.filter((r) => pick[r.id]);
+  const total = picked.reduce((sum, r) => sum + r.cod_amount, 0);
+  const overdue = (r) => r.delivered_at && Date.now() - new Date(r.delivered_at + "Z").getTime() > 10 * 86400000;
+
+  async function record(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api.post("/admin/shipping/cod-remittances", { shipment_ids: picked.map((r) => r.id), reference: reference.trim() });
+      setPick({});
+      setReference("");
+      load();
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Cash on Delivery owed by couriers ({rows.length})</h2>
+      <p className="text-xs text-ink-soft">
+        Delivered COD parcels count as collected only once the courier pays the cash over. Tick the parcels on their remittance statement and
+        enter the bank reference (UTR). Parcels unpaid after 10 days are flagged in the daily reconciliation.
+      </p>
+      <div className="flex flex-col gap-1 text-xs">
+        {rows.map((r) => (
+          <label key={r.id} className={`flex gap-2 items-center border-b border-line pb-1 ${overdue(r) ? "text-red-700" : ""}`}>
+            <input type="checkbox" checked={!!pick[r.id]} onChange={(e) => setPick({ ...pick, [r.id]: e.target.checked })} />
+            ₹{r.cod_amount} · {r.customer} · {r.courier_name || "courier"} {r.awb || ""} · delivered {fmt(r.delivered_at)}
+            {overdue(r) && " · overdue"}
+          </label>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">Nothing outstanding.</p>}
+      </div>
+      {rows.length > 0 && (
+        <form onSubmit={record} className="flex gap-2 flex-wrap items-center">
+          <input className="input text-sm w-auto" placeholder="Bank UTR / courier batch id" required minLength={3} value={reference} onChange={(e) => setReference(e.target.value)} />
+          <button className="btn-primary text-sm" disabled={busy || picked.length === 0}>
+            Record ₹{total.toFixed(2)} received ({picked.length})
+          </button>
+        </form>
+      )}
+      {error && <p className="text-sm text-red-700">{error}</p>}
+
+      {report.length > 0 && (
+        <div className="overflow-x-auto">
+          <h3 className="font-semibold text-sm mt-2 mb-1">Shipping cost vs. fees collected</h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left border-b border-line">
+                <th className="py-1">Month</th><th className="text-right">Parcels</th><th className="text-right">Fees collected</th>
+                <th className="text-right">Courier charges</th><th className="text-right">Margin</th><th className="text-right">Charge missing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.map((m) => (
+                <tr key={m.month} className="border-b border-line">
+                  <td className="py-1">{m.month}</td><td className="text-right">{m.parcels}</td><td className="text-right">₹{m.fees_collected}</td>
+                  <td className="text-right">₹{m.courier_charges}</td>
+                  <td className={`text-right ${m.margin < 0 ? "text-red-700" : ""}`}>₹{m.margin}</td>
+                  <td className="text-right">{m.parcels_without_charge}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -2311,6 +2435,8 @@ function ShippingTab() {
           </ul>
         )}
       </div>
+
+      <CodRemittances onChanged={load} />
 
       <div className="card p-5 flex flex-col gap-3">
         <div className="flex justify-between items-center flex-wrap gap-2">

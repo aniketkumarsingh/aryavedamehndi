@@ -30,6 +30,58 @@ function Timeline({ order }) {
   );
 }
 
+function DeliveryIssue({ order, shipment, onDone }) {
+  const [mode, setMode] = useState(null); // "change_address"
+  const [form, setForm] = useState({ address: order.shipping_address, pincode: order.shipping_pincode || "", phone: order.shipping_phone });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function answer(action, details = {}) {
+    if (action === "cancel" && !window.confirm("Cancel this delivery? The parcel goes back to us" + (order.payment_method === "online" ? " and you're refunded once it arrives." : "."))) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.post(`/shop/orders/${order.id}/delivery-issue`, { action, ...details });
+      onDone();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm flex flex-col gap-2" role="alert">
+      <p>
+        <b>The courier couldn&apos;t deliver your order</b>
+        {shipment.events.length > 0 && shipment.events[shipment.events.length - 1].description ? ` (${shipment.events[shipment.events.length - 1].description})` : ""}. What would you like to do?
+        <span className="block text-xs text-ink-soft">If we don&apos;t hear from you within 24 hours, we&apos;ll ask them to try again.</span>
+      </p>
+      {mode === "change_address" ? (
+        <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); answer("change_address", form); }}>
+          <textarea className="input text-sm" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} aria-label="New address" />
+          <div className="grid grid-cols-2 gap-2">
+            <input className="input text-sm" inputMode="numeric" maxLength={6} placeholder="PIN code" required value={form.pincode}
+              onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "") })} />
+            <input className="input text-sm" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-primary text-xs" disabled={busy}>Deliver here</button>
+            <button type="button" className="text-xs underline" onClick={() => setMode(null)}>Back</button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex gap-2 flex-wrap">
+          <button className="btn-primary text-xs" disabled={busy} onClick={() => answer("reattempt")}>Try again</button>
+          <button className="btn-secondary text-xs" disabled={busy} onClick={() => setMode("change_address")}>Change address</button>
+          <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => answer("cancel")}>Cancel delivery</button>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
+
 function ShipmentTracking({ shipment, trackLabel }) {
   const events = [...shipment.events].reverse(); // newest first
   return (
@@ -133,7 +185,15 @@ export default function OrderDetail() {
         )}
 
         {order.shipments?.length > 0
-          ? order.shipments.map((s) => <ShipmentTracking key={s.id} shipment={s} trackLabel={t("order_track")} />)
+          ? order.shipments.map((s) => (
+              <div key={s.id}>
+                {s.ndr_status === "open" && <DeliveryIssue order={order} shipment={s} onDone={() => load().catch(() => {})} />}
+                {s.ndr_status === "answered" && s.status === "ndr" && (
+                  <p className="text-xs text-ink-soft mt-3">Thanks — we&apos;ve passed your choice to the courier.</p>
+                )}
+                <ShipmentTracking shipment={s} trackLabel={t("order_track")} />
+              </div>
+            ))
           : order.tracking_number && (
               <p className="text-sm mt-3">
                 {order.courier_name || "Courier"} · Tracking no. <b>{order.tracking_number}</b>

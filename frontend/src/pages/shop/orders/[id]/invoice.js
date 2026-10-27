@@ -146,7 +146,7 @@ export default function Invoice() {
           <p><b>Amount in words:</b> {doc.amount_in_words}</p>
           {doc.discount && <p>Includes coupon {doc.discount.code} discount of {money(doc.discount.amount)}, shared across items by value.</p>}
           {doc.payment.method === "cod" ? (
-            <p>Payment: Cash on Delivery{doc.payment.status === "cod_collected" ? " — collected." : " — to be paid at delivery."}</p>
+            <p>Payment: Cash on Delivery{["cod_with_courier", "cod_collected"].includes(doc.payment.status) ? " — paid at delivery." : " — to be paid at delivery."}</p>
           ) : (
             <p>
               Paid online: {money(doc.payment.paid)}

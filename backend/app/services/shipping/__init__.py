@@ -57,6 +57,19 @@ class TrackingUpdate:
     raw: dict | None = None
 
 
+@dataclass(frozen=True)
+class Remittance:
+    """A COD payout from the courier covering one parcel."""
+
+    awb: str
+    amount: float
+    reference: str  # bank UTR or the courier's batch id
+    remitted_at: datetime
+
+
+NDR_ACTIONS = ("reattempt", "change_address", "cancel")
+
+
 class ShippingError(Exception):
     """The provider refused (shown to the admin as-is)."""
 
@@ -85,6 +98,14 @@ class ShippingProvider(Protocol):
         ...
 
     def cancel(self, awb: str) -> None: ...
+
+    def ndr_action(self, awb: str, action: str, details: dict) -> None:
+        """Tells the courier what to do after a failed attempt (one of NDR_ACTIONS)."""
+        ...
+
+    def cod_remittances(self, since: datetime) -> list[Remittance]:
+        """COD payouts made since `since` (empty if the courier can't report them)."""
+        ...
 
 
 def get_provider(name: str | None = None) -> ShippingProvider:

@@ -157,13 +157,16 @@ def mark_shipped(db: Session, order: ShopOrder, courier: str | None, tracking_nu
     enqueue(db, "email.shop_order_shipped", {"order_id": str(order.id)}, dedupe_key=f"email-shipped:{order.id}")
 
 
-def mark_returned(db: Session, order: ShopOrder, reason: str, initiated_by=None) -> None:
-    """A shipped parcel came back (refused at the door, undeliverable - RTO).
-    Stock goes back; nothing is owed on Cash on Delivery; money paid online
-    is refunded in full (with a credit note, as the order was invoiced)."""
+def mark_returned(db: Session, order: ShopOrder, reason: str, initiated_by=None, condition: str = "good") -> None:
+    """A shipped parcel came back (refused at the door, undeliverable - RTO)
+    and an admin has checked it. Stock goes back only if it's in good
+    condition; nothing is owed on Cash on Delivery; money paid online is
+    refunded in full (with a credit note, as the order was invoiced)."""
     order.status = "returned"
     order.cancel_reason = reason[:200]
-    _restock(db, order)
+    order.return_condition = condition
+    if condition == "good":
+        _restock(db, order)
     if order.payment_method == "cod" and order.payment_status == "cod_due":
         order.payment_status = "void"
     elif order.payment_status in ("paid", "partially_refunded") and order.razorpay_payment_id:
@@ -180,7 +183,8 @@ def mark_returned(db: Session, order: ShopOrder, reason: str, initiated_by=None)
 def mark_delivered(db: Session, order: ShopOrder) -> None:
     order.status, order.delivered_at = "delivered", utcnow()
     if order.payment_method == "cod" and order.payment_status == "cod_due":
-        order.payment_status, order.amount_paid, order.paid_at = "cod_collected", order.total_amount, utcnow()
+        # The customer has paid the courier; it's ours once remitted.
+        order.payment_status = "cod_with_courier"
     notify(db, order.consumer_id, "shop", "Order delivered", "Your order has been delivered. We hope you love it!", f"/shop/orders/{order.id}")
     enqueue(db, "email.shop_delivered", {"order_id": str(order.id)}, dedupe_key=f"email-delivered:{order.id}")
 

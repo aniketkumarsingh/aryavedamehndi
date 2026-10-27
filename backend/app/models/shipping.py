@@ -43,6 +43,16 @@ class Shipment(Base):
     pickup_scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     last_event_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     delivered_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    # COD: the courier pays the cash over to us in batches (remittance).
+    cod_remitted_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    cod_remittance_ref: Mapped[str] = mapped_column(String(80), nullable=True)  # bank UTR / courier batch id
+    # Failed delivery attempt (NDR): open -> answered (customer) | auto
+    # (reattempt requested after 24 h) -> closed (delivery moved on).
+    ndr_status: Mapped[str] = mapped_column(String(12), nullable=True)
+    ndr_action: Mapped[str] = mapped_column(String(20), nullable=True)  # reattempt | change_address | cancel
+    ndr_raised_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    ndr_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ndr_note: Mapped[str] = mapped_column(String(300), nullable=True)
     raw: Mapped[dict] = mapped_column(JSONB, nullable=True)  # the provider's booking response
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

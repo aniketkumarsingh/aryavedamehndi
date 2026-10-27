@@ -246,6 +246,9 @@ class ShipmentOut(BaseModel):
     awb: str | None
     tracking_url: str | None
     status: str
+    ndr_status: str | None = None  # "open": the customer can choose what happens next
+    ndr_action: str | None = None
+    ndr_raised_at: datetime | None = None
     created_at: datetime
     delivered_at: datetime | None
     events: list[ShipmentEventOut] = []
@@ -287,6 +290,7 @@ class ShopOrderOut(BaseModel):
     tracking_url: str | None = None
     cancelled_at: datetime | None = None
     cancel_reason: str | None = None
+    return_condition: str | None = None
     refunds: list[ShopRefundOut] = []
     shipments: list[ShipmentOut] = []
 
@@ -301,6 +305,7 @@ class ShopOrderStatusIn(BaseModel):
     tracking_number: str | None = Field(default=None, max_length=80)
     tracking_url: str | None = Field(default=None, max_length=300, pattern=r"^https?://")
     reason: str | None = Field(default=None, max_length=200)
+    condition: Literal["good", "damaged"] = "good"  # for "returned": restock only if good
 
     @field_validator("status")
     @classmethod

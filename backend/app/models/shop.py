@@ -95,7 +95,9 @@ SHOP_ORDER_TRANSITIONS = {
 # unpaid -> paid -> partially_refunded / refund_pending -> refunded
 # COD:   cod_due -> cod_collected (on delivery)
 # void:  cancelled before any money moved
-SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"]
+# COD: cod_due -> cod_with_courier (delivered, cash with the courier) ->
+#      cod_collected (the courier remitted it to us)
+SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_with_courier", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"]
 PAYMENT_METHODS = ("online", "cod")
 
 
@@ -154,6 +156,7 @@ class ShopOrder(Base):
     delivered_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancelled_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancel_reason: Mapped[str] = mapped_column(String(200), nullable=True)
+    return_condition: Mapped[str] = mapped_column(String(12), nullable=True)  # good | damaged, for returned parcels
     # GST invoice, issued at dispatch (time of supply for goods); numbered
     # consecutively within the financial year.
     invoice_number: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)

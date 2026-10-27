@@ -3,7 +3,7 @@ admin's settings; booking records what the admin typed (courier, AWB,
 tracking link); tracking is updated by hand from the admin panel."""
 
 from app.services.platform_settings import get_platform_settings
-from app.services.shipping import Booking, Package, ShippingError, Serviceability, TrackingUpdate, WebhookNotSupported
+from app.services.shipping import Booking, Package, Serviceability, TrackingUpdate, WebhookNotSupported
 
 
 def _prefixes(value: str) -> list[str]:
@@ -40,3 +40,9 @@ class ManualProvider:
 
     def cancel(self, awb: str) -> None:
         return None
+
+    def ndr_action(self, awb: str, action: str, details: dict) -> None:
+        return None  # an admin passes it on to the courier (they're notified)
+
+    def cod_remittances(self, since):
+        return []  # recorded by hand from the courier's remittance statement

@@ -15,6 +15,7 @@ export const PAYMENT_STATUS_LABELS = {
   unpaid: "Not paid yet",
   paid: "Paid online",
   cod_due: "Cash on Delivery — pay at delivery",
+  cod_with_courier: "Paid at delivery",
   cod_collected: "Paid at delivery",
   refund_pending: "Refund in progress",
   partially_refunded: "Partly refunded",

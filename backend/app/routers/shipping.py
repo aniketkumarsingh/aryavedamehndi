@@ -18,7 +18,13 @@ from app.models.user import User
 from app.services.shipping import ShippingError, WebhookNotSupported
 from app.services.shipping.labels import labels_pdf, manifest_pdf
 from app.services.shipping.service import (
+    active_shipment,
     book_shipment,
+    receive_return,
+    record_cod_remittance,
+    respond_to_ndr,
+    shipping_report,
+    unremitted_cod,
     check_serviceability,
     delivery_window,
     record_manual_update,
@@ -44,6 +50,26 @@ class ShipIn(BaseModel):
     courier_name: str | None = Field(default=None, max_length=80)
     awb: str | None = Field(default=None, max_length=80)
     tracking_url: str | None = Field(default=None, max_length=300)
+    shipping_charge: float | None = Field(default=None, ge=0, le=100_000)  # what the courier billed us
+
+
+class NdrResponseIn(BaseModel):
+    action: Literal["reattempt", "change_address", "cancel"]
+    address: str | None = Field(default=None, max_length=2000)
+    pincode: str | None = Field(default=None, max_length=6)
+    phone: str | None = Field(default=None, max_length=15)
+    preferred_date: str | None = Field(default=None, max_length=20)
+
+
+class ReceiveReturnIn(BaseModel):
+    condition: Literal["good", "damaged"]
+    note: str | None = Field(default=None, max_length=200)
+
+
+class RemittanceIn(BaseModel):
+    shipment_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+    reference: str = Field(min_length=3, max_length=80)  # bank UTR / courier batch id
+    remitted_on: datetime | None = None
 
 
 class BulkShipIn(BaseModel):
@@ -78,6 +104,13 @@ class AdminShipmentOut(BaseModel):
     created_at: datetime
     last_event_at: datetime | None
     delivered_at: datetime | None
+    cod_remitted_at: datetime | None = None
+    cod_remittance_ref: str | None = None
+    ndr_status: str | None = None
+    ndr_action: str | None = None
+    ndr_attempts: int = 0
+    ndr_note: str | None = None
+    ndr_raised_at: datetime | None = None
     customer: str | None = None
     pincode: str | None = None
 
@@ -174,7 +207,7 @@ def edit_shipment(shipment_id: uuid.UUID, payload: ShipIn, db: Session = Depends
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shipment not found")
     if payload.tracking_url and not payload.tracking_url.startswith(("http://", "https://")):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "The tracking link must start with http:// or https://")
-    update_details(db, shipment, payload.courier_name, payload.awb, payload.tracking_url)
+    update_details(db, shipment, payload.courier_name, payload.awb, payload.tracking_url, payload.shipping_charge)
     db.commit()
     return _out(db, shipment)
 
@@ -215,3 +248,77 @@ def labels(ids: str, db: Session = Depends(get_db)):
 @admin_router.get("/manifest.pdf")
 def manifest(ids: str, db: Session = Depends(get_db)):
     return Response(manifest_pdf(_rows(db, ids)), media_type="application/pdf", headers={"Content-Disposition": 'inline; filename="manifest.pdf"'})
+
+
+# ------------------------------------------------- failed deliveries & money --
+
+@router.post("/shop/orders/{order_id}/delivery-issue")
+def answer_failed_delivery(order_id: uuid.UUID, payload: NdrResponseIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The customer's answer to a failed delivery attempt."""
+    order = db.get(ShopOrder, order_id, with_for_update=True)
+    if order is None or order.consumer_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Order not found")
+    shipment = active_shipment(db, order.id)
+    if shipment is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This order hasn't shipped")
+    try:
+        respond_to_ndr(db, shipment, payload.action, payload.model_dump(), by="customer")
+    except ShippingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    db.commit()
+    return {"status": "ok", "action": payload.action}
+
+
+@admin_router.post("/shipments/{shipment_id}/ndr-action", response_model=AdminShipmentOut)
+def admin_ndr_action(shipment_id: uuid.UUID, payload: NdrResponseIn, db: Session = Depends(get_db)):
+    shipment = db.get(Shipment, shipment_id, with_for_update=True)
+    if shipment is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shipment not found")
+    try:
+        respond_to_ndr(db, shipment, payload.action, payload.model_dump(), by="admin")
+    except ShippingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    db.commit()
+    return _out(db, shipment)
+
+
+@admin_router.post("/shipments/{shipment_id}/receive-return", response_model=AdminShipmentOut)
+def admin_receive_return(shipment_id: uuid.UUID, payload: ReceiveReturnIn, admin: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A returned parcel is back: confirm its condition (restock if good) -
+    prepaid orders are refunded with a credit note."""
+    shipment = db.get(Shipment, shipment_id, with_for_update=True)
+    if shipment is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shipment not found")
+    db.get(ShopOrder, shipment.order_id, with_for_update=True)
+    try:
+        receive_return(db, shipment, payload.condition, payload.note, admin.id)
+    except ShippingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    db.commit()
+    return _out(db, shipment)
+
+
+@admin_router.post("/cod-remittances")
+def add_cod_remittance(payload: RemittanceIn, db: Session = Depends(get_db)):
+    """Records a courier COD payout (from their remittance statement)."""
+    shipments = db.query(Shipment).filter(Shipment.id.in_(payload.shipment_ids)).with_for_update().all()
+    if len(shipments) != len(set(payload.shipment_ids)):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Some shipments weren't found")
+    try:
+        changed = record_cod_remittance(db, shipments, payload.reference, payload.remitted_on)
+    except ShippingError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    db.commit()
+    return {"recorded": changed, "total": round(sum(s.cod_amount for s in shipments if s.cod_remittance_ref == payload.reference[:80]), 2)}
+
+
+@admin_router.get("/cod-unremitted", response_model=list[AdminShipmentOut])
+def cod_unremitted(older_than_days: int = Query(0, ge=0, le=365), db: Session = Depends(get_db)):
+    """Delivered COD parcels the courier hasn't paid over yet."""
+    return [_out(db, s) for s in unremitted_cod(db, older_than_days)]
+
+
+@admin_router.get("/report")
+def report(months: int = Query(6, ge=1, le=24), db: Session = Depends(get_db)):
+    """Monthly shipping cost vs. what customers paid for delivery."""
+    return shipping_report(db, months)

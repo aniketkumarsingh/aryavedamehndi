@@ -110,7 +110,7 @@ def render(doc: dict) -> bytes:
     if doc["kind"] == "credit_note":
         notes.append(f"Refunded {rs(pay['refunded'])} to the original payment method" + (f" (ref. {escape(pay['reference'])})" if pay.get("reference") else "") + ".")
     elif pay["method"] == "cod":
-        notes.append("Payment: Cash on Delivery" + (" - collected." if pay["status"] == "cod_collected" else " - to be paid at delivery."))
+        notes.append("Payment: Cash on Delivery" + (" - paid at delivery." if pay["status"] in ("cod_with_courier", "cod_collected") else " - to be paid at delivery."))
     else:
         notes.append(f"Paid online: {rs(pay['paid'])}" + (f" (ref. {escape(pay['reference'])})" if pay.get("reference") else "")
                      + (f". Refunded: {rs(pay['refunded'])}" if pay.get("refunded") else "") + ".")

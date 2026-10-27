@@ -130,7 +130,7 @@ def test_manual_tracking_drives_the_order(client, db, consumer, admin):
     res = _event(client, admin, shipment["id"], "delivered").json()
     assert res["status"] == "delivered"
     body = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
-    assert body["status"] == "delivered" and body["payment_status"] == "cod_collected"
+    assert body["status"] == "delivered" and body["payment_status"] == "cod_with_courier"
     assert [e["status"] for e in body["shipments"][0]["events"]] == ["booked", "in_transit", "ndr", "out_for_delivery", "delivered"]
 
     # Delivered is final: a late "in transit" scan is kept in history but changes nothing.
@@ -222,3 +222,98 @@ def test_courier_webhook_is_verified_stored_and_applied_once(client, db, consume
 
 def test_manual_provider_has_no_webhook(client):
     assert client.post("/shipping/webhook/manual", content=b"{}").status_code == 404
+
+
+
+# ------------------------------------------------------------- S2: money & exceptions --
+
+def test_customer_answers_a_failed_delivery(client, db, consumer, admin):
+    _settings(client, admin, shipping_cod_blocked_pincode_prefixes="791")
+    order, shipment = _shipped_cod_order(client, consumer, admin)
+    url = f"/shop/orders/{order['id']}/delivery-issue"
+    assert client.post(url, json={"action": "reattempt"}, headers=auth_headers(consumer)).status_code == 400  # nothing failed yet
+
+    _event(client, admin, shipment["id"], "ndr", description="Door locked")
+    body = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
+    assert body["shipments"][0]["ndr_status"] == "open"
+    # A new address must be serviceable for COD.
+    bad = client.post(url, json={"action": "change_address", "address": "Somewhere", "pincode": "791001"}, headers=auth_headers(consumer))
+    assert bad.status_code == 400
+    ok = client.post(url, json={"action": "change_address", "address": "22 New Street, Pune", "pincode": "411001", "phone": "9800000001"},
+                     headers=auth_headers(consumer))
+    assert ok.status_code == 200
+    body = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
+    assert body["shipping_pincode"] == "411001" and body["shipments"][0]["ndr_status"] == "answered"
+    assert client.post(url, json={"action": "reattempt"}, headers=auth_headers(consumer)).status_code == 400  # already answered
+
+    # The next scan closes the failed-delivery case.
+    _event(client, admin, shipment["id"], "out_for_delivery")
+    assert client.get("/admin/shipping/shipments", headers=auth_headers(admin)).json()[0]["ndr_status"] == "closed"
+
+
+def test_unanswered_failed_delivery_is_reattempted_after_24h(client, db, consumer, admin):
+    order, shipment = _shipped_cod_order(client, consumer, admin)
+    _event(client, admin, shipment["id"], "ndr")
+    row = db.get(Shipment, shipment["id"])
+    row.ndr_raised_at = utcnow() - timedelta(hours=25)
+    db.commit()
+    from app.services.shipping.service import ndr_auto_reattempt
+
+    with db.begin_nested():
+        assert ndr_auto_reattempt(db, {}) == "1 reattempts requested"
+    db.commit()
+    db.expire_all()
+    row = db.get(Shipment, shipment["id"])
+    assert (row.ndr_status, row.ndr_action) == ("auto", "reattempt")
+
+
+def test_returned_parcel_condition_decides_restock_and_prepaid_is_refunded(client, db, consumer, admin):
+    product = _make_product(client, admin, price=100, stock=3)
+    prepaid = _place(client, consumer, product).json()
+    _pay(client, consumer, prepaid["id"])
+    ship = _ship(client, admin, prepaid["id"], courier_name="Delhivery").json()
+    _event(client, admin, ship["id"], "rto")
+    res = client.post(f"/admin/shipping/shipments/{ship['id']}/receive-return", json={"condition": "damaged", "note": "Box crushed"},
+                      headers=auth_headers(admin))
+    assert res.status_code == 200 and res.json()["status"] == "rto_delivered"
+    run_jobs()
+    body = client.get(f"/shop/orders/{prepaid['id']}", headers=auth_headers(consumer)).json()
+    assert body["status"] == "returned" and body["return_condition"] == "damaged" and body["payment_status"] == "refunded"
+    assert body["refunds"][0]["credit_note_number"] is None or body["refunds"][0]["credit_note_number"].startswith("CN")
+    assert client.get(f"/shop/products/{product['id']}").json()["stock_quantity"] == 2  # damaged: not restocked
+
+    order, cod_ship = _shipped_cod_order(client, consumer, admin, product)
+    client.post(f"/admin/shipping/shipments/{cod_ship['id']}/receive-return", json={"condition": "good"}, headers=auth_headers(admin))
+    body = client.get(f"/shop/orders/{order['id']}", headers=auth_headers(consumer)).json()
+    assert body["payment_status"] == "void"
+    assert client.get(f"/shop/products/{product['id']}").json()["stock_quantity"] == 2  # good: back in stock
+    assert client.post(f"/admin/shipping/shipments/{cod_ship['id']}/receive-return", json={"condition": "good"}, headers=auth_headers(admin)).status_code == 400
+
+
+def test_unremitted_cod_is_flagged_by_reconciliation(client, db, consumer, admin):
+    order, shipment = _shipped_cod_order(client, consumer, admin)
+    _event(client, admin, shipment["id"], "delivered")
+    row = db.get(Shipment, shipment["id"])
+    row.delivered_at = utcnow() - timedelta(days=11)
+    db.commit()
+    assert [s["id"] for s in client.get("/admin/shipping/cod-unremitted", params={"older_than_days": 10}, headers=auth_headers(admin)).json()] == [shipment["id"]]
+    from app.services.reconciliation import reconcile
+
+    run = reconcile(db)
+    assert run.status == "issues" and run.issues[0]["type"] == "cod_not_remitted"
+    db.commit()
+    assert db.query(Notification).filter(Notification.user_id == admin.id, Notification.title == "COD not remitted").count() == 1
+
+    # Remittance before delivery is refused; after, it clears the flag.
+    order2, undelivered = _shipped_cod_order(client, consumer, admin)
+    assert client.post("/admin/shipping/cod-remittances", json={"shipment_ids": [undelivered["id"]], "reference": "UTR9"}, headers=auth_headers(admin)).status_code == 400
+    client.post("/admin/shipping/cod-remittances", json={"shipment_ids": [shipment["id"]], "reference": "UTR9"}, headers=auth_headers(admin))
+    assert client.get("/admin/shipping/cod-unremitted", headers=auth_headers(admin)).json() == []
+
+
+def test_shipping_cost_report(client, db, consumer, admin):
+    order, shipment = _shipped_cod_order(client, consumer, admin)
+    client.put(f"/admin/shipping/shipments/{shipment['id']}", json={"shipping_charge": 62.5}, headers=auth_headers(admin))
+    report = client.get("/admin/shipping/report", headers=auth_headers(admin)).json()
+    assert report[0]["parcels"] == 1 and report[0]["fees_collected"] == 79 and report[0]["courier_charges"] == 62.5
+    assert report[0]["margin"] == 16.5 and report[0]["parcels_without_charge"] == 0
