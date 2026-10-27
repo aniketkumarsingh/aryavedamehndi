@@ -49,6 +49,8 @@ def _defaults() -> dict:
         # Bookings: minutes past the slot before admins hear the artist
         # hasn't set out.
         "booking_sla_grace_minutes": 15,
+        # Growth: the abandoned-cart coupon (percent off, one use, 72 h).
+        "growth_cart_coupon_percent": 5.0,
     }
 
 

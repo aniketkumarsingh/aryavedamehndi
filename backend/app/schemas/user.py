@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     anniversary_date: date | None
     consent_given: bool
     consent_given_at: datetime | None
+    marketing_opt_in: bool = False
     created_at: datetime
 
     class Config:

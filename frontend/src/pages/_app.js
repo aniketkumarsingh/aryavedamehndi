@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Head from "next/head";
 import { Manrope, Petrona } from "next/font/google";
 import Analytics from "@/components/Analytics";
+import CartSync from "@/components/CartSync";
 import { SITE_URL } from "@/components/SocialMeta";
 import Layout from "@/components/Layout";
 // Also starts listening for the browser's install prompt as early as
@@ -52,6 +53,7 @@ export default function App({ Component, pageProps }) {
           <Component {...pageProps} />
         </Layout>
         <Analytics />
+        <CartSync />
       </div>
     </LanguageProvider>
   );

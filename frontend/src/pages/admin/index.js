@@ -22,6 +22,7 @@ const TABS = [
   "Shipping",
   "Coupons",
   "Payments",
+  "Growth",
   "Brand Content",
   "Settings",
 ];
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
       {tab === "Shipping" && <ShippingTab />}
       {tab === "Coupons" && <CouponsTab />}
       {tab === "Payments" && <PaymentsTab />}
+      {tab === "Growth" && <GrowthTab />}
       {tab === "Brand Content" && <CmsTab />}
     </div>
   );
@@ -328,6 +330,7 @@ const SETTING_FIELDS = [
   { key: "shipping_eta_max_days", label: "Delivery estimate: slowest (days)", hint: "", step: "1" },
   { key: "shop_return_window_days", label: "Return window (days after delivery)", hint: "Keep in step with the refund policy page", step: "1" },
   { key: "booking_sla_grace_minutes", label: "Artist late alert (minutes after the slot)", hint: "Admins are alerted if the artist hasn't set out by then", step: "5" },
+  { key: "growth_cart_coupon_percent", label: "Abandoned-cart coupon (% off)", hint: "Sent 24 h after the first reminder; one use, valid 72 h. 0 = no coupon", step: "1" },
 ];
 
 // Comma-separated PIN-code prefixes, e.g. "744, 796".
@@ -2571,6 +2574,92 @@ function ShippingTab() {
           {shipments.length === 0 && <p className="text-ink-soft text-sm">No shipments here.</p>}
         </div>
       </div>
+    </div>
+  );
+}
+
+const EMPTY_OCCASION = { name: "", occasion_date: "", lead_days: 12, message: "", is_active: true };
+
+function OccasionCalendar() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_OCCASION);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/growth/occasions").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Occasion reminders</h2>
+      <p className="text-xs text-ink-soft">
+        Before each occasion, past customers who opted in get one reminder (app + WhatsApp) with a link to book their last artist again.
+      </p>
+      <form
+        className="grid sm:grid-cols-5 gap-2 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => {
+            await api.post("/admin/growth/occasions", { ...form, lead_days: Number(form.lead_days), message: form.message || null });
+            setForm(EMPTY_OCCASION);
+          });
+        }}
+      >
+        <input className="input" placeholder="Occasion (e.g. Karva Chauth)" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className="input" type="date" required value={form.occasion_date} onChange={(e) => setForm({ ...form, occasion_date: e.target.value })} />
+        <label className="text-xs flex items-center gap-1">
+          Send
+          <input className="input !w-16" type="number" min="1" max="60" value={form.lead_days} onChange={(e) => setForm({ ...form, lead_days: e.target.value })} />
+          days before
+        </label>
+        <input className="input" placeholder="Extra line (optional)" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        <button className="btn-primary" disabled={busy}>Add</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((o) => (
+          <div key={o.id} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <b>{o.name}</b> · {new Date(o.occasion_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {o.lead_days} days before
+              {o.sent_at ? <span className="chip ml-1">sent · {o.reached} reached</span> : !o.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            {!o.sent_at && (
+              <span className="flex gap-2 text-xs">
+                <button className="underline" disabled={busy} onClick={() => run(() => api.put(`/admin/growth/occasions/${o.id}`, { ...o, is_active: !o.is_active }))}>
+                  {o.is_active ? "Turn off" : "Turn on"}
+                </button>
+                <button className="underline" disabled={busy} onClick={() => window.confirm(`Send the ${o.name} reminder now?`) && run(() => api.post(`/admin/growth/occasions/${o.id}/send-now`, {}))}>
+                  Send now
+                </button>
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No occasions yet — add Karva Chauth, Teej, Eid, Diwali and the wedding season.</p>}
+      </div>
+    </div>
+  );
+}
+
+function GrowthTab() {
+  return (
+    <div className="flex flex-col gap-4">
+      <OccasionCalendar />
     </div>
   );
 }

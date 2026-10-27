@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ from app.services.pricing import check_price_in_band, compute_platform_fee
 from app.services.similarity import score_similarity
 from app.services.notifications import notify, notify_admins
 from app.services.razorpay_client import create_order, verify_payment_signature
+from app.services.messaging import set_marketing_consent, whatsapp_user
 from app.services.refunds import issue_refund
 from app.services.storage import save_upload
 from app.services.telephony import provision_masked_number
@@ -80,6 +82,9 @@ def _confirm_booking_at_price(db: Session, booking: Booking, agreed_price: float
     booking.platform_fee = compute_platform_fee(db, agreed_price)
     booking.total_amount = booking.agreed_price + booking.platform_fee
     booking.status = "confirmed"
+    artist = db.get(User, booking.artist_id)
+    whatsapp_user(db, booking.consumer_id, "booking_confirmed", artist=(artist.name if artist else None) or "your artist",
+                  when=f"{booking.scheduled_at + timedelta(hours=5, minutes=30):%d %b, %I:%M %p}")
     db.query(NegotiationOffer).filter(
         NegotiationOffer.booking_id == booking.id, NegotiationOffer.status == "pending"
     ).update({"status": "rejected"})
@@ -211,6 +216,8 @@ def create_booking(
         f"/booking-detail/{booking.id}",
     )
 
+    if payload.marketing_opt_in:
+        set_marketing_consent(db, user, True, "booking")
     db.commit()
     db.refresh(booking)
     return booking
@@ -409,6 +416,7 @@ def mark_enroute(booking_id: uuid.UUID, user: User = Depends(require_role("artis
         )
     booking.status = "artist_enroute"
     notify(db, booking.consumer_id, "booking", "Your artist is on the way", None, f"/booking-detail/{booking_id}")
+    whatsapp_user(db, booking.consumer_id, "artist_en_route", artist=user.name or "Your artist")
     db.commit()
     db.refresh(booking)
     return booking

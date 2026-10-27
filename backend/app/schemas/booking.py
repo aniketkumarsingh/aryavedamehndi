@@ -43,6 +43,8 @@ class BookingCreateIn(BaseModel):
     # instead of a free date/time - validated server-side against the
     # artist and "open" status, then marked "booked".
     availability_slot_id: uuid.UUID | None = None
+    # Ticked "send me offers": records marketing consent (never withdraws it).
+    marketing_opt_in: bool | None = None
 
     @field_validator("reference_design_image_url")
     @classmethod

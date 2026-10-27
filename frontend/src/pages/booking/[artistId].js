@@ -22,6 +22,7 @@ export default function NewBooking() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [genderPref, setGenderPref] = useState("same");
   const [openingOffer, setOpeningOffer] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [referenceImage, setReferenceImage] = useState("");
   // The consumer's own uploaded design (POST /bookings/reference-image) -
   // priced at the package range, like any booking without a catalog design.
@@ -111,6 +112,7 @@ export default function NewBooking() {
         reference_design_image_url: selectedDesign ? null : customImage || referenceImage || null,
         opening_offer: openingOffer ? Number(openingOffer) : null,
         availability_slot_id: selectedSlot ? selectedSlot.id : null,
+        marketing_opt_in: marketingOptIn || null,
       });
       // A booking request is the lead our ads optimise for.
       track("generate_lead", { lead_type: "booking", currency: "INR", value: openingOffer ? Number(openingOffer) : undefined });
@@ -302,6 +304,11 @@ export default function NewBooking() {
         )}
 
         <PricePromise compact />
+
+        <label className="flex items-start gap-2 text-xs text-ink-soft">
+          <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+          Send me offers and occasion reminders on WhatsApp (optional — unsubscribe any time).
+        </label>
 
         {error && <p className="text-sm text-red-700">{error}</p>}
 

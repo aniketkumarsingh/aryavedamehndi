@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     support_email: str = ""
     support_phone: str = ""
 
+    # WhatsApp (MSG91 WhatsApp API, same account as OTP SMS): the business
+    # number registered with MSG91. Leave empty to turn WhatsApp off.
+    msg91_whatsapp_number: str = ""
+    whatsapp_language: str = "en"
+
     # Shipping provider: "manual" (hand-entered courier details, no courier
     # account) until a courier integration is added under
     # app/services/shipping/. The webhook secret is the courier's.

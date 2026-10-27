@@ -109,6 +109,8 @@ class ShopOrderCreateIn(BaseModel):
     payment_method: Literal["online", "cod"] = "online"
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
+    # Ticked "send me offers": records marketing consent (never withdraws it).
+    marketing_opt_in: bool | None = None
 
 
 class ShopQuoteIn(BaseModel):
@@ -312,6 +314,7 @@ class ShopOrderOut(BaseModel):
     shipments: list[ShipmentOut] = []
     returns: list[ShopReturnOut] = []
     return_window_ends: datetime | None = None  # last day a return can be asked for
+    source: str | None = None  # abandoned_cart, referral, utm source, direct
 
     class Config:
         from_attributes = True

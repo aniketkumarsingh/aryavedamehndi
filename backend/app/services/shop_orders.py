@@ -24,6 +24,7 @@ from app.core.time import utcnow
 from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.services.doc_numbers import next_document_number
 from app.services.jobs import enqueue, job_handler, periodic
+from app.services.messaging import order_ref, whatsapp_user
 from app.services.notifications import notify, notify_admins
 from app.services.platform_settings import get_platform_settings
 from app.services.refunds import RefundError, issue_refund
@@ -54,7 +55,7 @@ def coupon_discount(coupon: ShopCoupon, items_amount: float) -> float:
 
 def coupon_problem(db: Session, coupon: ShopCoupon | None, user_id, items_amount: float) -> str | None:
     """Why this coupon can't be used on this order, or None if it can."""
-    if coupon is None or not coupon.is_active:
+    if coupon is None or not coupon.is_active or (coupon.user_id and coupon.user_id != user_id):
         return "This coupon code isn't valid"
     now = utcnow()
     if coupon.starts_at and now < coupon.starts_at:
@@ -121,6 +122,7 @@ def confirm_cod(db: Session, order: ShopOrder) -> None:
     order.status, order.payment_status, order.confirmed_at = "confirmed", "cod_due", utcnow()
     notify(db, order.consumer_id, "shop", "Order confirmed",
            f"Your Cash on Delivery order is confirmed. Please keep ₹{order.total_amount:g} ready at delivery.", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_confirmed", order_ref=order_ref(order), amount=f"{order.total_amount:g}")
     enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
 
 
@@ -154,6 +156,8 @@ def mark_shipped(db: Session, order: ShopOrder, courier: str | None, tracking_nu
     if order.tracking_number:
         message = f"Your order has shipped with {order.courier_name or 'our courier'} - tracking no. {order.tracking_number}."
     notify(db, order.consumer_id, "shop", "Order shipped", message, f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_shipped", order_ref=order_ref(order), courier=order.courier_name or "our courier",
+                  tracking=order.tracking_url or order.tracking_number or "your order page")
     enqueue(db, "email.shop_order_shipped", {"order_id": str(order.id)}, dedupe_key=f"email-shipped:{order.id}")
 
 
@@ -186,6 +190,7 @@ def mark_delivered(db: Session, order: ShopOrder) -> None:
         # The customer has paid the courier; it's ours once remitted.
         order.payment_status = "cod_with_courier"
     notify(db, order.consumer_id, "shop", "Order delivered", "Your order has been delivered. We hope you love it!", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_delivered", order_ref=order_ref(order))
     enqueue(db, "email.shop_delivered", {"order_id": str(order.id)}, dedupe_key=f"email-delivered:{order.id}")
 
 
@@ -253,6 +258,7 @@ def settle_payment(db: Session, order: ShopOrder, payment_id: str, signature: st
     order.amount_paid = money(amount if amount else order.total_amount)
     order.paid_at = order.confirmed_at = now
     notify(db, order.consumer_id, "shop", "Order confirmed", f"Your ₹{order.amount_paid:g} payment is received and your order will ship soon.", f"/shop/orders/{order.id}")
+    whatsapp_user(db, order.consumer_id, "order_confirmed", order_ref=order_ref(order), amount=f"{order.amount_paid:g}")
     enqueue(db, "email.shop_order_confirmed", {"order_id": str(order.id)}, dedupe_key=f"email-confirmed:{order.id}")
     return "paid"
 

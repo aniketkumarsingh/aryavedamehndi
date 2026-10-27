@@ -121,6 +121,7 @@ class ShopCoupon(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     usage_limit: Mapped[int] = mapped_column(Integer, nullable=True)  # total uses, null = unlimited
     per_user_limit: Mapped[int] = mapped_column(Integer, nullable=True, default=1)  # null = unlimited
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # personal coupon
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -150,6 +151,8 @@ class ShopOrder(Base):
     discount_amount: Mapped[float] = mapped_column(Float, default=0)
     shipping_fee: Mapped[float] = mapped_column(Float, default=0)
     coupon_code: Mapped[str] = mapped_column(String(40), nullable=True, index=True)
+    # Where the order came from: "abandoned_cart", "referral", a utm_source, or "direct".
+    source: Mapped[str] = mapped_column(String(40), nullable=True)
 
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_number: Mapped[str] = mapped_column(String(80), nullable=True)

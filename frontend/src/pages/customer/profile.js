@@ -135,6 +135,28 @@ export default function CustomerProfilePage() {
       </div>
 
       <div className="card p-6">
+        <h2 className="font-semibold mb-2">Offers &amp; reminders</h2>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={!!me?.marketing_opt_in}
+            disabled={busy}
+            onChange={async (e) => {
+              const opt_in = e.target.checked;
+              try {
+                await api.put("/users/me/marketing", { opt_in });
+                setMe({ ...me, marketing_opt_in: opt_in });
+              } catch (err) {
+                setError(err.message);
+              }
+            }}
+          />
+          Send me offers and occasion reminders on WhatsApp
+        </label>
+        <p className="text-xs text-ink-soft mt-1">Order and booking updates are always sent, whatever you choose here.</p>
+      </div>
+
+      <div className="card p-6">
         <h2 className="font-semibold mb-1">Basic Details</h2>
         <p className="text-sm text-ink-soft mb-4">Kept private, used only for your bookings and safety-matching.</p>
         <form onSubmit={saveDetails} className="grid sm:grid-cols-2 gap-3">

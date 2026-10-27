@@ -39,6 +39,8 @@ from app.services.documents import credit_note_document, order_document
 from app.services.notifications import notify_admins
 from app.services.platform_settings import get_platform_settings
 from app.services.rate_limit import enforce
+from app.services.growth import close_cart_for_order
+from app.services.messaging import set_marketing_consent
 from app.services.returns import return_window_ends
 from app.services.shipping.service import check_serviceability, shipments_for
 from app.services.razorpay_client import create_order, verify_payment_signature
@@ -433,6 +435,10 @@ def _place_order(db: Session, payload: ShopOrderCreateIn, user: User, idempotenc
         )
     if payload.payment_method == "cod":
         confirm_cod(db, order)
+    if payload.marketing_opt_in:
+        set_marketing_consent(db, user, True, "checkout")
+    close_cart_for_order(db, user.id, order)
+    order.source = order.source or "direct"
 
     method = "Cash on Delivery" if payload.payment_method == "cod" else "online payment pending"
     notify_admins(db, "New shop order", f"₹{order.total_amount:g} order ({method}) placed by {user.name or user.phone}.", "/admin")

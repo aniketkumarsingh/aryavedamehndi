@@ -77,6 +77,7 @@ class PlatformSettingsOut(BaseModel):
     shipping_cod_blocked_pincode_prefixes: str
     shop_return_window_days: int
     booking_sla_grace_minutes: int
+    growth_cart_coupon_percent: float
 
 
 class PlatformSettingsIn(BaseModel):
@@ -104,6 +105,7 @@ class PlatformSettingsIn(BaseModel):
     shipping_cod_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
     shop_return_window_days: int | None = Field(default=None, ge=0, le=60)
     booking_sla_grace_minutes: int | None = Field(default=None, ge=0, le=240)
+    growth_cart_coupon_percent: float | None = Field(default=None, ge=0, le=50)
 
 
 class AdminUserOut(BaseModel):

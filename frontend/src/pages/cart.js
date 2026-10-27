@@ -29,6 +29,7 @@ export default function Cart() {
   const [coupon, setCoupon] = useState("");
   const [quote, setQuote] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("online");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [contactEmail, setContactEmail] = useState(() => {
     try {
       return localStorage.getItem("aryaveda_contact_email") || "";
@@ -142,6 +143,7 @@ export default function Cart() {
           shipping_pincode: shippingPincode.trim(),
           contact_email: email || null,
           payment_method: paymentMethod,
+          marketing_opt_in: marketingOptIn || null,
           items: lines,
           coupon_code: quote?.coupon_code || null,
         },
@@ -377,6 +379,10 @@ export default function Cart() {
               )}
             </fieldset>
 
+            <label className="flex items-start gap-2 text-xs text-ink-soft">
+              <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+              Send me offers and occasion reminders on WhatsApp (optional — unsubscribe any time).
+            </label>
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button className="btn-primary" disabled={busy} onClick={checkout}>
               {busy
