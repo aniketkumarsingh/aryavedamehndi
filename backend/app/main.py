@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import DEFAULT_JWT_SECRET, get_settings
 from app.routers import (
     admin,
+    admin_team,
     artists,
     auth,
     bookings,
@@ -23,6 +24,7 @@ from app.routers import (
     packages,
     payments,
     pricing,
+    privacy,
     product_reviews,
     referrals,
     reviews,
@@ -37,7 +39,9 @@ from app.routers import (
 )
 from app.core.logging import configure_logging, order_id_var, request_id_var, user_id_var
 from app.core.observability import init_sentry
-from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
+from app.services.audit import needs_audit, record_admin_action
+from starlette.concurrency import run_in_threadpool
+from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, cache_control_for, verify_media_signature
 
 settings = get_settings()
 
@@ -105,6 +109,8 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "private, no-store"
     else:
         response = await call_next(request)
+        if canonical_path.startswith("/media/") and response.status_code == 200:
+            response.headers["Cache-Control"] = cache_control_for(canonical_path)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -139,6 +145,12 @@ async def request_context(request: Request, call_next):
             access_log.warning("slow request", extra=extra)
         elif request.url.path not in QUIET_PATHS or status_code >= 400:
             access_log.info("request", extra=extra)
+        admin_role = getattr(request.state, "admin_role", None)
+        if admin_role and needs_audit(request.method, request.url.path, status_code):
+            await run_in_threadpool(
+                record_admin_action, user_id, admin_role, request.method, request.url.path, request.url.query,
+                status_code, request_id, request.client.host if request.client else None,
+            )
         for var, token in zip((request_id_var, order_id_var, user_id_var), tokens):
             var.reset(token)
 
@@ -147,6 +159,7 @@ app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(privacy.router)
 app.include_router(notifications.router)
 app.include_router(favorites.router)
 app.include_router(artists.router)
@@ -178,6 +191,7 @@ app.include_router(seo_pages.router)
 app.include_router(seo_pages.admin_router)
 app.include_router(cms.router)
 app.include_router(admin.router)
+app.include_router(admin_team.router)
 
 
 @app.get("/health")

@@ -14,6 +14,7 @@ from app.models.payment import Payment
 from app.models.platform_settings import PlatformSetting
 from app.models.refresh_token import RefreshToken
 from app.models.review import Report, Review
+from app.models.admin_ops import AdminAuditLog, AdminNote
 from app.models.growth import CampaignSend, Cart, ConsentRecord, ConversionEvent, LandingPage, Occasion, ProductReview, Referral, WalletEntry
 from app.models.job import Job
 from app.models.ops import RateLimitCounter
@@ -72,4 +73,6 @@ __all__ = [
     "Referral",
     "WalletEntry",
     "ConversionEvent",
+    "AdminAuditLog",
+    "AdminNote",
 ]

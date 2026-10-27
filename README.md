@@ -239,6 +239,100 @@ Restore drill log:
 
 Repeat the drill on production data after launch and add a row.
 
+### Growth
+
+Admin → **Growth** holds the weekly dashboard (new customers, orders,
+revenue, repeat orders, recovered carts, bookings, event requests,
+referrals, wallet use and where orders came from; **Download CSV**), the
+occasion calendar, product-review moderation and the city/occasion landing
+pages.
+
+- **WhatsApp** (MSG91): order, delivery and booking updates go to everyone;
+  offers, cart reminders and occasion nudges only to people who opted in,
+  each with an unsubscribe link. Register the templates in
+  `deploy/whatsapp_templates.md` with Meta via MSG91.
+- **Reviews**: only customers whose order was delivered can review a
+  product; stars show on product cards and in Google results
+  (`aggregateRating`).
+- **Pages for search**: `/artists/<slug>` for every verified artist (they
+  set their city in their profile) and `/mehndi/<slug>` landing pages
+  written in Admin → Growth; all are in `/sitemap.xml`.
+- **Referrals and wallet**: each customer's code is on `/shop/wallet`. A
+  friend who joins with it gets ₹50 off their first shop order; the referrer
+  gets ₹50 wallet credit once that order is delivered and the return window
+  has passed without a return. Credit lasts 180 days and is used at checkout
+  (amounts and validity are in Settings).
+- **Attribution**: UTM tags, Google/Meta click ids and `?ref=` codes are
+  kept from the landing page and stored on the customer (first visit) and on
+  each order, booking and event request (latest visit).
+- **Server-side purchases**: with `META_PIXEL_ID` + `META_CAPI_TOKEN` and/or
+  `GA4_MEASUREMENT_ID` + `GA4_API_SECRET`, each confirmed shop order is
+  also sent from the server (Meta Conversions API, GA4 Measurement
+  Protocol) for customers who accepted analytics cookies. The order id is
+  the event id on both sides, so the browser and the server count once.
+
+### Admin team, audit log and notes
+
+Admin → **Team** (owners) adds admins by phone with one of three roles:
+
+| Role | Can |
+|---|---|
+| owner | everything, including Settings, the team and the audit log |
+| ops | orders, shipping, returns and refunds, payments, products, artists and KYC, bookings, growth |
+| support | read-only, plus order notes, approving/rejecting returns, answering failed deliveries, moderating reviews and reports |
+
+The API enforces this for every admin request (`app/core/permissions.py`);
+existing admins are owners. Admin → **Audit Log** lists every change, every
+refused attempt and every export, with the request id that matches the
+server logs. Shop orders and event requests have internal **Notes**.
+
+### Your data (DPDP Act)
+
+Customers and artists can download their data and delete their account
+from their profile page. Deleting anonymises the person (name, phone,
+photos, addresses, ID and bank details, chat messages) and signs them out;
+orders with a GST invoice keep their billing details for the statutory
+period, and accounts with an open booking or order can't be deleted until
+it's finished. Consent changes (marketing, analytics, deletion) are kept as
+evidence. The daily `privacy.retention` job removes OTP codes, old rate-limit
+counters, finished jobs, old webhook payloads, read notifications older than
+a year and carts untouched for 90 days.
+
+### Media and CDN
+
+Public uploads are stored as WebP (turned upright, at most 4000 px, with
+EXIF and location data removed); KYC documents are kept exactly as
+uploaded and stay private. Large catalogue photos get a 1600 px display
+copy plus a full-size zoom copy. Media files are served with
+`Cache-Control: public, max-age=31536000, immutable` (random names are
+never reused; fixed names get a day).
+
+To put a CDN in front: with S3, point a CloudFront or Cloudflare host at
+the bucket and set `S3_PUBLIC_BASE_URL` to it (uploads already carry the
+cache headers and content type). Without S3, proxy the API domain through
+Cloudflare and add a cache rule for `/media/*` (respecting origin headers);
+`/media/kyc/*` is never cached (`private, no-store`).
+
+### Scaling switches
+
+What to change, in order, when traffic grows (none are needed at launch):
+
+1. **Bigger server** for the one-box Compose stack - Postgres, API and
+   worker share it comfortably to tens of thousands of orders a month.
+2. **More API workers**: raise `--workers` in `deploy/docker-compose.yml`
+   (about 2 per CPU core). Rate limits and the job queue live in Postgres,
+   so they hold across workers.
+3. **More background workers**: `docker compose up -d --scale worker=3`;
+   jobs are claimed with `SKIP LOCKED`, so several never run the same one.
+4. **Managed Postgres** (e.g. AWS RDS, DigitalOcean): point `DATABASE_URL`
+   at it, drop the `db` service, and keep the nightly backups as a second copy.
+5. **Media on S3 + CDN** (above), so app servers can be replaced or added freely.
+6. **Watch the slow-request warnings** (`"msg": "slow request"` in the API
+   logs) and Sentry performance (`SENTRY_TRACES_SAMPLE_RATE=0.1`) before
+   adding indexes or caching.
+7. **PostGIS** for artist search once there are thousands of artists (see
+   "Known limitation" below).
+
 ## Going live checklist
 
 The backend refuses to start with `APP_ENV=production` until the unsafe
@@ -284,7 +378,12 @@ Also set before launch:
   coupons (Coupons). Admin → Payments is the place to watch refunds,
   reconciliation and failed jobs.
 - **Ads:** point Meta Commerce Manager / Google Merchant Center at
-  `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed.
+  `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed. Optionally
+  set the server-side purchase keys (`META_PIXEL_ID`, `META_CAPI_TOKEN`,
+  `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`).
+- **Team:** add your ops and support people in Admin → Team rather than
+  sharing the owner login.
+- **Messaging:** `MSG91_WHATSAPP_NUMBER` and the approved WhatsApp templates.
 
 ## What's stubbed vs. production-ready
 

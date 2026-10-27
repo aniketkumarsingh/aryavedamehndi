@@ -17,7 +17,7 @@ from urllib.parse import urlencode
 
 import boto3
 from fastapi import HTTPException, status
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.config import get_settings
 
@@ -101,43 +101,71 @@ def _validate_image(content: bytes) -> str:
 
 
 DISPLAY_PX = 1600  # long edge of the light copy shown on pages
+MAX_STORED_PX = 4000  # nothing public is kept larger than this
+CONTENT_TYPES = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}
+IMMUTABLE_NAME = re.compile(r"/[0-9a-f]{32}\.\w+$")  # random names never change content
+
+
+def to_webp(content: bytes, max_px: int = MAX_STORED_PX, quality: int = 82) -> bytes:
+    """Public images are stored as WebP: turned upright, at most `max_px` on
+    the long edge, and without metadata - phone photos carry the GPS spot
+    where they were taken in their EXIF data."""
+    with Image.open(BytesIO(content)) as img:
+        img = ImageOps.exif_transpose(img)
+        has_alpha = img.mode in ("RGBA", "LA", "P") and (img.mode != "P" or "transparency" in img.info)
+        img = img.convert("RGBA" if has_alpha else "RGB")
+        if max(img.size) > max_px:
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+        buf = BytesIO()
+        img.save(buf, format="WEBP", quality=quality, method=4)
+    return buf.getvalue()
+
+
+def cache_control_for(url_path: str) -> str:
+    """Random file names are never reused, so browsers and the CDN can keep
+    them for a year; fixed names (replaced in place) for a day."""
+    return "public, max-age=31536000, immutable" if IMMUTABLE_NAME.search(url_path) else "public, max-age=86400"
 
 
 def save_image_variants(content: bytes, folder: str, display_px: int = DISPLAY_PX, name: str | None = None) -> tuple[str, str | None]:
     """Stores a large photo twice: a light display copy (long edge
-    `display_px`, JPEG) for pages and thumbnails, and the original at full
-    resolution for zooming. Returns (display_url, hd_url); hd_url is None
-    when the original is already small enough to serve as-is. With `name`,
-    the files are <name>.jpg and <name>-hd.jpg (see save_upload)."""
+    `display_px`) for pages and thumbnails, and a full-resolution copy for
+    zooming, both WebP. Returns (display_url, hd_url); hd_url is None when
+    the original is already small enough to serve as-is. With `name`, the
+    files are <name>.webp and <name>-hd.webp (see save_upload)."""
     _validate_image(content)
     with Image.open(BytesIO(content)) as img:
-        if max(img.size) <= display_px * 1.25:
-            return save_upload(content, folder, name), None
-        img = img.convert("RGB")
-        img.thumbnail((display_px, display_px), Image.LANCZOS)
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=85, optimize=True, progressive=True)
-    return save_upload(buf.getvalue(), folder, name), save_upload(content, folder, name and f"{name}-hd")
+        small = max(img.size) <= display_px * 1.25
+    if small:
+        return save_upload(content, folder, name), None
+    display = to_webp(content, display_px, quality=80)
+    hd = to_webp(content, MAX_STORED_PX, quality=88)
+    return save_upload(display, folder, name, convert=False), save_upload(hd, folder, name and f"{name}-hd", convert=False)
 
 
 SAFE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,80}$")
 
 
-def save_upload(content: bytes, folder: str, name: str | None = None) -> str:
+def save_upload(content: bytes, folder: str, name: str | None = None, convert: bool = True) -> str:
     """Stores an upload under a random name, or under `name` (lowercase
     letters, digits and dashes, no extension) when the caller picks a
-    stable one - an existing file of that name is replaced."""
+    stable one - an existing file of that name is replaced. Public images
+    are converted to WebP (see to_webp; animated GIFs are kept as they are);
+    KYC documents are stored exactly as uploaded."""
     ext = _validate_image(content)
     if name is not None and not SAFE_NAME.match(name):
         raise ValueError(f"unsafe file name: {name!r}")
+    if convert and folder not in PRIVATE_FOLDERS and ext != ".gif":
+        content, ext = to_webp(content), ".webp"
     key = f"{folder}/{name or uuid.uuid4().hex}{ext}"
 
     if settings.s3_bucket:
         client = _s3_client()
         if folder in PRIVATE_FOLDERS:
-            client.put_object(Bucket=settings.s3_bucket, Key=key, Body=content, ACL="private")
+            client.put_object(Bucket=settings.s3_bucket, Key=key, Body=content, ACL="private", ContentType=CONTENT_TYPES[ext])
             return f"{S3_PRIVATE_SCHEME}{key}"
-        client.put_object(Bucket=settings.s3_bucket, Key=key, Body=content, ACL="public-read")
+        client.put_object(Bucket=settings.s3_bucket, Key=key, Body=content, ACL="public-read", ContentType=CONTENT_TYPES[ext],
+                          CacheControl=cache_control_for(f"/{key}"))
         base = settings.s3_public_base_url.rstrip("/")
         return f"{base}/{key}"
 

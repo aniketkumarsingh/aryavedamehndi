@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AccountData from "@/components/AccountData";
 import { api } from "@/lib/api";
 import ArtistDesignsManager from "@/components/ArtistDesignsManager";
 import CameraCapture from "@/components/CameraCapture";
@@ -474,6 +475,8 @@ export default function ArtistProfilePage() {
         onClose={() => setLightbox(null)}
         onIndexChange={(i) => setLightbox((prev) => ({ ...prev, index: i }))}
       />
+
+      <AccountData />
     </div>
   );
 }

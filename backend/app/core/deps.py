@@ -5,6 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.logging import user_id_var
+from app.core.permissions import allowed, effective_role
 from app.core.security import decode_token
 from app.database import get_db
 from app.models.user import User
@@ -34,9 +35,15 @@ def get_current_user(
 
 
 def require_role(*roles: str):
-    def dependency(user: User = Depends(get_current_user)) -> User:
+    def dependency(request: Request, user: User = Depends(get_current_user)) -> User:
         if user.role not in roles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed for this role")
+        if user.role == "admin":
+            # Marks the request for the audit log (main.py) and applies the
+            # owner / ops / support policy.
+            request.state.admin_role = effective_role(user.admin_role)
+            if not allowed(user.admin_role, request.method, request.url.path):
+                raise HTTPException(status.HTTP_403_FORBIDDEN, f"Your admin role ({request.state.admin_role}) can't do this")
         return user
 
     return dependency

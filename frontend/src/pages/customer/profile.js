@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AccountData from "@/components/AccountData";
 import { api } from "@/lib/api";
 import CameraCapture from "@/components/CameraCapture";
 import SectionDivider from "@/components/SectionDivider";
@@ -239,6 +240,8 @@ export default function CustomerProfilePage() {
           ))}
         </div>
       </div>
+
+      <AccountData />
     </div>
   );
 }
