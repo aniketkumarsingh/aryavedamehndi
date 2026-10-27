@@ -22,6 +22,7 @@ from app.routers import (
     reviews,
     shop,
     admin_payments,
+    shipping,
     users,
     webhooks,
 )
@@ -119,6 +120,8 @@ app.include_router(payments.router)
 app.include_router(shop.router)
 app.include_router(webhooks.router)
 app.include_router(admin_payments.router)
+app.include_router(shipping.router)
+app.include_router(shipping.admin_router)
 app.include_router(reviews.router)
 app.include_router(cms.router)
 app.include_router(admin.router)

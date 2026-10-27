@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import Script from "next/script";
 import { api } from "@/lib/api";
 import { downloadFile } from "@/lib/download";
-import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, REFUND_STATUS_LABELS, canCancel, hasDocument } from "@/lib/orderStatus";
+import { ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS, REFUND_STATUS_LABELS, SHIPMENT_STATUS_LABELS, canCancel, hasDocument } from "@/lib/orderStatus";
 import { payShopOrder } from "@/lib/shopPayment";
 import { useLanguage } from "@/lib/useLanguage";
 
@@ -27,6 +27,36 @@ function Timeline({ order }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function ShipmentTracking({ shipment, trackLabel }) {
+  const events = [...shipment.events].reverse(); // newest first
+  return (
+    <div className="mt-4 border-t border-line pt-3">
+      <p className="text-sm">
+        <b>{SHIPMENT_STATUS_LABELS[shipment.status] || shipment.status}</b>
+        {shipment.courier_name && ` · ${shipment.courier_name}`}
+        {shipment.awb && ` · AWB ${shipment.awb}`}
+        {shipment.tracking_url && (
+          <>
+            {" "}·{" "}
+            <a href={shipment.tracking_url} target="_blank" rel="noopener noreferrer" className="underline text-gold font-semibold">{trackLabel}</a>
+          </>
+        )}
+      </p>
+      <ol className="mt-2 flex flex-col gap-2 border-l-2 border-line pl-3" aria-label="Tracking history">
+        {events.map((e, i) => (
+          <li key={`${e.occurred_at}-${i}`} className="text-xs relative">
+            <span className={`absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full ${i === 0 ? "bg-maroon" : "bg-line"}`} />
+            <span className={i === 0 ? "font-semibold text-ink" : "text-ink-soft"}>{SHIPMENT_STATUS_LABELS[e.status] || e.status}</span>
+            {e.description && <span className="text-ink-soft"> — {e.description}</span>}
+            {e.location && <span className="text-ink-soft"> · {e.location}</span>}
+            <span className="block text-[0.68rem] text-ink-soft">{formatDate(e.occurred_at)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -102,17 +132,19 @@ export default function OrderDetail() {
           order.status !== "pending" && <Timeline order={order} />
         )}
 
-        {order.tracking_number && (
-          <p className="text-sm mt-3">
-            {order.courier_name || "Courier"} · Tracking no. <b>{order.tracking_number}</b>
-            {order.tracking_url && (
-              <>
-                {" "}·{" "}
-                <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="underline text-gold font-semibold">{t("order_track")}</a>
-              </>
+        {order.shipments?.length > 0
+          ? order.shipments.map((s) => <ShipmentTracking key={s.id} shipment={s} trackLabel={t("order_track")} />)
+          : order.tracking_number && (
+              <p className="text-sm mt-3">
+                {order.courier_name || "Courier"} · Tracking no. <b>{order.tracking_number}</b>
+                {order.tracking_url && (
+                  <>
+                    {" "}·{" "}
+                    <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="underline text-gold font-semibold">{t("order_track")}</a>
+                  </>
+                )}
+              </p>
             )}
-          </p>
-        )}
 
         {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
         {order.status === "pending" && (

@@ -19,6 +19,7 @@ const TABS = [
   "Reports",
   "Shop Products",
   "Shop Orders",
+  "Shipping",
   "Coupons",
   "Payments",
   "Brand Content",
@@ -52,6 +53,7 @@ export default function AdminDashboard() {
       {tab === "Reports" && <ReportsTab />}
       {tab === "Shop Products" && <ShopProductsTab />}
       {tab === "Shop Orders" && <ShopOrdersTab />}
+      {tab === "Shipping" && <ShippingTab />}
       {tab === "Coupons" && <CouponsTab />}
       {tab === "Payments" && <PaymentsTab />}
       {tab === "Brand Content" && <CmsTab />}
@@ -317,6 +319,19 @@ const SETTING_FIELDS = [
   { key: "shop_cod_max_order", label: "Cash on Delivery: max order (₹)", hint: "Larger orders must be paid online (limits losses on returned parcels)", step: "50" },
   { key: "shop_cod_fee", label: "Cash on Delivery charge (₹)", hint: "Added to COD orders; 0 for none", step: "1" },
   { key: "shop_cod_max_open_orders", label: "Cash on Delivery: open orders per customer", hint: "Undelivered COD orders one customer may have at once", step: "1" },
+  { key: "shop_packaging_weight_g", label: "Packaging weight (g)", hint: "Added to every parcel's weight", step: "10" },
+  { key: "shop_default_item_weight_g", label: "Default item weight (g)", hint: "Used for items whose packed weight isn't set yet", step: "10" },
+  { key: "shop_box_length_cm", label: "Smallest box: length (cm)", hint: "Parcels are at least this big", step: "1" },
+  { key: "shop_box_breadth_cm", label: "Smallest box: breadth (cm)", hint: "", step: "1" },
+  { key: "shop_box_height_cm", label: "Smallest box: height (cm)", hint: "", step: "1" },
+  { key: "shipping_eta_min_days", label: "Delivery estimate: fastest (days)", hint: "Shown at checkout until a courier is connected", step: "1" },
+  { key: "shipping_eta_max_days", label: "Delivery estimate: slowest (days)", hint: "", step: "1" },
+];
+
+// Comma-separated PIN-code prefixes, e.g. "744, 796".
+const SETTING_TEXT_FIELDS = [
+  { key: "shipping_blocked_pincode_prefixes", label: "PIN codes we don't deliver to (prefixes)", hint: "e.g. 744 for the Andaman & Nicobar Islands" },
+  { key: "shipping_cod_blocked_pincode_prefixes", label: "PIN codes without Cash on Delivery (prefixes)", hint: "Areas with many refused COD parcels" },
 ];
 
 function SettingsTab() {
@@ -340,6 +355,7 @@ function SettingsTab() {
     try {
       const payload = { platform_fee_mode: values.platform_fee_mode, shop_cod_enabled: Boolean(values.shop_cod_enabled) };
       for (const f of SETTING_FIELDS) payload[f.key] = Number(values[f.key]);
+      for (const f of SETTING_TEXT_FIELDS) payload[f.key] = (values[f.key] || "").trim();
       setValues(await api.put("/admin/settings", payload));
       setSaved(true);
     } catch (err) {
@@ -380,6 +396,20 @@ function SettingsTab() {
             value={values[f.key]}
             onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
             required
+          />
+          <span className="text-xs text-ink-soft">{f.hint}</span>
+        </label>
+      ))}
+      {SETTING_TEXT_FIELDS.map((f) => (
+        <label key={f.key} className="text-sm flex flex-col gap-1">
+          {f.label}
+          <input
+            className="input"
+            inputMode="numeric"
+            pattern="[0-9, ]*"
+            placeholder="e.g. 744, 796"
+            value={values[f.key] || ""}
+            onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
           />
           <span className="text-xs text-ink-soft">{f.hint}</span>
         </label>
@@ -1394,6 +1424,43 @@ function ShopProductsTab() {
   );
 }
 
+/** Packed size of one unit (for courier bookings): weight and box. */
+function PackageSize({ label, value, onSave, busy }) {
+  const initial = { weight_g: value.weight_g ?? "", length_cm: value.length_cm ?? "", breadth_cm: value.breadth_cm ?? "", height_cm: value.height_cm ?? "" };
+  const [size, setSize] = useState(initial);
+  const changed = Object.keys(initial).some((k) => String(size[k]) !== String(initial[k]));
+  const num = (v) => (v === "" ? null : Number(v));
+  const field = (key, placeholder, width = "!w-14") => (
+    <input
+      className={`input text-xs ${width} !py-1`}
+      type="number"
+      min="0"
+      step="any"
+      placeholder={placeholder}
+      aria-label={`${label} ${placeholder}`}
+      value={size[key]}
+      onChange={(e) => setSize({ ...size, [key]: e.target.value })}
+    />
+  );
+  return (
+    <div className="flex items-center gap-1 text-xs">
+      <span className="font-semibold min-w-[3rem]">{label}</span>
+      {field("weight_g", "g", "!w-16")}
+      {field("length_cm", "L")}×{field("breadth_cm", "B")}×{field("height_cm", "H")}
+      <span className="text-ink-soft">cm</span>
+      {changed && (
+        <button
+          className="text-gold font-semibold"
+          disabled={busy || size.weight_g === ""}
+          onClick={() => onSave({ weight_g: Number(size.weight_g), length_cm: num(size.length_cm), breadth_cm: num(size.breadth_cm), height_cm: num(size.height_cm) })}
+        >
+          Save
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ShopProductRow({ product, onChanged, onDeactivate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1504,6 +1571,23 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
           ))}
         </div>
       )}
+      <div className="flex flex-col gap-1 mt-2">
+        <span className="text-xs text-ink-soft">Packed size of one unit (for courier bookings; unweighed items count as the default weight in Settings):</span>
+        <div className="flex gap-x-4 gap-y-1 flex-wrap">
+          {variants.length > 0
+            ? variants.map((v) => (
+                <PackageSize key={v.id} label={v.label} value={v} busy={busy} onSave={(size) => run(() => api.put(`/shop/variants/${v.id}/package`, size))} />
+              ))
+            : (
+                <PackageSize
+                  label="Unit"
+                  value={product}
+                  busy={busy}
+                  onSave={(size) => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, ...size }))}
+                />
+              )}
+        </div>
+      </div>
       {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap mt-2">
@@ -2048,6 +2132,207 @@ function PaymentsTab() {
             </div>
           ))}
           {jobs.length === 0 && <p className="text-ink-soft">None.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SHIPMENT_UPDATE_OPTIONS = [
+  ["picked_up", "Picked up"],
+  ["in_transit", "In transit"],
+  ["out_for_delivery", "Out for delivery"],
+  ["delivered", "Delivered"],
+  ["ndr", "Delivery attempt failed"],
+  ["rto", "Returning to us (RTO)"],
+  ["rto_delivered", "Returned to us"],
+];
+
+function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
+  const [panel, setPanel] = useState(null); // "edit" | "update"
+  const [details, setDetails] = useState({ courier_name: sh.courier_name || "", awb: sh.awb || "", tracking_url: sh.tracking_url || "" });
+  const [update, setUpdate] = useState({ status: "in_transit", description: "", location: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      setPanel(null);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="border-b border-line pb-2">
+      <div className="flex items-start gap-2 flex-wrap">
+        <input type="checkbox" className="mt-1" checked={selected} onChange={onToggle} aria-label={`Select shipment for ${sh.customer}`} />
+        <div className="flex-1 min-w-0 text-xs">
+          <p className="text-sm">
+            <b>{sh.customer}</b> · {sh.pincode || "no PIN"} <span className="chip ml-1">{sh.status.replace(/_/g, " ")}</span>
+            {sh.cod_amount > 0 && <span className="chip ml-1">COD ₹{sh.cod_amount}</span>}
+          </p>
+          <p className="text-ink-soft">
+            {sh.courier_name || "Courier not set"} · {sh.awb ? `AWB ${sh.awb}` : <span className="text-red-700">no AWB yet</span>} · {(sh.weight_g / 1000).toFixed(2)} kg ·
+            booked {fmt(sh.created_at)}
+            {sh.label_url && (
+              <>
+                {" · "}
+                <a href={sh.label_url} target="_blank" rel="noopener noreferrer" className="underline">courier label</a>
+              </>
+            )}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-secondary text-xs" onClick={() => setPanel(panel === "update" ? null : "update")}>Tracking update</button>
+          <button className="text-xs underline" onClick={() => setPanel(panel === "edit" ? null : "edit")}>Edit</button>
+        </div>
+      </div>
+      {panel === "edit" && (
+        <form className="grid sm:grid-cols-4 gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); run(() => api.put(`/admin/shipping/shipments/${sh.id}`, details)); }}>
+          <input className="input text-xs" placeholder="Courier" value={details.courier_name} onChange={(e) => setDetails({ ...details, courier_name: e.target.value })} />
+          <input className="input text-xs" placeholder="AWB / tracking no." value={details.awb} onChange={(e) => setDetails({ ...details, awb: e.target.value })} />
+          <input className="input text-xs" placeholder="Tracking link (https://…)" value={details.tracking_url} onChange={(e) => setDetails({ ...details, tracking_url: e.target.value })} />
+          <button className="btn-primary text-xs" disabled={busy}>Save</button>
+        </form>
+      )}
+      {panel === "update" && (
+        <form className="grid sm:grid-cols-4 gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/admin/shipping/shipments/${sh.id}/events`, update)); }}>
+          <select className="input text-xs" value={update.status} onChange={(e) => setUpdate({ ...update, status: e.target.value })}>
+            {SHIPMENT_UPDATE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <input className="input text-xs" placeholder="Note (optional)" value={update.description} onChange={(e) => setUpdate({ ...update, description: e.target.value })} />
+          <input className="input text-xs" placeholder="Location (optional)" value={update.location} onChange={(e) => setUpdate({ ...update, location: e.target.value })} />
+          <button className="btn-primary text-xs" disabled={busy}>Add update & notify</button>
+        </form>
+      )}
+      {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function ShippingTab() {
+  const [ready, setReady] = useState([]);
+  const [pick, setPick] = useState({});
+  const [courier, setCourier] = useState("");
+  const [results, setResults] = useState(null);
+  const [shipments, setShipments] = useState([]);
+  const [filter, setFilter] = useState("active");
+  const [selected, setSelected] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    Promise.all([
+      api.get("/admin/shop-orders", { status_filter: "confirmed", limit: 200 }),
+      api.get("/admin/shipping/shipments", { status_filter: filter, limit: 200 }),
+    ])
+      .then(([orders, ships]) => {
+        setReady(orders);
+        setShipments(ships);
+      })
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const picked = Object.keys(pick).filter((k) => pick[k]);
+  const chosen = Object.keys(selected).filter((k) => selected[k]);
+
+  async function bookSelected() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post("/admin/shipping/bulk-book", { order_ids: picked, courier_name: courier.trim() || null });
+      setResults(res);
+      setPick({});
+      // Select what was just booked, ready for labels and the manifest.
+      setSelected(Object.fromEntries(res.filter((r) => r.shipment_id).map((r) => [r.shipment_id, true])));
+      setFilter("active");
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function download(kind) {
+    downloadFile(`/admin/shipping/${kind}.pdf?ids=${chosen.join(",")}`, `${kind}-${new Date().toISOString().slice(0, 10)}.pdf`).catch((e) => setError(e.message));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="card p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="font-semibold">Ready to ship ({ready.length})</h2>
+          <button className="text-xs underline" onClick={() => setPick(Object.fromEntries(ready.map((o) => [o.id, !picked.length])))}>
+            {picked.length ? "Clear" : "Select all"}
+          </button>
+        </div>
+        <p className="text-xs text-ink-soft">
+          Booking ships the order: the GST invoice is issued and the customer is notified. Add AWB numbers afterwards in Shipments if the courier gives them at pickup.
+        </p>
+        <div className="flex flex-col gap-1 text-sm">
+          {ready.map((o) => (
+            <label key={o.id} className="flex items-start gap-2 border-b border-line pb-1">
+              <input type="checkbox" className="mt-1" checked={!!pick[o.id]} onChange={(e) => setPick({ ...pick, [o.id]: e.target.checked })} />
+              <span>
+                <b>{o.shipping_name}</b> · {o.shipping_pincode || "no PIN"} · ₹{o.total_amount}
+                {o.payment_method === "cod" && <span className="chip ml-1">COD</span>}
+                <span className="block text-xs text-ink-soft">
+                  {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")} · {fmt(o.confirmed_at)}
+                </span>
+              </span>
+            </label>
+          ))}
+          {ready.length === 0 && <p className="text-ink-soft text-sm">Nothing waiting — all confirmed orders are shipped.</p>}
+        </div>
+        {ready.length > 0 && (
+          <div className="flex gap-2 flex-wrap items-center">
+            <input className="input text-sm w-auto" placeholder="Courier (e.g. Delhivery)" value={courier} onChange={(e) => setCourier(e.target.value)} />
+            <button className="btn-primary text-sm" disabled={busy || picked.length === 0} onClick={bookSelected}>
+              {busy ? "Booking…" : `Book ${picked.length || ""} shipment${picked.length === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        )}
+        {results && (
+          <ul className="text-xs">
+            {results.map((r) => (
+              <li key={r.order_id} className={r.error ? "text-red-700" : "text-leaf"}>
+                Order {r.order_id.slice(0, 8)}: {r.error || "booked"}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="font-semibold">Shipments</h2>
+          <div className="flex gap-2 items-center flex-wrap">
+            <select className="input w-auto text-xs" aria-label="Shipment filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="active">In progress</option>
+              <option value="ndr">Failed attempts</option>
+              <option value="rto">Returning</option>
+              <option value="delivered">Delivered</option>
+              <option value="all">All</option>
+            </select>
+            <button className="btn-secondary text-xs" disabled={!chosen.length} onClick={() => download("labels")}>Labels ({chosen.length})</button>
+            <button className="btn-secondary text-xs" disabled={!chosen.length} onClick={() => download("manifest")}>Manifest</button>
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <div className="flex flex-col gap-2">
+          {shipments.map((sh) => (
+            <ShipmentRow key={sh.id} shipment={sh} selected={!!selected[sh.id]} onToggle={() => setSelected({ ...selected, [sh.id]: !selected[sh.id] })} onChanged={load} />
+          ))}
+          {shipments.length === 0 && <p className="text-ink-soft text-sm">No shipments here.</p>}
         </div>
       </div>
     </div>

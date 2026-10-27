@@ -23,6 +23,19 @@ class ShopProductIn(BaseModel):
     licence_number: str | None = Field(default=None, max_length=80)
     hsn_code: str | None = Field(default=None, pattern=r"^\d{4,8}$")
     gst_rate: float | None = Field(default=None, ge=0, le=40)
+    weight_g: int | None = Field(default=None, ge=1, le=50_000)
+    length_cm: float | None = Field(default=None, gt=0, le=200)
+    breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    height_cm: float | None = Field(default=None, gt=0, le=200)
+
+
+class PackageSizeIn(BaseModel):
+    """Packed size of one unit, for courier bookings."""
+
+    weight_g: int = Field(ge=1, le=50_000)
+    length_cm: float | None = Field(default=None, gt=0, le=200)
+    breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    height_cm: float | None = Field(default=None, gt=0, le=200)
 
 
 class ShopVariantOut(BaseModel):
@@ -32,6 +45,10 @@ class ShopVariantOut(BaseModel):
     stock_quantity: int
     sort_order: int
     is_active: bool
+    weight_g: int | None = None
+    length_cm: float | None = None
+    breadth_cm: float | None = None
+    height_cm: float | None = None
 
     class Config:
         from_attributes = True
@@ -63,6 +80,10 @@ class ShopProductOut(BaseModel):
     image_kind: str = "photo"
     hsn_code: str | None = None
     gst_rate: float | None = None
+    weight_g: int | None = None
+    length_cm: float | None = None
+    breadth_cm: float | None = None
+    height_cm: float | None = None
     variants: list[ShopVariantOut] = []
 
     class Config:
@@ -94,6 +115,8 @@ class ShopQuoteIn(BaseModel):
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
     payment_method: Literal["online", "cod"] = "online"
+    # With a PIN code, COD availability also reflects the courier.
+    shipping_pincode: str | None = Field(default=None, pattern=r"^[1-9]\d{5}$")
 
 
 class ShopQuoteOut(BaseModel):
@@ -207,6 +230,30 @@ class ShopOrderItemOut(BaseModel):
         from_attributes = True
 
 
+class ShipmentEventOut(BaseModel):
+    status: str
+    description: str | None
+    location: str | None
+    occurred_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ShipmentOut(BaseModel):
+    id: uuid.UUID
+    courier_name: str | None
+    awb: str | None
+    tracking_url: str | None
+    status: str
+    created_at: datetime
+    delivered_at: datetime | None
+    events: list[ShipmentEventOut] = []
+
+    class Config:
+        from_attributes = True
+
+
 class ShopOrderOut(BaseModel):
     id: uuid.UUID
     consumer_id: uuid.UUID
@@ -241,6 +288,7 @@ class ShopOrderOut(BaseModel):
     cancelled_at: datetime | None = None
     cancel_reason: str | None = None
     refunds: list[ShopRefundOut] = []
+    shipments: list[ShipmentOut] = []
 
     class Config:
         from_attributes = True

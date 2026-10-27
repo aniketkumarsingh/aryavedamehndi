@@ -182,6 +182,7 @@ def mark_delivered(db: Session, order: ShopOrder) -> None:
     if order.payment_method == "cod" and order.payment_status == "cod_due":
         order.payment_status, order.amount_paid, order.paid_at = "cod_collected", order.total_amount, utcnow()
     notify(db, order.consumer_id, "shop", "Order delivered", "Your order has been delivered. We hope you love it!", f"/shop/orders/{order.id}")
+    enqueue(db, "email.shop_delivered", {"order_id": str(order.id)}, dedupe_key=f"email-delivered:{order.id}")
 
 
 def refundable_amount(order: ShopOrder) -> float:

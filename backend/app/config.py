@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     support_email: str = ""
     support_phone: str = ""
 
+    # Shipping provider: "manual" (hand-entered courier details, no courier
+    # account) until a courier integration is added under
+    # app/services/shipping/. The webhook secret is the courier's.
+    shipping_provider: str = "manual"
+    shipping_webhook_secret: str = ""
+
     # Error tracking (Sentry). Leave SENTRY_DSN empty to turn it off.
     # GIT_SHA (set by the deploy) tags each error with the release.
     sentry_dsn: str = ""

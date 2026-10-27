@@ -66,6 +66,15 @@ class PlatformSettingsOut(BaseModel):
     shop_cod_max_order: float
     shop_cod_fee: float
     shop_cod_max_open_orders: int
+    shop_packaging_weight_g: int
+    shop_default_item_weight_g: int
+    shop_box_length_cm: float
+    shop_box_breadth_cm: float
+    shop_box_height_cm: float
+    shipping_eta_min_days: int
+    shipping_eta_max_days: int
+    shipping_blocked_pincode_prefixes: str
+    shipping_cod_blocked_pincode_prefixes: str
 
 
 class PlatformSettingsIn(BaseModel):
@@ -82,6 +91,15 @@ class PlatformSettingsIn(BaseModel):
     shop_cod_max_order: float | None = Field(default=None, ge=0, le=1_000_000)
     shop_cod_fee: float | None = Field(default=None, ge=0, le=1_000)
     shop_cod_max_open_orders: int | None = Field(default=None, ge=1, le=20)
+    shop_packaging_weight_g: int | None = Field(default=None, ge=0, le=5000)
+    shop_default_item_weight_g: int | None = Field(default=None, ge=1, le=20000)
+    shop_box_length_cm: float | None = Field(default=None, gt=0, le=200)
+    shop_box_breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    shop_box_height_cm: float | None = Field(default=None, gt=0, le=200)
+    shipping_eta_min_days: int | None = Field(default=None, ge=0, le=30)
+    shipping_eta_max_days: int | None = Field(default=None, ge=1, le=60)
+    shipping_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
+    shipping_cod_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
 
 
 class AdminUserOut(BaseModel):

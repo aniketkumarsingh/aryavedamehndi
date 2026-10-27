@@ -29,6 +29,18 @@ export const REFUND_STATUS_LABELS = {
   failed: "Delayed — our team is on it",
 };
 
+export const SHIPMENT_STATUS_LABELS = {
+  booked: "Packed & handed to courier",
+  picked_up: "Picked up",
+  in_transit: "In transit",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  ndr: "Delivery attempt failed",
+  rto: "Returning to us",
+  rto_delivered: "Returned to us",
+  cancelled: "Shipment cancelled",
+};
+
 // Steps of the progress bar for an order that isn't cancelled.
 export const ORDER_STEPS = ["confirmed", "shipped", "delivered"];
 

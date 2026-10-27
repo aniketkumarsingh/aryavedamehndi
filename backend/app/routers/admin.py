@@ -13,7 +13,10 @@ from app.models.review import Report
 from app.models.user import ArtistProfile, User
 from app.models.shop import SHOP_ORDER_TRANSITIONS, ShopOrder
 from app.services.refunds import RefundError
-from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, mark_shipped, refund_order
+from app.models.shipping import TERMINAL_SHIPMENT_STATUSES
+from app.services.shipping import ShippingError
+from app.services.shipping.service import active_shipment, book_shipment, record_manual_update
+from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, refund_order
 from app.schemas.admin import (
     AdminArtistOut,
     AdminBookingOut,
@@ -422,10 +425,22 @@ def update_shop_order_status(
             message += " Your payment is being refunded in full."
         notify(db, order.consumer_id, "shop", "Order cancelled", message, f"/shop/orders/{order.id}")
     elif payload.status == "shipped":
-        mark_shipped(db, order, payload.courier_name, payload.tracking_number, payload.tracking_url)
+        # One path for dispatch: book a shipment (manual provider by default).
+        try:
+            book_shipment(db, order, {"courier_name": payload.courier_name, "awb": payload.tracking_number, "tracking_url": payload.tracking_url},
+                          created_by=admin.id)
+        except ShippingError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     elif payload.status == "delivered":
-        mark_delivered(db, order)
+        shipment = active_shipment(db, order.id)
+        if shipment and shipment.status not in TERMINAL_SHIPMENT_STATUSES:
+            record_manual_update(db, shipment, "delivered", "Marked delivered by AryaVeda", None)
+        if order.status == "shipped":
+            mark_delivered(db, order)
     elif payload.status == "returned":
+        shipment = active_shipment(db, order.id)
+        if shipment and shipment.status not in TERMINAL_SHIPMENT_STATUSES:
+            record_manual_update(db, shipment, "rto_delivered", payload.reason or "Returned to us", None)
         mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id)
     db.commit()
     db.refresh(order)

@@ -39,6 +39,25 @@ export default function Cart() {
   // One Idempotency-Key per checkout attempt: a double-tap or network retry
   // of the same cart returns the same order instead of placing two.
   const idempotencyKey = useRef(null);
+  // Courier check for the PIN code: deliverable, COD, estimated dates.
+  const [serviceability, setServiceability] = useState(null);
+  const pincode = shippingPincode.trim();
+  const pincodeReady = /^[1-9]\d{5}$/.test(pincode);
+
+  useEffect(() => {
+    if (!pincodeReady) {
+      setServiceability(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get("/shop/serviceability", { pincode })
+      .then((r) => !cancelled && setServiceability(r))
+      .catch(() => !cancelled && setServiceability(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [pincode, pincodeReady]);
 
   useEffect(() => {
     api.get("/shop/checkout-config").then(setConfig).catch(() => {});
@@ -54,11 +73,11 @@ export default function Cart() {
       return;
     }
     api
-      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod })
+      .post("/shop/quote", { items: lines, coupon_code: coupon || null, payment_method: paymentMethod, shipping_pincode: pincodeReady ? pincode : null })
       .then(setQuote)
       .catch(() => setQuote(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, linesKey, coupon, paymentMethod]);
+  }, [user, linesKey, coupon, paymentMethod, pincode, pincodeReady]);
 
   // A changed cart is a different request, so it gets a fresh key.
   useEffect(() => {
@@ -93,6 +112,10 @@ export default function Cart() {
     }
     if (!/^[1-9]\d{5}$/.test(shippingPincode.trim())) {
       setError("Please enter a valid 6-digit PIN code.");
+      return;
+    }
+    if (serviceability && !serviceability.deliverable) {
+      setError(`Sorry, we don't deliver to PIN code ${pincode} yet.`);
       return;
     }
     if (contactEmail.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail.trim())) {
@@ -302,6 +325,15 @@ export default function Cart() {
                 onChange={(e) => setShippingPincode(e.target.value.replace(/\D/g, ""))}
               />
             </div>
+            {serviceability && (
+              <p className={`text-xs ${serviceability.deliverable ? "text-leaf" : "text-red-700"}`} role="status">
+                {serviceability.deliverable
+                  ? serviceability.estimated_delivery
+                    ? `Delivers to ${pincode} by ${serviceability.estimated_delivery[0]} – ${serviceability.estimated_delivery[1]}${serviceability.cod_available ? "" : " · Cash on Delivery not available here"}`
+                    : `We deliver to ${pincode}.`
+                  : `Sorry, we don't deliver to ${pincode} yet.`}
+              </p>
+            )}
             <input
               className="input"
               type="email"

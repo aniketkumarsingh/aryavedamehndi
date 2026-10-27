@@ -16,6 +16,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.review import Report, Review
 from app.models.job import Job
 from app.models.ops import RateLimitCounter
+from app.models.shipping import PincodeServiceability, Shipment, ShipmentEvent, ShippingWebhookEvent
 from app.models.payment_ops import IdempotencyKey, PaymentEvent, ReconciliationRun, Refund
 from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import ArtistProfile, User
@@ -56,4 +57,8 @@ __all__ = [
     "ReconciliationRun",
     "IdempotencyKey",
     "RateLimitCounter",
+    "Shipment",
+    "ShipmentEvent",
+    "PincodeServiceability",
+    "ShippingWebhookEvent",
 ]

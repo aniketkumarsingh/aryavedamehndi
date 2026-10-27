@@ -30,6 +30,20 @@ def _defaults() -> dict:
         "shop_cod_max_order": 2500.0,
         "shop_cod_fee": 30.0,
         "shop_cod_max_open_orders": 2,
+        # Shipping: packed weight = items + packaging; the box is at least
+        # this size. Items without a weight count as the default weight.
+        "shop_packaging_weight_g": 100,
+        "shop_default_item_weight_g": 250,
+        "shop_box_length_cm": 20.0,
+        "shop_box_breadth_cm": 15.0,
+        "shop_box_height_cm": 10.0,
+        # Used by the manual shipping provider (no courier connected):
+        # delivery estimate, and PIN-code prefixes we don't ship to at all
+        # or won't do Cash on Delivery for (comma-separated, e.g. "744,796").
+        "shipping_eta_min_days": 2,
+        "shipping_eta_max_days": 7,
+        "shipping_blocked_pincode_prefixes": "",
+        "shipping_cod_blocked_pincode_prefixes": "",
     }
 
 

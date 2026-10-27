@@ -120,3 +120,29 @@ def refund_processed(db: Session, payload: dict) -> str:
     text, html = _layout("Your refund is on its way", lines, order)
     send_email(order.contact_email, "Refund processed - AryaVeda Mehndi", text, html, attachments)
     return "sent"
+
+
+@job_handler("email.shop_out_for_delivery")
+def out_for_delivery(db: Session, payload: dict) -> str:
+    order = _order_or_skip(db, payload["order_id"])
+    if order is None:
+        return "skipped"
+    lines = [f"Hi {order.shipping_name}, your order is out for delivery today."]
+    if order.payment_method == "cod" and order.payment_status == "cod_due":
+        lines.append(f"Please keep ₹{order.total_amount:g} ready for the courier.")
+    if order.tracking_url:
+        lines.append(f"Track it here: {order.tracking_url}")
+    text, html = _layout("Arriving today", lines, order)
+    send_email(order.contact_email, "Out for delivery - AryaVeda Mehndi", text, html)
+    return "sent"
+
+
+@job_handler("email.shop_delivered")
+def delivered(db: Session, payload: dict) -> str:
+    order = _order_or_skip(db, payload["order_id"])
+    if order is None:
+        return "skipped"
+    text, html = _layout("Delivered", [f"Hi {order.shipping_name}, your order has been delivered. We hope you love it!",
+                                       "Questions about your order? Just reply to this email."], order)
+    send_email(order.contact_email, "Delivered - AryaVeda Mehndi", text, html)
+    return "sent"

@@ -158,6 +158,28 @@ the release), including any background job that gives up.
 login, coupon checks and checkout (`app/services/rate_limit.py`); over the
 limit returns 429 with Retry-After.
 
+### Shipping
+
+Admin → **Shipping** is the daily dispatch screen: tick the confirmed
+orders, enter the courier, **Book** (each order is shipped, its GST invoice
+issued and the customer told), then print **Labels** (4×6 in, with an AWB
+barcode) and the pickup **Manifest** for the courier to sign. Add AWB
+numbers and tracking updates there (out for delivery, failed attempt,
+returning…) - each update notifies the customer and moves the order.
+Checkout checks the PIN code (deliverable, Cash on Delivery, estimated
+dates) against the blocked prefixes and delivery estimate in Settings.
+
+Fill in each pack size's packed weight and box (Admin → Shop Products) so
+parcels are weighed correctly; until then the default weight in Settings
+is used.
+
+This runs on the built-in **manual** provider (no courier account). A
+courier aggregator plugs in later as one class in
+`app/services/shipping/` (serviceability, booking with AWB + label,
+tracking, signed webhooks at `/shipping/webhook/<provider>`) and
+`SHIPPING_PROVIDER=<name>` - the dispatch screen, tracking history,
+notifications and 2-hourly tracking poll then work against the courier.
+
 ### Backups and restore
 
 The worker runs `ops.backup_database` nightly at 01:30 IST: `pg_dump`
