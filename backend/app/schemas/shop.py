@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from typing import Literal
 
+from app.services.attribution import AttributionIn
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.shop import SHOP_ORDER_STATUSES
@@ -23,6 +24,20 @@ class ShopProductIn(BaseModel):
     licence_number: str | None = Field(default=None, max_length=80)
     hsn_code: str | None = Field(default=None, pattern=r"^\d{4,8}$")
     gst_rate: float | None = Field(default=None, ge=0, le=40)
+    weight_g: int | None = Field(default=None, ge=1, le=50_000)
+    length_cm: float | None = Field(default=None, gt=0, le=200)
+    breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    height_cm: float | None = Field(default=None, gt=0, le=200)
+    returnable: bool | None = None
+
+
+class PackageSizeIn(BaseModel):
+    """Packed size of one unit, for courier bookings."""
+
+    weight_g: int = Field(ge=1, le=50_000)
+    length_cm: float | None = Field(default=None, gt=0, le=200)
+    breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    height_cm: float | None = Field(default=None, gt=0, le=200)
 
 
 class ShopVariantOut(BaseModel):
@@ -32,6 +47,10 @@ class ShopVariantOut(BaseModel):
     stock_quantity: int
     sort_order: int
     is_active: bool
+    weight_g: int | None = None
+    length_cm: float | None = None
+    breadth_cm: float | None = None
+    height_cm: float | None = None
 
     class Config:
         from_attributes = True
@@ -63,6 +82,13 @@ class ShopProductOut(BaseModel):
     image_kind: str = "photo"
     hsn_code: str | None = None
     gst_rate: float | None = None
+    returnable: bool = True
+    rating_avg: float = 0
+    rating_count: int = 0
+    weight_g: int | None = None
+    length_cm: float | None = None
+    breadth_cm: float | None = None
+    height_cm: float | None = None
     variants: list[ShopVariantOut] = []
 
     class Config:
@@ -86,6 +112,10 @@ class ShopOrderCreateIn(BaseModel):
     payment_method: Literal["online", "cod"] = "online"
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
+    # Ticked "send me offers": records marketing consent (never withdraws it).
+    marketing_opt_in: bool | None = None
+    use_wallet: bool = False
+    attribution: AttributionIn | None = None
 
 
 class ShopQuoteIn(BaseModel):
@@ -94,11 +124,18 @@ class ShopQuoteIn(BaseModel):
     items: list[ShopOrderItemIn] = Field(min_length=1, max_length=20)
     coupon_code: str | None = Field(default=None, max_length=40)
     payment_method: Literal["online", "cod"] = "online"
+    # With a PIN code, COD availability also reflects the courier.
+    shipping_pincode: str | None = Field(default=None, pattern=r"^[1-9]\d{5}$")
+    use_wallet: bool = False
 
 
 class ShopQuoteOut(BaseModel):
     items_amount: float
-    discount_amount: float
+    discount_amount: float  # coupon + referral + wallet
+    coupon_discount: float = 0
+    referral_discount: float = 0
+    wallet_amount: float = 0
+    wallet_balance: float = 0
     shipping_fee: float
     cod_fee: float = 0
     total_amount: float
@@ -193,6 +230,7 @@ class ShopOrderCancelIn(BaseModel):
 
 
 class ShopOrderItemOut(BaseModel):
+    id: uuid.UUID
     product_id: uuid.UUID
     product_name: str
     variant_id: uuid.UUID | None = None
@@ -202,6 +240,47 @@ class ShopOrderItemOut(BaseModel):
     unit_price: float
     quantity: int
     subtotal: float
+
+    class Config:
+        from_attributes = True
+
+
+class ShipmentEventOut(BaseModel):
+    status: str
+    description: str | None
+    location: str | None
+    occurred_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ShopReturnOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    reason_code: str
+    items: list
+    refund_amount: float
+    admin_note: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ShipmentOut(BaseModel):
+    id: uuid.UUID
+    direction: str = "forward"  # "reverse" = return pickup
+    courier_name: str | None
+    awb: str | None
+    tracking_url: str | None
+    status: str
+    ndr_status: str | None = None  # "open": the customer can choose what happens next
+    ndr_action: str | None = None
+    ndr_raised_at: datetime | None = None
+    created_at: datetime
+    delivered_at: datetime | None
+    events: list[ShipmentEventOut] = []
 
     class Config:
         from_attributes = True
@@ -240,7 +319,14 @@ class ShopOrderOut(BaseModel):
     tracking_url: str | None = None
     cancelled_at: datetime | None = None
     cancel_reason: str | None = None
+    return_condition: str | None = None
     refunds: list[ShopRefundOut] = []
+    shipments: list[ShipmentOut] = []
+    returns: list[ShopReturnOut] = []
+    return_window_ends: datetime | None = None  # last day a return can be asked for
+    source: str | None = None  # abandoned_cart, referral, utm source, direct
+    referral_discount: float = 0
+    wallet_amount: float = 0
 
     class Config:
         from_attributes = True
@@ -253,6 +339,7 @@ class ShopOrderStatusIn(BaseModel):
     tracking_number: str | None = Field(default=None, max_length=80)
     tracking_url: str | None = Field(default=None, max_length=300, pattern=r"^https?://")
     reason: str | None = Field(default=None, max_length=200)
+    condition: Literal["good", "damaged"] = "good"  # for "returned": restock only if good
 
     @field_validator("status")
     @classmethod

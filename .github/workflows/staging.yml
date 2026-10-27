@@ -1,0 +1,56 @@
+name: Pull request
+
+# Every pull request runs the checks (ci.yml); one from this repository is
+# then deployed to the single staging server (the latest push
+# wins), with its own images tagged pr-<number>-<sha>. Uses the "staging"
+# environment's secrets/vars (same names as production). Turn it on with the
+# repository variable STAGING_ENABLED=true; always skipped for pull requests
+# from forks (they get no secrets).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: checks
+    if: vars.STAGING_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ./.github/workflows/images.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      tag: ${{ github.event_name == 'pull_request' && format('pr-{0}-{1}', github.event.number, github.event.pull_request.head.sha) || github.sha }}
+      environment: staging
+      also_latest: false
+    secrets: inherit
+
+  deploy:
+    needs: images
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://${{ vars.SITE_DOMAIN }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ssh-deploy
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          ssh_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known_hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          path: ${{ vars.DEPLOY_PATH }}
+          tag: ${{ needs.images.outputs.tag }}
+          registry_token: ${{ secrets.GITHUB_TOKEN }}
+          site_url: https://${{ vars.SITE_DOMAIN }}

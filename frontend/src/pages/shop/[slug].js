@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import SocialMeta, { SITE_URL, absoluteUrl } from "@/components/SocialMeta";
-import { IllustrativeBadge, ProductDetails, SHOP_CATEGORIES, VariantPicker, addProductToCart, productImages, useVariant } from "@/components/ShopProduct";
+import ProductReviews from "@/components/ProductReviews";
+import { IllustrativeBadge, ProductDetails, SHOP_CATEGORIES, VariantPicker, addProductToCart, categoryText, productImages, useVariant } from "@/components/ShopProduct";
+import Stars from "@/components/Stars";
+import { useLanguage } from "@/lib/useLanguage";
 import { track } from "@/lib/analytics";
 import { api } from "@/lib/api";
 import { fetchBackend } from "@/lib/serverApi";
@@ -27,7 +30,7 @@ export async function getStaticProps({ params }) {
 
 function productJsonLd(product, images) {
   const variants = product.variants?.length ? product.variants : [{ price: product.price, stock_quantity: product.stock_quantity }];
-  return {
+  const data = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
@@ -42,6 +45,11 @@ function productJsonLd(product, images) {
       url: `${SITE_URL}/shop/${product.slug}`,
     })),
   };
+  // Only real, published buyer reviews - Google penalises made-up ratings.
+  if (product.rating_count > 0) {
+    data.aggregateRating = { "@type": "AggregateRating", ratingValue: product.rating_avg, reviewCount: product.rating_count, bestRating: 5, worstRating: 1 };
+  }
+  return data;
 }
 
 export default function ProductPage({ product: built }) {
@@ -63,6 +71,7 @@ function Product({ product }) {
   const { variants, variant, setVariantId, price, stock } = useVariant(product);
   const [added, setAdded] = useState(false);
   const category = SHOP_CATEGORIES.find((c) => c.key === product.category);
+  const { t } = useLanguage();
 
   useEffect(() => {
     track("view_item", { currency: "INR", value: product.price, items: [{ item_id: product.id, item_name: product.name, price: product.price }] });
@@ -90,7 +99,7 @@ function Product({ product }) {
       />
 
       <Link href="/shop" className="text-sm text-maroon-soft underline self-start">
-        ← {category && category.key !== "all" ? category.label : "All products"}
+        ← {category && category.key !== "all" ? categoryText(t, category) : t("shop_all_products")}
       </Link>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -101,30 +110,37 @@ function Product({ product }) {
 
         <div className="flex flex-col gap-3">
           <h1 className="text-2xl leading-tight">{product.name}</h1>
+          {product.rating_count > 0 && (
+            <a href="#reviews-heading" className="self-start">
+              <Stars value={product.rating_avg} count={product.rating_count} />
+            </a>
+          )}
           {product.description && <p className="text-ink-soft">{product.description}</p>}
           <VariantPicker variants={variants} variant={variant} onPick={setVariantId} />
           <p className="text-2xl font-semibold text-maroon-soft">
-            ₹{price} <span className="text-xs font-normal text-ink-soft">MRP, incl. taxes</span>
+            ₹{price} <span className="text-xs font-normal text-ink-soft">{t("shop_mrp")}</span>
           </p>
-          <p className="text-sm text-ink-soft">{stock > 0 ? `${stock} in stock` : "Out of stock"}</p>
+          <p className="text-sm text-ink-soft">{stock > 0 ? t("shop_in_stock", { n: stock }) : t("shop_out_of_stock")}</p>
           <div className="flex gap-2 flex-wrap">
             <button className="btn-primary" disabled={stock <= 0} onClick={add}>
-              {added ? "Added ✓" : stock > 0 ? "Add to Cart" : "Out of Stock"}
+              {added ? t("shop_added") : stock > 0 ? t("shop_add_to_cart") : t("shop_out_of_stock")}
             </button>
             <Link href="/cart" className="btn-secondary">
-              View Cart
+              {t("shop_view_cart")}
             </Link>
           </div>
           <ProductDetails product={product} className="card p-4 text-sm" />
           {product.image_kind === "illustrative" && (
-            <p className="text-xs text-ink-soft">The image is AI-made to show the product type; the pack you receive may look different.</p>
+            <p className="text-xs text-ink-soft">{t("shop_illustrative_single")}</p>
           )}
           <p className="text-xs text-ink-soft">
-            <Link href="/legal/shipping" className="underline">Delivery</Link> ·{" "}
-            <Link href="/legal/refunds" className="underline">Returns &amp; refunds</Link>
+            <Link href="/legal/shipping" className="underline">{t("policy_delivery")}</Link> ·{" "}
+            <Link href="/legal/refunds" className="underline">{t("policy_refund")}</Link>
           </p>
         </div>
       </div>
+
+      <ProductReviews product={product} />
     </div>
   );
 }

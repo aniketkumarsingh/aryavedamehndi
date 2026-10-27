@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { addToCart } from "@/lib/cart";
 import { track } from "@/lib/analytics";
+import { useLanguage } from "@/lib/useLanguage";
 
 export const SHOP_CATEGORIES = [
   { key: "all", label: "All" },
@@ -24,6 +25,11 @@ const DETAILS = [
 
 // Licensed products list ingredients; tools, decor and gifts list what they're made of.
 const detailLabel = (product, key, label) => (key === "ingredients" && !product.requires_licence ? "Materials" : label);
+const detailText = (t, product, key, label) => {
+  const k = `shop_detail_${key === "ingredients" && !product.requires_licence ? "materials" : key}`;
+  const text = t(k);
+  return text === k ? detailLabel(product, key, label) : text;
+};
 
 export const hasDetails = (product) => DETAILS.some(([k]) => product[k]);
 export const productImages = (product) => (product.image_urls || "").split(",").filter(Boolean);
@@ -52,11 +58,19 @@ export function addProductToCart(product, variant) {
   });
 }
 
+/** Category label in the visitor's language (falls back to English). */
+export const categoryText = (t, category) => {
+  const key = `shop_cat_${category.key.replace("-", "_")}`;
+  const text = t(key);
+  return text === key ? category.label : text;
+};
+
 export function IllustrativeBadge({ product }) {
+  const { t } = useLanguage();
   if (product.image_kind !== "illustrative") return null;
   return (
     <span className="absolute left-2 bottom-2 rounded-full bg-ivory-raised/90 border border-line px-2 py-0.5 text-[0.68rem] font-semibold text-ink-soft">
-      Illustrative image
+      {t("shop_illustrative")}
     </span>
   );
 }
@@ -85,11 +99,12 @@ export function VariantPicker({ variants, variant, onPick }) {
 }
 
 export function ProductDetails({ product, className = "" }) {
+  const { t } = useLanguage();
   return (
     <dl className={`text-xs flex flex-col gap-2 ${className}`}>
       {DETAILS.filter(([k]) => product[k]).map(([k, label]) => (
         <div key={k}>
-          <dt className="font-semibold text-ink">{detailLabel(product, k, label)}</dt>
+          <dt className="font-semibold text-ink">{detailText(t, product, k, label)}</dt>
           <dd className="text-ink-soft">{product[k]}</dd>
         </div>
       ))}

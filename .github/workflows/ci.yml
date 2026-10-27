@@ -1,10 +1,10 @@
 name: CI
 
+# Run once per change: pull requests call it from staging.yml, pushes to
+# main from deploy.yml (both build images only after it passes).
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   backend-tests:
@@ -44,6 +44,58 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://aryamehndi_app:changeme@localhost:5432/aryamehndi_test
         run: pytest -v
+
+  migrations:
+    # Upgrade from empty, step back one, upgrade again (the newest migration
+    # must downgrade cleanly), and flag destructive operations in migrations
+    # this change adds - deploys migrate while the old release still serves.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: aryamehndi_app
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: aryamehndi_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://aryamehndi_app:changeme@localhost:5432/aryamehndi_migrations
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Upgrade, downgrade one, upgrade
+        run: |
+          alembic upgrade head
+          alembic downgrade -1
+          alembic upgrade head
+
+      - name: No destructive operations in new migrations
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python scripts/check_migrations.py --since "origin/${{ github.base_ref }}"
+          else
+            python scripts/check_migrations.py --since HEAD~1
+          fi
 
   frontend-build:
     runs-on: ubuntu-latest

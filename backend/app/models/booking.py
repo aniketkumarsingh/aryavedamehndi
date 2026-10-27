@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -114,11 +114,18 @@ class Booking(Base):
 
     # Admin's ruling on a disputed booking - "released" (consumer can pay
     # and complete as normal) | "cancelled" (no fee, advance refunded).
+    # On-time watch: the artist is reminded an hour before, admins are alerted
+    # if they still haven't set out by the slot time.
+    artist_reminded_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    sla_alerted_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     dispute_outcome: Mapped[str] = mapped_column(String(20), nullable=True)
     dispute_notes: Mapped[str] = mapped_column(Text, nullable=True)
     dispute_resolved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Marketing attribution: "referral", a utm_source, or "direct"; plus the UTM/click ids.
+    source: Mapped[str] = mapped_column(String(40), nullable=True)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     # Read-only lookups so BookingOut can show the package duration, the

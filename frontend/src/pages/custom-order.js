@@ -7,6 +7,7 @@ import { Icon, OrnateHero, QuantityStepper, Receipt, StepHeading } from "@/compo
 import PricePromise from "@/components/PricePromise";
 import SectionDivider from "@/components/SectionDivider";
 import { track } from "@/lib/analytics";
+import { attributionPayload } from "@/lib/attribution";
 import { api } from "@/lib/api";
 import { categoryLabel, formatDuration, formatPriceRange } from "@/lib/designs";
 import { BULK_OCCASIONS, bulkOccasionLabel, estimateSummary } from "@/lib/pricing";
@@ -254,6 +255,7 @@ function BulkOrder({ packages }) {
   const [address, setAddress] = useState("");
   const [genderPref, setGenderPref] = useState("same");
   const [notes, setNotes] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [lines, setLines] = useState([newLine()]);
   const [uploadingKey, setUploadingKey] = useState(null);
   const [error, setError] = useState("");
@@ -310,11 +312,13 @@ function BulkOrder({ packages }) {
         );
       });
       const order = await api.post("/bulk-orders", {
+        attribution: attributionPayload(),
         occasion,
         event_at: new Date(eventAt).toISOString(),
         address_text: address,
         gender_preference: genderPref,
         notes: notes || null,
+        marketing_opt_in: marketingOptIn || null,
         ...coords,
         lines: lines.map((l) => ({
           package_id: l.package_id,
@@ -503,6 +507,10 @@ function BulkOrder({ packages }) {
               s.deposit && `${s.deposit} deposit once you accept, refundable up to 24 hours before the event.`,
             ]}
           >
+            <label className="flex items-start gap-2 text-xs text-ink-soft mt-3">
+          <input type="checkbox" className="mt-0.5" checked={marketingOptIn} onChange={(e) => setMarketingOptIn(e.target.checked)} />
+          Send me offers and occasion reminders on WhatsApp (optional — unsubscribe any time).
+        </label>
             {error && <p className="text-sm text-red-700 mt-3">{error}</p>}
             <button className="btn-primary w-full mt-4 py-3" disabled={submitting}>
               {submitting ? "Sending…" : "Request my quote"}

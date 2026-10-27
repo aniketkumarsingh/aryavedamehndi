@@ -3,11 +3,13 @@ import Head from "next/head";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { orderSummaryLabel } from "@/lib/orderStatus";
+import { useLanguage } from "@/lib/useLanguage";
 
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const { t, lang } = useLanguage();
 
   useEffect(() => {
     api
@@ -23,9 +25,9 @@ export default function MyOrders() {
         <title>My Orders — AryaVeda Mehndi</title>
       </Head>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl">My Orders</h1>
+        <h1 className="text-2xl">{t("orders_heading")}</h1>
         <Link href="/shop" className="btn-secondary text-sm">
-          Shop More
+          {t("orders_shop_more")}
         </Link>
       </div>
 
@@ -45,7 +47,7 @@ export default function MyOrders() {
                 {o.payment_method === "cod" ? " · Cash on Delivery" : ""}
               </p>
             </div>
-            <span className="chip whitespace-nowrap">{orderSummaryLabel(o)}</span>
+            <span className="chip whitespace-nowrap">{orderSummaryLabel(o, lang)}</span>
           </Link>
         ))}
       </div>

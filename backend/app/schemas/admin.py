@@ -31,6 +31,7 @@ class AdminBookingOut(BaseModel):
     total_amount: float | None
     arrival_distance_m: float | None = None
     arrival_flagged: bool = False
+    source: str | None = None  # referral, a utm_source, google_ads, meta_ads, direct
     created_at: datetime
 
 
@@ -66,6 +67,21 @@ class PlatformSettingsOut(BaseModel):
     shop_cod_max_order: float
     shop_cod_fee: float
     shop_cod_max_open_orders: int
+    shop_packaging_weight_g: int
+    shop_default_item_weight_g: int
+    shop_box_length_cm: float
+    shop_box_breadth_cm: float
+    shop_box_height_cm: float
+    shipping_eta_min_days: int
+    shipping_eta_max_days: int
+    shipping_blocked_pincode_prefixes: str
+    shipping_cod_blocked_pincode_prefixes: str
+    shop_return_window_days: int
+    booking_sla_grace_minutes: int
+    growth_cart_coupon_percent: float
+    growth_referral_friend_discount: float
+    growth_referral_reward: float
+    growth_wallet_expiry_days: int
 
 
 class PlatformSettingsIn(BaseModel):
@@ -82,6 +98,21 @@ class PlatformSettingsIn(BaseModel):
     shop_cod_max_order: float | None = Field(default=None, ge=0, le=1_000_000)
     shop_cod_fee: float | None = Field(default=None, ge=0, le=1_000)
     shop_cod_max_open_orders: int | None = Field(default=None, ge=1, le=20)
+    shop_packaging_weight_g: int | None = Field(default=None, ge=0, le=5000)
+    shop_default_item_weight_g: int | None = Field(default=None, ge=1, le=20000)
+    shop_box_length_cm: float | None = Field(default=None, gt=0, le=200)
+    shop_box_breadth_cm: float | None = Field(default=None, gt=0, le=200)
+    shop_box_height_cm: float | None = Field(default=None, gt=0, le=200)
+    shipping_eta_min_days: int | None = Field(default=None, ge=0, le=30)
+    shipping_eta_max_days: int | None = Field(default=None, ge=1, le=60)
+    shipping_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
+    shipping_cod_blocked_pincode_prefixes: str | None = Field(default=None, max_length=2000, pattern=r"^[0-9, ]*$")
+    shop_return_window_days: int | None = Field(default=None, ge=0, le=60)
+    booking_sla_grace_minutes: int | None = Field(default=None, ge=0, le=240)
+    growth_cart_coupon_percent: float | None = Field(default=None, ge=0, le=50)
+    growth_referral_friend_discount: float | None = Field(default=None, ge=0, le=1000)
+    growth_referral_reward: float | None = Field(default=None, ge=0, le=1000)
+    growth_wallet_expiry_days: int | None = Field(default=None, ge=7, le=730)
 
 
 class AdminUserOut(BaseModel):

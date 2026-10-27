@@ -134,18 +134,60 @@ the background worker, the website and Caddy (HTTPS with automatic
 certificates). Long-running services restart on failure and have health
 checks; the API and worker start only after migrations succeed.
 
+**Server, once.** Install Docker, then:
+
 ```
-cd deploy
-cp .env.example .env          # fill in domains, secrets, keys
-GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
-docker compose ps             # all "healthy"
-docker compose logs -f worker
+mkdir -p /opt/aryaveda/deploy && cd /opt/aryaveda/deploy
+# copy deploy/.env.example here as .env and fill in domains, secrets, keys
+# (BACKEND_IMAGE / WEB_IMAGE already point at this repo's GHCR images)
 ```
+
+**Releases are shipped by CI** (`.github/workflows/`):
+
+| Workflow | When | What |
+|---|---|---|
+| `Pull request` (`staging.yml`) | every PR | Checks (`ci.yml`). With repo variable `STAGING_ENABLED=true`, also builds images tagged `pr-<n>-<sha>` and deploys them to the staging server |
+| `Deploy` (`deploy.yml`) | push to `main` | Checks, then builds the backend and website images once, pushes them to GHCR (`ghcr.io/aniketkumarsingh/aryavedamehndi-{backend,web}:<sha>` and `:latest`), then deploys over SSH |
+| `CI` (`ci.yml`) | called by both | Backend tests, migration round trip + safety check, frontend lint/tests/build |
+
+The deploy copies `deploy/` to the server and runs `deploy.sh <sha>`: pull
+the images, run migrations, start the new release, then smoke-test it -
+`/health/ready` must report the new release with a working database, and
+the website must answer. If it doesn't, the previous release is started
+again (`deploy.sh --rollback` does the same by hand). Migrations are never
+rolled back, so they must stay compatible with the previous release: add
+columns and tables first, drop them in a later release.
+`scripts/check_migrations.py` fails a PR that drops, renames or retypes
+anything without a reviewed `# migration-safe: <reason>` note.
+
+GitHub setup, per environment (`production`, `staging`) in Settings →
+Environments: secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
+(a key for a user in the `docker` group), `DEPLOY_KNOWN_HOSTS`
+(`ssh-keyscan <host>` output); variables `DEPLOY_PATH` (`/opt/aryaveda`),
+`SITE_DOMAIN`, `API_DOMAIN` and the website's public values
+(`NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
+`NEXT_PUBLIC_SENTRY_DSN`, `BUSINESS_*`, `SUPPORT_*`, `GRIEVANCE_OFFICER_*`)
+which are baked into the website image. Without `DEPLOY_SSH_KEY` the
+images are still pushed and nothing is deployed.
+
+Deploy drill log:
+
+| Date | Where | Result |
+|---|---|---|
+| 27 Oct 2026 | Local Docker (Compose 5.6): `deploy.sh` with local images | First release from an empty database migrated 0001→0034 and passed the smoke test; a release whose API crashes on start failed the smoke test and was rolled back automatically (exit 1, old release serving); a good release followed by `--rollback` returned to the previous one. `X-Request-ID` set by Caddy, JSON access lines in the API logs |
+
+Building on the server instead (no CI): leave `BACKEND_IMAGE`/`WEB_IMAGE`
+empty and run `IMAGE_TAG=$(git rev-parse --short HEAD) docker compose up -d --build`.
 
 First run only: load the catalogue with
 `docker compose run --rm api python seed.py` (and `seed_designs.py`,
 `seed_shop.py`), then `docker compose run --rm api python set_admin_password.py admin`.
-To update: `git pull` and rerun the `up -d --build` line.
+
+**Logs.** Each line is JSON with `request_id` (also the `X-Request-ID`
+response header, set by Caddy), `user_id`, `order_id` and, in the worker,
+`job`. Follow one order through the API and the worker:
+`docker compose logs api worker | grep '"order_id": "<id>"'`. Requests
+slower than `SLOW_REQUEST_MS` (1500) are logged as `slow request` warnings.
 
 **Monitoring.** Point an uptime monitor (UptimeRobot, Better Stack) at
 `https://<API_DOMAIN>/health/ready`, alerting your phone. It returns 503
@@ -157,6 +199,28 @@ the release), including any background job that gives up.
 **Rate limits.** Per IP and per phone/user, on OTP send and verify, admin
 login, coupon checks and checkout (`app/services/rate_limit.py`); over the
 limit returns 429 with Retry-After.
+
+### Shipping
+
+Admin → **Shipping** is the daily dispatch screen: tick the confirmed
+orders, enter the courier, **Book** (each order is shipped, its GST invoice
+issued and the customer told), then print **Labels** (4×6 in, with an AWB
+barcode) and the pickup **Manifest** for the courier to sign. Add AWB
+numbers and tracking updates there (out for delivery, failed attempt,
+returning…) - each update notifies the customer and moves the order.
+Checkout checks the PIN code (deliverable, Cash on Delivery, estimated
+dates) against the blocked prefixes and delivery estimate in Settings.
+
+Fill in each pack size's packed weight and box (Admin → Shop Products) so
+parcels are weighed correctly; until then the default weight in Settings
+is used.
+
+This runs on the built-in **manual** provider (no courier account). A
+courier aggregator plugs in later as one class in
+`app/services/shipping/` (serviceability, booking with AWB + label,
+tracking, signed webhooks at `/shipping/webhook/<provider>`) and
+`SHIPPING_PROVIDER=<name>` - the dispatch screen, tracking history,
+notifications and 2-hourly tracking poll then work against the courier.
 
 ### Backups and restore
 
@@ -180,6 +244,105 @@ Restore drill log:
 | 26 Oct 2026 | Local dev (Postgres 16): backup job → `restore_backup.sh` into a scratch database | All 37 tables, 801 rows matched the source; schema at 0027 |
 
 Repeat the drill on production data after launch and add a row.
+
+### Growth
+
+Admin → **Growth** holds the weekly dashboard (new customers, orders,
+revenue, repeat orders, carts reminded / recovered / recovery rate, coupon
+cost, referral orders and discounts, bookings, event requests, referral
+rewards, wallet use and where orders came from; **Download CSV**), the
+occasion calendar, product-review moderation and the city/occasion landing
+pages.
+
+- **WhatsApp** (MSG91): order, delivery and booking updates go to everyone;
+  offers, cart reminders and occasion nudges only to people who opted in,
+  each with an unsubscribe link. Register the templates in
+  `deploy/whatsapp_templates.md` with Meta via MSG91.
+- **Reviews**: only customers whose order was delivered can review a
+  product; stars show on product cards and in Google results
+  (`aggregateRating`).
+- **Pages for search**: `/artists/<slug>` for every verified artist (they
+  set their city in their profile) and `/mehndi/<slug>` landing pages
+  written in Admin → Growth; all are in `/sitemap.xml`.
+- **Referrals and wallet**: each customer's code is on `/shop/wallet`. A
+  friend who joins with it gets ₹50 off their first shop order; the referrer
+  gets ₹50 wallet credit once that order is delivered and the return window
+  has passed without a return. Credit lasts 180 days and is used at checkout
+  (amounts and validity are in Settings).
+- **Attribution**: UTM tags, Google/Meta click ids and `?ref=` codes are
+  kept from the landing page and stored on the customer (first visit) and on
+  each order, booking and event request (latest visit). Admin → Shop Orders
+  and Bookings show the source and can be filtered by it.
+- **Server-side purchases**: with `META_PIXEL_ID` + `META_CAPI_TOKEN` and/or
+  `GA4_MEASUREMENT_ID` + `GA4_API_SECRET`, each confirmed shop order is
+  also sent from the server (Meta Conversions API, GA4 Measurement
+  Protocol) for customers who accepted analytics cookies. The order id is
+  the event id on both sides, so the browser and the server count once.
+
+### Admin team, audit log and notes
+
+Admin → **Team** (owners) adds admins by phone with one of three roles:
+
+| Role | Can |
+|---|---|
+| owner | everything, including Settings, the team and the audit log |
+| ops | orders, shipping, returns and refunds, payments, products, artists and KYC, bookings, growth |
+| support | read-only, plus order notes, approving/rejecting returns, answering failed deliveries, moderating reviews and reports |
+
+The API enforces this for every admin request (`app/core/permissions.py`);
+existing admins are owners. Admin → **Audit Log** lists every change, every
+refused attempt and every export, with the request id that matches the
+server logs. Shop orders and event requests have internal **Notes**.
+
+### Your data (DPDP Act)
+
+Customers and artists can download their data and delete their account
+from their profile page. Deleting anonymises the person (name, phone,
+photos, addresses, ID and bank details, chat messages) and signs them out;
+orders with a GST invoice keep their billing details for the statutory
+period, and accounts with an open booking or order can't be deleted until
+it's finished. Consent changes (marketing, analytics, deletion) are kept as
+evidence. The daily `privacy.retention` job removes OTP codes, old rate-limit
+counters, finished jobs, old webhook payloads, read notifications older than
+a year, carts untouched for 90 days, the KYC documents and ID/PAN numbers
+of artists whose KYC was rejected (90 days after the rejection, unless they
+resubmit), and chat messages of finished bookings after 180 days (2 years
+when the booking had a dispute).
+
+### Media and CDN
+
+Public uploads are stored as WebP (turned upright, at most 4000 px, with
+EXIF and location data removed); KYC documents are kept exactly as
+uploaded and stay private. Large catalogue photos get a 1600 px display
+copy plus a full-size zoom copy. Media files are served with
+`Cache-Control: public, max-age=31536000, immutable` (random names are
+never reused; fixed names get a day).
+
+To put a CDN in front: with S3, point a CloudFront or Cloudflare host at
+the bucket and set `S3_PUBLIC_BASE_URL` to it (uploads already carry the
+cache headers and content type). Without S3, proxy the API domain through
+Cloudflare and add a cache rule for `/media/*` (respecting origin headers);
+`/media/kyc/*` is never cached (`private, no-store`).
+
+### Scaling switches
+
+What to change, in order, when traffic grows (none are needed at launch):
+
+1. **Bigger server** for the one-box Compose stack - Postgres, API and
+   worker share it comfortably to tens of thousands of orders a month.
+2. **More API workers**: raise `--workers` in `deploy/docker-compose.yml`
+   (about 2 per CPU core). Rate limits and the job queue live in Postgres,
+   so they hold across workers.
+3. **More background workers**: `docker compose up -d --scale worker=3`;
+   jobs are claimed with `SKIP LOCKED`, so several never run the same one.
+4. **Managed Postgres** (e.g. AWS RDS, DigitalOcean): point `DATABASE_URL`
+   at it, drop the `db` service, and keep the nightly backups as a second copy.
+5. **Media on S3 + CDN** (above), so app servers can be replaced or added freely.
+6. **Watch the slow-request warnings** (`"msg": "slow request"` in the API
+   logs) and Sentry performance (`SENTRY_TRACES_SAMPLE_RATE=0.1`) before
+   adding indexes or caching.
+7. **PostGIS** for artist search once there are thousands of artists (see
+   "Known limitation" below).
 
 ## Going live checklist
 
@@ -226,7 +389,12 @@ Also set before launch:
   coupons (Coupons). Admin → Payments is the place to watch refunds,
   reconciliation and failed jobs.
 - **Ads:** point Meta Commerce Manager / Google Merchant Center at
-  `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed.
+  `<PUBLIC_API_URL>/shop/feed.csv` as a scheduled product feed. Optionally
+  set the server-side purchase keys (`META_PIXEL_ID`, `META_CAPI_TOKEN`,
+  `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`).
+- **Team:** add your ops and support people in Admin → Team rather than
+  sharing the owner login.
+- **Messaging:** `MSG91_WHATSAPP_NUMBER` and the approved WhatsApp templates.
 
 ## What's stubbed vs. production-ready
 

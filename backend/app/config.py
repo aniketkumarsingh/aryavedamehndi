@@ -62,6 +62,27 @@ class Settings(BaseSettings):
     support_email: str = ""
     support_phone: str = ""
 
+    # WhatsApp (MSG91 WhatsApp API, same account as OTP SMS): the business
+    # number registered with MSG91. Leave empty to turn WhatsApp off.
+    msg91_whatsapp_number: str = ""
+    whatsapp_language: str = "en"
+
+    # Shipping provider: "manual" (hand-entered courier details, no courier
+    # account) until a courier integration is added under
+    # app/services/shipping/. The webhook secret is the courier's.
+    shipping_provider: str = "manual"
+    shipping_webhook_secret: str = ""
+
+    # Server-side conversions (app/services/conversions.py). Both pairs
+    # optional; each platform is off until its two values are set.
+    meta_pixel_id: str = ""
+    meta_capi_token: str = ""
+    ga4_measurement_id: str = ""
+    ga4_api_secret: str = ""
+
+    # Requests slower than this are logged as warnings ("slow request").
+    slow_request_ms: int = 1500
+
     # Error tracking (Sentry). Leave SENTRY_DSN empty to turn it off.
     # GIT_SHA (set by the deploy) tags each error with the release.
     sentry_dsn: str = ""

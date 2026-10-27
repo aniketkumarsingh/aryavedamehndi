@@ -35,8 +35,20 @@ def reconcile(db: Session, now=None) -> ReconciliationRun:
     run = ReconciliationRun(window_from=now - WINDOW, window_to=now - SETTLE_GRACE, status="running")
     db.add(run)
     db.flush()
+    from app.services.shipping.service import unremitted_cod
+
+    cod_issues = [
+        {"type": "cod_not_remitted", "order_id": str(s.order_id), "awb": s.awb, "amount": s.cod_amount,
+         "delivered": s.delivered_at.isoformat() if s.delivered_at else None}
+        for s in unremitted_cod(db, 10)
+    ]
     if not razorpay_client.is_configured():
-        run.status, run.note, run.finished_at = "skipped", "Razorpay keys aren't set (dev mode)", utcnow()
+        run.issues = cod_issues
+        run.status = "issues" if cod_issues else "skipped"
+        run.note = "Razorpay keys aren't set (dev mode) - only COD remittances checked"
+        run.finished_at = utcnow()
+        if cod_issues:
+            notify_admins(db, "COD not remitted", f"{len(cod_issues)} delivered COD parcel(s) unpaid by the courier after 10 days.", "/admin")
         return run
 
     epoch = now.__class__(1970, 1, 1)
@@ -68,6 +80,7 @@ def reconcile(db: Session, now=None) -> ReconciliationRun:
         if status not in ("captured", "refunded"):
             issues.append({"type": "not_captured_at_gateway", "order_id": str(order.id), "payment_id": order.razorpay_payment_id, "gateway_status": status})
 
+    issues += cod_issues
     run.fixed, run.issues = fixed, issues
     run.status = "issues" if issues else "ok"
     run.finished_at = utcnow()

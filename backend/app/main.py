@@ -1,4 +1,8 @@
+import logging
 import posixpath
+import re
+import time
+import uuid
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import DEFAULT_JWT_SECRET, get_settings
 from app.routers import (
     admin,
+    admin_team,
     artists,
     auth,
     bookings,
@@ -19,14 +24,24 @@ from app.routers import (
     packages,
     payments,
     pricing,
+    privacy,
+    product_reviews,
+    referrals,
     reviews,
+    seo_pages,
     shop,
     admin_payments,
+    growth,
+    returns,
+    shipping,
     users,
     webhooks,
 )
+from app.core.logging import configure_logging, order_id_var, request_id_var, user_id_var
 from app.core.observability import init_sentry
-from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, verify_media_signature
+from app.services.audit import needs_audit, record_admin_action
+from starlette.concurrency import run_in_threadpool
+from app.services.storage import MEDIA_DIR, PRIVATE_URL_PREFIX, cache_control_for, verify_media_signature
 
 settings = get_settings()
 
@@ -62,7 +77,12 @@ def _check_production_safety() -> None:
 
 
 _check_production_safety()
+configure_logging("api")
 init_sentry("api")
+access_log = logging.getLogger("app.access")
+REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+ORDER_IN_PATH = re.compile(r"/(?:orders|shop-orders|bulk-orders|bookings)/([0-9a-f]{8}-[0-9a-f-]{27})")
+QUIET_PATHS = ("/health", "/health/ready")
 
 app = FastAPI(title="AryaVeda Mehndi API", version="0.1.0")
 
@@ -89,6 +109,8 @@ async def security_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "private, no-store"
     else:
         response = await call_next(request)
+        if canonical_path.startswith("/media/") and response.status_code == 200:
+            response.headers["Cache-Control"] = cache_control_for(canonical_path)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -99,10 +121,45 @@ async def security_headers(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Outermost: gives every request an id (kept from Caddy/the client when
+    sane), tags log lines with it, the user and the order, and writes one
+    access line per request - a warning when slower than SLOW_REQUEST_MS."""
+    incoming = request.headers.get("x-request-id", "")
+    request_id = incoming if REQUEST_ID.match(incoming) else uuid.uuid4().hex[:16]
+    match = ORDER_IN_PATH.search(request.url.path)
+    tokens = [request_id_var.set(request_id), order_id_var.set(match.group(1) if match else None), user_id_var.set(None)]
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        duration_ms = round((time.perf_counter() - started) * 1000, 1)
+        user_id = getattr(request.state, "user_id", None)
+        extra = {"method": request.method, "path": request.url.path, "status": status_code, "duration_ms": duration_ms, "user_id": user_id}
+        if duration_ms > settings.slow_request_ms:
+            access_log.warning("slow request", extra=extra)
+        elif request.url.path not in QUIET_PATHS or status_code >= 400:
+            access_log.info("request", extra=extra)
+        admin_role = getattr(request.state, "admin_role", None)
+        if admin_role and needs_audit(request.method, request.url.path, status_code):
+            await run_in_threadpool(
+                record_admin_action, user_id, admin_role, request.method, request.url.path, request.url.query,
+                status_code, request_id, request.client.host if request.client else None,
+            )
+        for var, token in zip((request_id_var, order_id_var, user_id_var), tokens):
+            var.reset(token)
+
+
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(privacy.router)
 app.include_router(notifications.router)
 app.include_router(favorites.router)
 app.include_router(artists.router)
@@ -119,9 +176,22 @@ app.include_router(payments.router)
 app.include_router(shop.router)
 app.include_router(webhooks.router)
 app.include_router(admin_payments.router)
+app.include_router(shipping.router)
+app.include_router(shipping.admin_router)
+app.include_router(returns.router)
+app.include_router(returns.admin_router)
+app.include_router(growth.router)
+app.include_router(growth.admin_router)
+app.include_router(referrals.router)
+app.include_router(referrals.admin_router)
 app.include_router(reviews.router)
+app.include_router(product_reviews.router)
+app.include_router(product_reviews.admin_router)
+app.include_router(seo_pages.router)
+app.include_router(seo_pages.admin_router)
 app.include_router(cms.router)
 app.include_router(admin.router)
+app.include_router(admin_team.router)
 
 
 @app.get("/health")

@@ -21,3 +21,7 @@ frontend/public/fallback-*.js
 backend/catalog/retired/
 backend/backups/
 deploy/.env
+
+# deploy.sh state on the server
+deploy/.deployed_tag
+deploy/.previous_tag

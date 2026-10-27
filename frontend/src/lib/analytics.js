@@ -42,12 +42,20 @@ export function track(name, params = {}) {
   if (typeof window === "undefined" || getConsent() !== "granted") return;
   if (window.gtag) window.gtag("event", name, params);
   if (window.fbq && META_EVENTS[name]) {
-    window.fbq("track", META_EVENTS[name], {
-      value: params.value,
-      currency: params.currency || "INR",
-      content_ids: (params.items || []).map((i) => i.item_id),
-      content_type: "product",
-    });
+    // A purchase's event id is the order id - the server sends the same one
+    // (Conversions API), so Meta counts the purchase once.
+    const options = params.transaction_id ? { eventID: String(params.transaction_id) } : undefined;
+    window.fbq(
+      "track",
+      META_EVENTS[name],
+      {
+        value: params.value,
+        currency: params.currency || "INR",
+        content_ids: (params.items || []).map((i) => i.item_id),
+        content_type: "product",
+      },
+      options
+    );
   }
 }
 

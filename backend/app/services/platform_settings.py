@@ -30,6 +30,31 @@ def _defaults() -> dict:
         "shop_cod_max_order": 2500.0,
         "shop_cod_fee": 30.0,
         "shop_cod_max_open_orders": 2,
+        # Shipping: packed weight = items + packaging; the box is at least
+        # this size. Items without a weight count as the default weight.
+        "shop_packaging_weight_g": 100,
+        "shop_default_item_weight_g": 250,
+        "shop_box_length_cm": 20.0,
+        "shop_box_breadth_cm": 15.0,
+        "shop_box_height_cm": 10.0,
+        # Used by the manual shipping provider (no courier connected):
+        # delivery estimate, and PIN-code prefixes we don't ship to at all
+        # or won't do Cash on Delivery for (comma-separated, e.g. "744,796").
+        "shipping_eta_min_days": 2,
+        "shipping_eta_max_days": 7,
+        "shipping_blocked_pincode_prefixes": "",
+        "shipping_cod_blocked_pincode_prefixes": "",
+        # Returns: days after delivery a customer may ask for one.
+        "shop_return_window_days": 7,
+        # Bookings: minutes past the slot before admins hear the artist
+        # hasn't set out.
+        "booking_sla_grace_minutes": 15,
+        # Growth: the abandoned-cart coupon (percent off, one use, 72 h).
+        "growth_cart_coupon_percent": 5.0,
+        # Referrals: friend's first-order discount, referrer's wallet reward, credit validity.
+        "growth_referral_friend_discount": 50.0,
+        "growth_referral_reward": 50.0,
+        "growth_wallet_expiry_days": 180,
     }
 
 

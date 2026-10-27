@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal, get_args
 
+from app.schemas.shop import ShipmentOut
+from app.services.attribution import AttributionIn
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.booking import check_reference_image_url
@@ -76,6 +78,9 @@ class BulkOrderCreateIn(BaseModel):
     gender_preference: str = "same"
     notes: str | None = Field(default=None, max_length=2000)
     lines: list[BulkOrderLineIn] = Field(min_length=1, max_length=MAX_LINES)
+    # Ticked "send me offers": records marketing consent (never withdraws it).
+    marketing_opt_in: bool | None = None
+    attribution: AttributionIn | None = None
 
     @field_validator("event_at")
     @classmethod
@@ -158,8 +163,10 @@ class BulkOrderOut(BaseModel):
     advance_amount: float
     advance_status: str
     advance_paid_at: datetime | None
+    source: str | None = None  # where the request came from
     created_at: datetime
     updated_at: datetime
+    shipments: list[ShipmentOut] = []  # goods sent ahead of the event
 
 
 class AdminBulkOrderOut(BulkOrderOut):

@@ -14,10 +14,13 @@ from app.models.payment import Payment
 from app.models.platform_settings import PlatformSetting
 from app.models.refresh_token import RefreshToken
 from app.models.review import Report, Review
+from app.models.admin_ops import AdminAuditLog, AdminNote
+from app.models.growth import CampaignSend, Cart, ConsentRecord, ConversionEvent, LandingPage, Occasion, ProductReview, Referral, WalletEntry
 from app.models.job import Job
 from app.models.ops import RateLimitCounter
+from app.models.shipping import PincodeServiceability, Shipment, ShipmentEvent, ShippingWebhookEvent
 from app.models.payment_ops import IdempotencyKey, PaymentEvent, ReconciliationRun, Refund
-from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.models.shop import ReturnRequest, ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import ArtistProfile, User
 
 __all__ = [
@@ -56,4 +59,20 @@ __all__ = [
     "ReconciliationRun",
     "IdempotencyKey",
     "RateLimitCounter",
+    "Shipment",
+    "ShipmentEvent",
+    "PincodeServiceability",
+    "ShippingWebhookEvent",
+    "ReturnRequest",
+    "ConsentRecord",
+    "Cart",
+    "Occasion",
+    "CampaignSend",
+    "ProductReview",
+    "LandingPage",
+    "Referral",
+    "WalletEntry",
+    "ConversionEvent",
+    "AdminAuditLog",
+    "AdminNote",
 ]

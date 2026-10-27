@@ -3,11 +3,14 @@ import Head from "next/head";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import SocialMeta from "@/components/SocialMeta";
+import Stars from "@/components/Stars";
+import { useLanguage } from "@/lib/useLanguage";
 import {
   IllustrativeBadge,
   ProductDetails,
   SHOP_CATEGORIES,
   VariantPicker,
+  categoryText,
   addProductToCart,
   hasDetails,
   productImages,
@@ -22,6 +25,7 @@ function ProductCard({ product, onAdd, added }) {
   const images = productImages(product);
   const { variants, variant, setVariantId, price, stock } = useVariant(product);
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   const href = product.slug ? `/shop/${product.slug}` : null;
 
   return (
@@ -32,20 +36,21 @@ function ProductCard({ product, onAdd, added }) {
       </MaybeLink>
       <div className="p-4 flex flex-col gap-2 flex-1">
         <MaybeLink href={href} className="font-semibold leading-snug hover:underline">{product.name}</MaybeLink>
+        {product.rating_count > 0 && <Stars value={product.rating_avg} count={product.rating_count} />}
         {product.description && <p className="text-sm text-ink-soft line-clamp-3">{product.description}</p>}
         <VariantPicker variants={variants} variant={variant} onPick={setVariantId} />
 
         <div className="mt-auto flex flex-col gap-1">
           <p className="text-lg font-semibold text-maroon-soft">
-            ₹{price} <span className="text-xs font-normal text-ink-soft">MRP, incl. taxes</span>
+            ₹{price} <span className="text-xs font-normal text-ink-soft">{t("shop_mrp")}</span>
           </p>
-          <p className="text-xs text-ink-soft">{stock > 0 ? `${stock} in stock` : "Out of stock"}</p>
+          <p className="text-xs text-ink-soft">{stock > 0 ? t("shop_in_stock", { n: stock }) : t("shop_out_of_stock")}</p>
           <button className="btn-primary text-sm mt-1" disabled={stock <= 0} onClick={() => onAdd(product, variant)}>
-            {added ? "Added ✓" : stock > 0 ? "Add to Cart" : "Out of Stock"}
+            {added ? t("shop_added") : stock > 0 ? t("shop_add_to_cart") : t("shop_out_of_stock")}
           </button>
           {hasDetails(product) && (
             <button type="button" className="text-xs font-semibold text-gold self-start mt-1" aria-expanded={open} onClick={() => setOpen(!open)}>
-              {open ? "Hide details" : product.requires_licence ? "Ingredients, use & safety" : "Details & care"}
+              {open ? t("shop_hide_details") : product.requires_licence ? t("shop_details_licensed") : t("shop_details_care")}
             </button>
           )}
         </div>
@@ -62,6 +67,7 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [justAdded, setJustAdded] = useState(null);
   const [category, setCategory] = useState("all");
+  const { t } = useLanguage();
 
   useEffect(() => {
     api
@@ -93,8 +99,8 @@ export default function Shop() {
         path="/shop"
       />
       <div>
-        <h1 className="text-2xl">Our Mehndi Products</h1>
-        <p className="text-sm text-ink-soft">Natural henna for mehndi, hair and skin, made under the AryaVeda name and delivered to your door.</p>
+        <h1 className="text-2xl">{t("shop_heading")}</h1>
+        <p className="text-sm text-ink-soft">{t("shop_sub")}</p>
       </div>
 
       {available.length > 2 && (
@@ -107,16 +113,16 @@ export default function Shop() {
               onClick={() => setCategory(c.key)}
               className={category === c.key ? "btn-primary text-sm" : "btn-secondary text-sm"}
             >
-              {c.label}
+              {categoryText(t, c)}
             </button>
           ))}
         </div>
       )}
 
       {error && <p className="text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-sm text-ink-soft">Loading products…</p>}
+      {loading && <p className="text-sm text-ink-soft">{t("shop_loading")}</p>}
       {!loading && products.length === 0 && !error && (
-        <p className="text-sm text-ink-soft">No products available right now — check back soon.</p>
+        <p className="text-sm text-ink-soft">{t("shop_empty")}</p>
       )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -126,11 +132,11 @@ export default function Shop() {
       </div>
 
       {anyIllustrative && (
-        <p className="text-xs text-ink-soft">Images marked “Illustrative image” are AI-made to show the product type; the pack you receive may look different.</p>
+        <p className="text-xs text-ink-soft">{t("shop_illustrative_note")}</p>
       )}
 
       <Link href="/cart" className="btn-secondary self-start text-sm">
-        View Cart
+        {t("shop_view_cart")}
       </Link>
     </div>
   );

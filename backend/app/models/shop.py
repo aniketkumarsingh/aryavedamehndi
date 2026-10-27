@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -42,6 +42,16 @@ class ShopProduct(Base):
     # For GST tax invoices; set by the admin (confirm with your accountant).
     hsn_code: Mapped[str] = mapped_column(String(8), nullable=True)
     gst_rate: Mapped[float] = mapped_column(Float, nullable=True)  # percent, included in the MRP
+    # Kept in step with published product_reviews (for cards and search results).
+    rating_avg: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Henna, hair and skin products can be returned only if damaged or wrong.
+    returnable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Packed size, for courier quotes and bookings (pack sizes carry their own).
+    weight_g: Mapped[int] = mapped_column(Integer, nullable=True)
+    length_cm: Mapped[float] = mapped_column(Float, nullable=True)
+    breadth_cm: Mapped[float] = mapped_column(Float, nullable=True)
+    height_cm: Mapped[float] = mapped_column(Float, nullable=True)
 
     variants: Mapped[list["ShopProductVariant"]] = relationship(
         order_by="ShopProductVariant.sort_order", cascade="all, delete-orphan", lazy="selectin"
@@ -64,6 +74,11 @@ class ShopProductVariant(Base):
     stock_quantity: Mapped[int] = mapped_column(Integer, default=0)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Packed size of one unit, for courier quotes and bookings.
+    weight_g: Mapped[int] = mapped_column(Integer, nullable=True)
+    length_cm: Mapped[float] = mapped_column(Float, nullable=True)
+    breadth_cm: Mapped[float] = mapped_column(Float, nullable=True)
+    height_cm: Mapped[float] = mapped_column(Float, nullable=True)
 
 
 # Fulfilment status (where the parcel is), kept apart from payment_status
@@ -85,7 +100,9 @@ SHOP_ORDER_TRANSITIONS = {
 # unpaid -> paid -> partially_refunded / refund_pending -> refunded
 # COD:   cod_due -> cod_collected (on delivery)
 # void:  cancelled before any money moved
-SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"]
+# COD: cod_due -> cod_with_courier (delivered, cash with the courier) ->
+#      cod_collected (the courier remitted it to us)
+SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_with_courier", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"]
 PAYMENT_METHODS = ("online", "cod")
 
 
@@ -107,6 +124,7 @@ class ShopCoupon(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     usage_limit: Mapped[int] = mapped_column(Integer, nullable=True)  # total uses, null = unlimited
     per_user_limit: Mapped[int] = mapped_column(Integer, nullable=True, default=1)  # null = unlimited
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # personal coupon
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -136,6 +154,13 @@ class ShopOrder(Base):
     discount_amount: Mapped[float] = mapped_column(Float, default=0)
     shipping_fee: Mapped[float] = mapped_column(Float, default=0)
     coupon_code: Mapped[str] = mapped_column(String(40), nullable=True, index=True)
+    # Where the order came from: "abandoned_cart", "referral", a utm_source, or "direct".
+    source: Mapped[str] = mapped_column(String(40), nullable=True)
+    # Parts of discount_amount: the referred friend's first-order discount and
+    # wallet credit spent (both promotional, so they reduce the taxable value).
+    referral_discount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    wallet_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    attribution: Mapped[dict] = mapped_column(JSONB, nullable=True)  # last-touch UTM/click ids at checkout
 
     courier_name: Mapped[str] = mapped_column(String(80), nullable=True)
     tracking_number: Mapped[str] = mapped_column(String(80), nullable=True)
@@ -144,6 +169,7 @@ class ShopOrder(Base):
     delivered_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancelled_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     cancel_reason: Mapped[str] = mapped_column(String(200), nullable=True)
+    return_condition: Mapped[str] = mapped_column(String(12), nullable=True)  # good | damaged, for returned parcels
     # GST invoice, issued at dispatch (time of supply for goods); numbered
     # consecutively within the financial year.
     invoice_number: Mapped[str] = mapped_column(String(16), nullable=True, unique=True)
@@ -183,3 +209,31 @@ class ShopInvoiceCounter(Base):
 
     series: Mapped[str] = mapped_column(String(12), primary_key=True)
     last_number: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# requested -> approved (reverse pickup booked) -> received (checked) ->
+# refunded;  requested -> rejected
+RETURN_STATUSES = ("requested", "approved", "rejected", "received", "refunded")
+RETURN_REASONS = ("damaged", "wrong_item", "not_as_described", "changed_mind")
+
+
+class ReturnRequest(Base):
+    __tablename__ = "return_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shop_orders.id"), nullable=False, index=True)
+    consumer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="requested", index=True)
+    reason_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=True)
+    photo_urls: Mapped[str] = mapped_column(Text, nullable=True)  # comma-separated
+    items: Mapped[list] = mapped_column(JSONB, nullable=False)  # [{"order_item_id": ..., "quantity": n}]
+    refund_amount: Mapped[float] = mapped_column(Float, nullable=False)  # computed when requested
+    refund_upi: Mapped[str] = mapped_column(String(100), nullable=True)  # COD orders: where to send the money
+    condition: Mapped[str] = mapped_column(String(12), nullable=True)  # good | damaged, set on receipt
+    admin_note: Mapped[str] = mapped_column(String(300), nullable=True)
+    refund_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("refunds.id"), nullable=True)
+    decided_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    decided_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

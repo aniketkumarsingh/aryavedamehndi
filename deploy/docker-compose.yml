@@ -1,9 +1,14 @@
 # Production stack: Postgres, a one-off migration, the API, the background
 # worker, the website and Caddy (HTTPS with automatic certificates).
 #
+# Normally deployed by CI (.github/workflows/deploy.yml): images are built
+# once, pushed to GHCR (BACKEND_IMAGE / WEB_IMAGE in .env) and started on the
+# server by deploy.sh <tag>, which smoke-tests and rolls back on failure.
+# Building on the server instead:
+#
 #   cd deploy
 #   cp .env.example .env        # fill it in
-#   GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
+#   IMAGE_TAG=$(git rev-parse --short HEAD) docker compose up -d --build
 #
 # Every long-running service restarts on failure and has a health check;
 # the API and worker wait for migrations to finish before starting.
@@ -14,12 +19,13 @@ x-backend: &backend
   build:
     context: ../backend
     args:
-      GIT_SHA: ${GIT_SHA:-dev}
-  image: aryaveda-backend:${GIT_SHA:-dev}
+      GIT_SHA: ${IMAGE_TAG:-${GIT_SHA:-dev}}
+  image: ${BACKEND_IMAGE:-aryaveda-backend}:${IMAGE_TAG:-${GIT_SHA:-dev}}
   env_file: .env
   environment:
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    GIT_SHA: ${GIT_SHA:-dev}
+    GIT_SHA: ${IMAGE_TAG:-${GIT_SHA:-dev}}
+    LOG_FORMAT: ${LOG_FORMAT:-json}
   volumes:
     - media:/app/media
     - backups:/app/backups
@@ -56,7 +62,9 @@ services:
     <<: *backend
     # --proxy-headers: trust X-Forwarded-For from Caddy so rate limits see
     # the visitor's IP. Safe because the API port isn't published.
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    # --no-access-log: the app writes its own JSON access lines (request id,
+    # user, order, duration) - see app/core/logging.py.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
@@ -83,7 +91,7 @@ services:
         API_BASE_INTERNAL: http://api:8000
         NEXT_PUBLIC_API_BASE: https://${API_DOMAIN}
         NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
-        NEXT_PUBLIC_GIT_SHA: ${GIT_SHA:-dev}
+        NEXT_PUBLIC_GIT_SHA: ${IMAGE_TAG:-${GIT_SHA:-dev}}
         NEXT_PUBLIC_GA_MEASUREMENT_ID: ${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
         NEXT_PUBLIC_META_PIXEL_ID: ${NEXT_PUBLIC_META_PIXEL_ID:-}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
@@ -97,7 +105,7 @@ services:
         NEXT_PUBLIC_GRIEVANCE_OFFICER_NAME: ${GRIEVANCE_OFFICER_NAME:-}
         NEXT_PUBLIC_GRIEVANCE_OFFICER_EMAIL: ${GRIEVANCE_OFFICER_EMAIL:-}
         NEXT_PUBLIC_GRIEVANCE_OFFICER_PHONE: ${GRIEVANCE_OFFICER_PHONE:-}
-    image: aryaveda-web:${GIT_SHA:-dev}
+    image: ${WEB_IMAGE:-aryaveda-web}:${IMAGE_TAG:-${GIT_SHA:-dev}}
     restart: unless-stopped
     environment:
       API_BASE_INTERNAL: http://api:8000

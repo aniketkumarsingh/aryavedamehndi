@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.core.deps import get_current_user, require_role
 from app.database import get_db
 from app.models.payment_ops import Refund
-from app.models.shop import ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
+from app.models.shop import ReturnRequest, ShopCoupon, ShopOrder, ShopOrderItem, ShopProduct, ShopProductVariant
 from app.models.user import User
 from app.schemas.shop import (
     ShopCheckoutConfigOut,
@@ -27,14 +27,22 @@ from app.schemas.shop import (
     ShopQuoteIn,
     ShopQuoteOut,
     ShopRefundOut,
+    ShopReturnOut,
+    ShipmentEventOut,
+    ShipmentOut,
+    PackageSizeIn,
     ShopVariantOut,
     ShopVariantStockIn,
 )
-from app.services import idempotency, pdf
+from app.services import attribution, idempotency, pdf, referrals
 from app.services.documents import credit_note_document, order_document
 from app.services.notifications import notify_admins
 from app.services.platform_settings import get_platform_settings
 from app.services.rate_limit import enforce
+from app.services.growth import close_cart_for_order
+from app.services.messaging import set_marketing_consent
+from app.services.returns import return_window_ends
+from app.services.shipping.service import check_serviceability, shipments_for
 from app.services.razorpay_client import create_order, verify_payment_signature
 from app.services.shop_orders import cancel_order, cod_problem, confirm_cod, coupon_problem, is_stale, normalise_code, price_order, release_stale_orders, settle_payment
 from app.services.storage import save_upload
@@ -190,6 +198,18 @@ def set_variant_stock(variant_id: uuid.UUID, payload: ShopVariantStockIn, db: Se
     return variant
 
 
+@router.put("/variants/{variant_id}/package", response_model=ShopVariantOut, dependencies=[Depends(require_role("admin"))])
+def set_variant_package(variant_id: uuid.UUID, payload: PackageSizeIn, db: Session = Depends(get_db)):
+    variant = db.get(ShopProductVariant, variant_id)
+    if variant is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pack size not found")
+    for field, value in payload.model_dump().items():
+        setattr(variant, field, value)
+    db.commit()
+    db.refresh(variant)
+    return variant
+
+
 @router.post("/products/{product_id}/image", response_model=ShopProductOut, dependencies=[Depends(require_role("admin"))])
 async def upload_product_image(product_id: uuid.UUID, file: UploadFile = File(...), db: Session = Depends(get_db)):
     product = db.get(ShopProduct, product_id)
@@ -232,11 +252,18 @@ def _order_out(db: Session, order: ShopOrder) -> ShopOrderOut:
         .order_by(Refund.created_at)
         .all()
     )
-    fields = {f: getattr(order, f) for f in ShopOrderOut.model_fields if f not in ("items", "refunds")}
+    fields = {f: getattr(order, f) for f in ShopOrderOut.model_fields if f not in ("items", "refunds", "shipments", "returns", "return_window_ends")}
+    shipments = [
+        ShipmentOut(**ShipmentOut.model_validate(s).model_dump(exclude={"events"}), events=[ShipmentEventOut.model_validate(e) for e in events])
+        for s, events in shipments_for(db, order.id)
+    ]
     return ShopOrderOut(
         **fields,
         items=[ShopOrderItemOut.model_validate(i) for i in items],
         refunds=[ShopRefundOut.model_validate(r) for r in refunds],
+        shipments=shipments,
+        returns=[ShopReturnOut.model_validate(r) for r in db.query(ReturnRequest).filter(ReturnRequest.order_id == order.id).order_by(ReturnRequest.created_at)],
+        return_window_ends=return_window_ends(db, order),
     )
 
 
@@ -310,9 +337,14 @@ def quote(payload: ShopQuoteIn, request: Request, user: User = Depends(require_r
             coupon = None
     online = price_order(db, items_amount, coupon, "online")
     cod_error = cod_problem(db, user.id, online["total_amount"])
+    if not cod_error and payload.shipping_pincode:
+        if not check_serviceability(db, payload.shipping_pincode, cod=True).cod_available:
+            cod_error = "Cash on Delivery isn't available at this PIN code - please pay online"
     method = payload.payment_method if not (payload.payment_method == "cod" and cod_error) else "online"
-    price = price_order(db, items_amount, coupon, method)
-    return ShopQuoteOut(**price, coupon_code=coupon.code if coupon else None, coupon_error=error,
+    referral_off, _ = referrals.friend_discount(db, user.id, items_amount)
+    wallet_balance = referrals.balance(db, user.id)
+    price = price_order(db, items_amount, coupon, method, referral_off, wallet_balance if payload.use_wallet else 0)
+    return ShopQuoteOut(**price, wallet_balance=wallet_balance, coupon_code=coupon.code if coupon else None, coupon_error=error,
                         cod_available=cod_error is None, cod_error=cod_error)
 
 
@@ -354,10 +386,19 @@ def _place_order(db: Session, payload: ShopOrderCreateIn, user: User, idempotenc
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Only {line['stock_row'].stock_quantity} left in stock for {line['label']}")
     items_amount = sum(line["unit_price"] * line["quantity"] for line in lines)
     coupon = _coupon_for(db, payload.coupon_code, user, items_amount)
+    if payload.shipping_pincode:
+        answer = check_serviceability(db, payload.shipping_pincode, cod=payload.payment_method == "cod")
+        if not answer.deliverable:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Sorry, we don't deliver to PIN code {payload.shipping_pincode} yet")
+        if payload.payment_method == "cod" and not answer.cod_available:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cash on Delivery isn't available at this PIN code - please pay online")
+    referral_off, referral = referrals.friend_discount(db, user.id, items_amount)
+    wallet_available = referrals.balance(db, user.id) if payload.use_wallet else 0.0
     if payload.payment_method == "cod":
-        if problem := cod_problem(db, user.id, price_order(db, items_amount, coupon, "online")["total_amount"]):
+        online_total = price_order(db, items_amount, coupon, "online", referral_off, wallet_available)["total_amount"]
+        if problem := cod_problem(db, user.id, online_total):
             raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
-    price = price_order(db, items_amount, coupon, payload.payment_method)
+    price = price_order(db, items_amount, coupon, payload.payment_method, referral_off, wallet_available)
 
     order = ShopOrder(
         consumer_id=user.id,
@@ -374,11 +415,21 @@ def _place_order(db: Session, payload: ShopOrderCreateIn, user: User, idempotenc
         shipping_fee=price["shipping_fee"],
         cod_fee=price["cod_fee"],
         total_amount=price["total_amount"],
+        referral_discount=price["referral_discount"],
+        wallet_amount=price["wallet_amount"],
         coupon_code=coupon.code if coupon else None,
+        attribution=attribution.clean(payload.attribution),
         status="pending",
     )
     db.add(order)
     db.flush()
+    try:
+        referrals.spend(db, user.id, order.wallet_amount, order)
+    except referrals.ReferralError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc))
+    if referral is not None and order.referral_discount > 0:
+        referral.first_order_id = order.id
+    attribution.remember_first_touch(user, payload.attribution)
 
     for line in lines:
         variant = line["variant"]
@@ -399,6 +450,10 @@ def _place_order(db: Session, payload: ShopOrderCreateIn, user: User, idempotenc
         )
     if payload.payment_method == "cod":
         confirm_cod(db, order)
+    if payload.marketing_opt_in:
+        set_marketing_consent(db, user, True, "checkout")
+    close_cart_for_order(db, user.id, order)
+    order.source = order.source or attribution.source_of(order.attribution or user.attribution, referral=order.referral_discount > 0)
 
     method = "Cash on Delivery" if payload.payment_method == "cod" else "online payment pending"
     notify_admins(db, "New shop order", f"₹{order.total_amount:g} order ({method}) placed by {user.name or user.phone}.", "/admin")

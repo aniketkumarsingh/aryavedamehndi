@@ -30,9 +30,11 @@ from app.schemas.bulk_order import (
     BulkOrderOut,
     BulkOrderQuoteIn,
 )
+from app.services import attribution
 from app.services.notifications import notify, notify_admins
 from app.services.pricing import quote_totals
 from app.services.razorpay_client import create_order, verify_payment_signature
+from app.services.messaging import set_marketing_consent
 from app.services.refunds import issue_refund
 
 router = APIRouter(prefix="/bulk-orders", tags=["bulk-orders"])
@@ -46,10 +48,19 @@ MIN_LEAD_TIME = timedelta(hours=24)
 
 
 def _order_out(db: Session, order: BulkOrder) -> BulkOrderOut:
+    from app.models.shipping import Shipment, ShipmentEvent
+    from app.schemas.shop import ShipmentEventOut, ShipmentOut
+
+    shipments = [
+        ShipmentOut(**ShipmentOut.model_validate(s).model_dump(exclude={"events"}),
+                    events=[ShipmentEventOut.model_validate(e) for e in db.query(ShipmentEvent).filter(ShipmentEvent.shipment_id == s.id).order_by(ShipmentEvent.occurred_at)])
+        for s in db.query(Shipment).filter(Shipment.bulk_order_id == order.id).order_by(Shipment.created_at)
+    ]
     return BulkOrderOut(
-        **{f: getattr(order, f) for f in BulkOrderOut.model_fields if f not in ("lines", "estimate")},
+        **{f: getattr(order, f) for f in BulkOrderOut.model_fields if f not in ("lines", "estimate", "shipments")},
         lines=order.lines,
         estimate=estimate_out(db, order.lines),
+        shipments=shipments,
     )
 
 
@@ -127,6 +138,11 @@ def create_bulk_order(payload: BulkOrderCreateIn, user: User = Depends(require_r
         f"{user.name or 'A consumer'} needs mehndi for {order.people} people on {order.event_at:%d %b %Y}.",
         "/admin",
     )
+    if payload.marketing_opt_in:
+        set_marketing_consent(db, user, True, "bulk_order")
+    order.attribution = attribution.clean(payload.attribution)
+    order.source = attribution.source_of(order.attribution or user.attribution)
+    attribution.remember_first_touch(user, payload.attribution)
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

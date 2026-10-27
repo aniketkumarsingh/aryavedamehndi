@@ -19,20 +19,39 @@ const TABS = [
   "Reports",
   "Shop Products",
   "Shop Orders",
+  "Shipping",
   "Coupons",
   "Payments",
+  "Growth",
   "Brand Content",
   "Settings",
+  "Team",
+  "Audit Log",
 ];
+
+// What each admin role sees (the API enforces the same - app/core/permissions.py).
+const HIDDEN_TABS = {
+  owner: [],
+  ops: ["Settings", "Team", "Audit Log"],
+  support: ["Settings", "Team", "Audit Log", "Payments", "KYC Approvals", "Coupons", "Packages", "Shop Products", "Brand Content"],
+};
 
 export default function AdminDashboard() {
   const [tab, setTab] = useState("Overview");
+  const [role, setRole] = useState(null);
 
+  useEffect(() => {
+    api.get("/users/me").then((me) => setRole(me.admin_role || "owner")).catch(() => setRole("owner"));
+  }, []);
+
+  const tabs = TABS.filter((t) => !(HIDDEN_TABS[role] || []).includes(t));
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl">Admin</h1>
+      <h1 className="text-2xl">
+        Admin {role && role !== "owner" && <span className="chip align-middle">{role}</span>}
+      </h1>
       <div className="flex gap-2 flex-wrap">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={tab === t ? "btn-primary text-sm" : "btn-secondary text-sm"}>
             {t}
           </button>
@@ -52,9 +71,179 @@ export default function AdminDashboard() {
       {tab === "Reports" && <ReportsTab />}
       {tab === "Shop Products" && <ShopProductsTab />}
       {tab === "Shop Orders" && <ShopOrdersTab />}
+      {tab === "Shipping" && <ShippingTab />}
       {tab === "Coupons" && <CouponsTab />}
       {tab === "Payments" && <PaymentsTab />}
+      {tab === "Growth" && <GrowthTab />}
       {tab === "Brand Content" && <CmsTab />}
+      {tab === "Team" && <TeamTab />}
+      {tab === "Audit Log" && <AuditTab />}
+    </div>
+  );
+}
+
+/** Internal notes on an order / booking / event request (never shown to the customer). */
+function AdminNotes({ targetType, targetId }) {
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState(null);
+  const [body, setBody] = useState("");
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/notes", { target_type: targetType, target_id: targetId }).then(setNotes).catch((e) => setError(e.message));
+  }
+  useEffect(() => {
+    if (open && notes === null) load();
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function add(e) {
+    e.preventDefault();
+    try {
+      await api.post("/admin/notes", { target_type: targetType, target_id: targetId, body });
+      setBody("");
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div className="text-xs mt-1">
+      <button className="underline text-ink-soft" onClick={() => setOpen(!open)}>
+        {open ? "Hide notes" : `Notes${notes?.length ? ` (${notes.length})` : ""}`}
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1 mt-1 border-l-2 border-gold pl-2">
+          {(notes || []).map((n) => (
+            <p key={n.id}>
+              <b>{n.author || "Admin"}</b> · {new Date(n.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}: {n.body}
+            </p>
+          ))}
+          <form onSubmit={add} className="flex gap-1">
+            <input className="input !py-1 text-xs" placeholder="Add an internal note" value={body} onChange={(e) => setBody(e.target.value)} />
+            <button className="btn-secondary text-xs" disabled={!body.trim()}>Add</button>
+          </form>
+          {error && <p className="text-red-700">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ADMIN_ROLE_HELP = {
+  owner: "Everything, including Settings, the team and the audit log",
+  ops: "Orders, shipping, returns and refunds, payments, products, artists, growth — not Settings or the team",
+  support: "Read-only, plus notes, returns approval, delivery-failure answers, reviews and reports",
+};
+
+function TeamTab() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState({ phone: "", name: "", admin_role: "support" });
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/team").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function run(fn) {
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Admin team</h2>
+      <ul className="text-xs text-ink-soft">
+        {Object.entries(ADMIN_ROLE_HELP).map(([k, v]) => <li key={k}><b>{k}</b> — {v}</li>)}
+      </ul>
+      <form
+        className="grid sm:grid-cols-4 gap-2 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => {
+            await api.post("/admin/team", form);
+            setForm({ phone: "", name: "", admin_role: "support" });
+          });
+        }}
+      >
+        <input className="input" placeholder="10-digit phone" required pattern="\d{10}" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <input className="input" placeholder="Name" required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <select className="input" value={form.admin_role} onChange={(e) => setForm({ ...form, admin_role: e.target.value })}>
+          {Object.keys(ADMIN_ROLE_HELP).map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <button className="btn-primary">Add admin</button>
+      </form>
+      <p className="text-xs text-ink-soft">They sign in with an OTP on that number. Use a number that isn&apos;t a customer or artist account.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((m) => (
+          <div key={m.id} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <b>{m.name || "—"}</b> · {m.phone} {!m.is_active && <span className="chip ml-1">removed</span>}
+            </span>
+            <span className="flex gap-2 items-center text-xs">
+              <select className="input !w-auto !py-1 text-xs" value={m.admin_role} onChange={(e) => run(() => api.put(`/admin/team/${m.id}`, { admin_role: e.target.value }))}>
+                {Object.keys(ADMIN_ROLE_HELP).map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button className="underline" onClick={() => run(() => api.put(`/admin/team/${m.id}`, { is_active: !m.is_active }))}>
+                {m.is_active ? "Remove access" : "Restore access"}
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AuditTab() {
+  const [rows, setRows] = useState([]);
+  const [path, setPath] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api.get("/admin/audit", { limit: 300, ...(path.trim() ? { path_contains: path.trim() } : {}) }).then(setRows).catch((e) => setError(e.message));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [path]);
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Audit log</h2>
+        <input className="input !w-64 text-sm" placeholder="Filter by path, e.g. shop-orders" value={path} onChange={(e) => setPath(e.target.value)} />
+      </div>
+      <p className="text-xs text-ink-soft">Every change an admin makes, every refused attempt and every export. The request id matches the server logs.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="overflow-x-auto">
+        <table className="text-xs w-full">
+          <thead>
+            <tr className="text-left text-ink-soft">
+              {["When", "Who", "Role", "Action", "Result", "Request id"].map((h) => <th key={h} className="pr-3 py-1 font-semibold">{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-line align-top">
+                <td className="pr-3 py-1 whitespace-nowrap">{new Date(r.created_at).toLocaleString("en-IN")}</td>
+                <td className="pr-3 py-1">{r.admin_name || "—"}</td>
+                <td className="pr-3 py-1">{r.admin_role}</td>
+                <td className="pr-3 py-1 font-mono break-all">{r.method} {r.path}{r.query ? `?${r.query}` : ""}</td>
+                <td className={`pr-3 py-1 ${r.status_code >= 400 ? "text-red-700" : ""}`}>{r.status_code}</td>
+                <td className="pr-3 py-1 font-mono">{r.request_id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && <p className="text-sm text-ink-soft">Nothing recorded yet.</p>}
+      </div>
     </div>
   );
 }
@@ -98,20 +287,21 @@ function AllBookingsTab() {
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
   function load() {
     api
-      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, limit: PAGE_SIZE, offset: 0 })
+      .get("/admin/bookings", { status_filter: statusFilter, flagged_only: flaggedOnly, source: sourceFilter, limit: PAGE_SIZE, offset: 0 })
       .then((rows) => {
         setBookings(rows);
         setHasMore(rows.length === PAGE_SIZE);
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, flaggedOnly]);
+  useEffect(load, [statusFilter, flaggedOnly, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -119,6 +309,7 @@ function AllBookingsTab() {
       const rows = await api.get("/admin/bookings", {
         status_filter: statusFilter,
         flagged_only: flaggedOnly,
+        source: sourceFilter,
         limit: PAGE_SIZE,
         offset: bookings.length,
       });
@@ -140,6 +331,7 @@ function AllBookingsTab() {
             <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
             Far-away check-ins only
           </label>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
           <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             {["all", "requested", "negotiating", "confirmed", "artist_enroute", "arrived", "in_progress", "design_uploaded", "completed", "disputed", "cancelled"].map((s) => (
               <option key={s} value={s}>
@@ -159,6 +351,7 @@ function AllBookingsTab() {
               <th className="pb-2 pr-3">Artist</th>
               <th className="pb-2 pr-3">Scheduled</th>
               <th className="pb-2 pr-3">Amount</th>
+              <th className="pb-2 pr-3">Source</th>
               <th className="pb-2">Status</th>
             </tr>
           </thead>
@@ -174,6 +367,7 @@ function AllBookingsTab() {
                 <td className="py-2 pr-3">{b.artist_name || b.artist_phone}</td>
                 <td className="py-2 pr-3">{new Date(b.scheduled_at).toLocaleDateString()}</td>
                 <td className="py-2 pr-3">{b.total_amount != null ? `₹${b.total_amount}` : "—"}</td>
+                <td className="py-2 pr-3 text-xs">{(b.source || "—").replace(/_/g, " ")}</td>
                 <td className="py-2">
                   <span className="chip">{b.status.replaceAll("_", " ")}</span>
                   {b.arrival_flagged && (
@@ -317,6 +511,25 @@ const SETTING_FIELDS = [
   { key: "shop_cod_max_order", label: "Cash on Delivery: max order (₹)", hint: "Larger orders must be paid online (limits losses on returned parcels)", step: "50" },
   { key: "shop_cod_fee", label: "Cash on Delivery charge (₹)", hint: "Added to COD orders; 0 for none", step: "1" },
   { key: "shop_cod_max_open_orders", label: "Cash on Delivery: open orders per customer", hint: "Undelivered COD orders one customer may have at once", step: "1" },
+  { key: "shop_packaging_weight_g", label: "Packaging weight (g)", hint: "Added to every parcel's weight", step: "10" },
+  { key: "shop_default_item_weight_g", label: "Default item weight (g)", hint: "Used for items whose packed weight isn't set yet", step: "10" },
+  { key: "shop_box_length_cm", label: "Smallest box: length (cm)", hint: "Parcels are at least this big", step: "1" },
+  { key: "shop_box_breadth_cm", label: "Smallest box: breadth (cm)", hint: "", step: "1" },
+  { key: "shop_box_height_cm", label: "Smallest box: height (cm)", hint: "", step: "1" },
+  { key: "shipping_eta_min_days", label: "Delivery estimate: fastest (days)", hint: "Shown at checkout until a courier is connected", step: "1" },
+  { key: "shipping_eta_max_days", label: "Delivery estimate: slowest (days)", hint: "", step: "1" },
+  { key: "shop_return_window_days", label: "Return window (days after delivery)", hint: "Keep in step with the refund policy page", step: "1" },
+  { key: "booking_sla_grace_minutes", label: "Artist late alert (minutes after the slot)", hint: "Admins are alerted if the artist hasn't set out by then", step: "5" },
+  { key: "growth_cart_coupon_percent", label: "Abandoned-cart coupon (% off)", hint: "Sent 24 h after the first reminder; one use, valid 72 h. 0 = no coupon", step: "1" },
+  { key: "growth_referral_friend_discount", label: "Referral: friend's first-order discount (₹)", hint: "Off the first shop order of someone who joins with a code", step: "10" },
+  { key: "growth_referral_reward", label: "Referral: reward to the referrer (₹ wallet credit)", hint: "Credited once the friend's order is delivered and the return window has passed", step: "10" },
+  { key: "growth_wallet_expiry_days", label: "Wallet credit validity (days)", hint: "Unused credit expires after this", step: "30" },
+];
+
+// Comma-separated PIN-code prefixes, e.g. "744, 796".
+const SETTING_TEXT_FIELDS = [
+  { key: "shipping_blocked_pincode_prefixes", label: "PIN codes we don't deliver to (prefixes)", hint: "e.g. 744 for the Andaman & Nicobar Islands" },
+  { key: "shipping_cod_blocked_pincode_prefixes", label: "PIN codes without Cash on Delivery (prefixes)", hint: "Areas with many refused COD parcels" },
 ];
 
 function SettingsTab() {
@@ -340,6 +553,7 @@ function SettingsTab() {
     try {
       const payload = { platform_fee_mode: values.platform_fee_mode, shop_cod_enabled: Boolean(values.shop_cod_enabled) };
       for (const f of SETTING_FIELDS) payload[f.key] = Number(values[f.key]);
+      for (const f of SETTING_TEXT_FIELDS) payload[f.key] = (values[f.key] || "").trim();
       setValues(await api.put("/admin/settings", payload));
       setSaved(true);
     } catch (err) {
@@ -380,6 +594,20 @@ function SettingsTab() {
             value={values[f.key]}
             onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
             required
+          />
+          <span className="text-xs text-ink-soft">{f.hint}</span>
+        </label>
+      ))}
+      {SETTING_TEXT_FIELDS.map((f) => (
+        <label key={f.key} className="text-sm flex flex-col gap-1">
+          {f.label}
+          <input
+            className="input"
+            inputMode="numeric"
+            pattern="[0-9, ]*"
+            placeholder="e.g. 744, 796"
+            value={values[f.key] || ""}
+            onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
           />
           <span className="text-xs text-ink-soft">{f.hint}</span>
         </label>
@@ -1394,6 +1622,43 @@ function ShopProductsTab() {
   );
 }
 
+/** Packed size of one unit (for courier bookings): weight and box. */
+function PackageSize({ label, value, onSave, busy }) {
+  const initial = { weight_g: value.weight_g ?? "", length_cm: value.length_cm ?? "", breadth_cm: value.breadth_cm ?? "", height_cm: value.height_cm ?? "" };
+  const [size, setSize] = useState(initial);
+  const changed = Object.keys(initial).some((k) => String(size[k]) !== String(initial[k]));
+  const num = (v) => (v === "" ? null : Number(v));
+  const field = (key, placeholder, width = "!w-14") => (
+    <input
+      className={`input text-xs ${width} !py-1`}
+      type="number"
+      min="0"
+      step="any"
+      placeholder={placeholder}
+      aria-label={`${label} ${placeholder}`}
+      value={size[key]}
+      onChange={(e) => setSize({ ...size, [key]: e.target.value })}
+    />
+  );
+  return (
+    <div className="flex items-center gap-1 text-xs">
+      <span className="font-semibold min-w-[3rem]">{label}</span>
+      {field("weight_g", "g", "!w-16")}
+      {field("length_cm", "L")}×{field("breadth_cm", "B")}×{field("height_cm", "H")}
+      <span className="text-ink-soft">cm</span>
+      {changed && (
+        <button
+          className="text-gold font-semibold"
+          disabled={busy || size.weight_g === ""}
+          onClick={() => onSave({ weight_g: Number(size.weight_g), length_cm: num(size.length_cm), breadth_cm: num(size.breadth_cm), height_cm: num(size.height_cm) })}
+        >
+          Save
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ShopProductRow({ product, onChanged, onDeactivate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1504,6 +1769,32 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
           ))}
         </div>
       )}
+      <label className="flex items-center gap-2 mt-2 text-xs">
+        <input
+          type="checkbox"
+          checked={product.returnable !== false}
+          disabled={busy}
+          onChange={(e) => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, returnable: e.target.checked }))}
+        />
+        Returnable for any reason (unticked: only if damaged or wrong — henna, hair and skin products)
+      </label>
+      <div className="flex flex-col gap-1 mt-2">
+        <span className="text-xs text-ink-soft">Packed size of one unit (for courier bookings; unweighed items count as the default weight in Settings):</span>
+        <div className="flex gap-x-4 gap-y-1 flex-wrap">
+          {variants.length > 0
+            ? variants.map((v) => (
+                <PackageSize key={v.id} label={v.label} value={v} busy={busy} onSave={(size) => run(() => api.put(`/shop/variants/${v.id}/package`, size))} />
+              ))
+            : (
+                <PackageSize
+                  label="Unit"
+                  value={product}
+                  busy={busy}
+                  onSave={(size) => run(() => api.put(`/shop/products/${product.id}`, { name: product.name, price: product.price, ...size }))}
+                />
+              )}
+        </div>
+      </div>
       {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap mt-2">
@@ -1526,17 +1817,18 @@ function ShopProductRow({ product, onChanged, onDeactivate }) {
 }
 
 const SHOP_ORDER_STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled", "returned"];
-const SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"];
+const SHOP_PAYMENT_STATUSES = ["unpaid", "paid", "cod_due", "cod_with_courier", "cod_collected", "refund_pending", "partially_refunded", "refunded", "void"];
 
 function ShopOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [error, setError] = useState("");
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
-  const filters = { status_filter: statusFilter, payment_status: paymentFilter };
+  const filters = { status_filter: statusFilter, payment_status: paymentFilter, source: sourceFilter };
 
   function load() {
     api
@@ -1547,7 +1839,7 @@ function ShopOrdersTab() {
       })
       .catch((e) => setError(e.message));
   }
-  useEffect(load, [statusFilter, paymentFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [statusFilter, paymentFilter, sourceFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadMore() {
     setLoadingMore(true);
@@ -1582,6 +1874,7 @@ function ShopOrdersTab() {
               </option>
             ))}
           </select>
+          <SourceFilter value={sourceFilter} onChange={setSourceFilter} />
         </div>
       </div>
       {error && <p className="text-sm text-red-700">{error}</p>}
@@ -1635,9 +1928,10 @@ function ShopOrderRow({ order: o, onChanged }) {
     if (status === "returned") {
       const reason = window.prompt("Why did the parcel come back? (e.g. refused at door, address not found)", "Refused at door");
       if (reason === null) return;
+      const good = window.confirm("Is the returned parcel in good condition?\n\nOK = good (items go back into stock)\nCancel = damaged (not restocked)");
       const refundNote = o.payment_method === "online" ? " The payment will be refunded in full." : "";
-      if (!window.confirm(`Mark returned and put the items back in stock?${refundNote}`)) return;
-      extra = { ...extra, reason: reason.trim() || "Returned by the courier" };
+      if (!window.confirm(`Mark returned (${good ? "good - restock" : "damaged - no restock"})?${refundNote}`)) return;
+      extra = { ...extra, reason: reason.trim() || "Returned by the courier", condition: good ? "good" : "damaged" };
     }
     run(() => api.post(`/admin/shop-orders/${o.id}/status`, { status, ...extra }));
   }
@@ -1664,6 +1958,7 @@ function ShopOrderRow({ order: o, onChanged }) {
             <span className={`chip ml-1 ${o.payment_status === "refund_pending" || o.refunds.some((r) => r.status === "failed") ? "text-red-700" : ""}`}>
               {o.payment_method === "cod" ? "COD · " : ""}{o.payment_status.replace(/_/g, " ")}
             </span>
+            {o.source && <span className="chip ml-1" title="Where this order came from">from {o.source.replace(/_/g, " ")}</span>}
           </p>
           <p className="text-xs text-ink-soft">
             {o.shipping_phone} · {o.shipping_address}
@@ -1675,7 +1970,10 @@ function ShopOrderRow({ order: o, onChanged }) {
           </p>
           <p className="text-xs text-ink-soft">
             {o.items_amount != null && `Items ₹${o.items_amount}`}
-            {o.discount_amount > 0 && ` · ${o.coupon_code} −₹${o.discount_amount}`}
+            {o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0) > 0 &&
+              ` · ${o.coupon_code || "Coupon"} −₹${Math.round((o.discount_amount - (o.referral_discount || 0) - (o.wallet_amount || 0)) * 100) / 100}`}
+            {o.referral_discount > 0 && ` · Referral −₹${o.referral_discount}`}
+            {o.wallet_amount > 0 && ` · Wallet −₹${o.wallet_amount}`}
             {` · Delivery ${o.shipping_fee > 0 ? `₹${o.shipping_fee}` : "free"}`}
             {o.cod_fee > 0 && ` · COD ₹${o.cod_fee}`}
             {o.amount_paid > 0 && ` · Paid ₹${o.amount_paid}`}
@@ -1713,6 +2011,7 @@ function ShopOrderRow({ order: o, onChanged }) {
               )}
             </p>
           ))}
+          <AdminNotes targetType="shop_order" targetId={o.id} />
         </div>
         <div className="flex gap-2 flex-wrap items-start">
           {SHOP_ORDER_NEXT[o.status].map((next) => (
@@ -2054,6 +2353,762 @@ function PaymentsTab() {
   );
 }
 
+const SHIPMENT_UPDATE_OPTIONS = [
+  ["picked_up", "Picked up"],
+  ["in_transit", "In transit"],
+  ["out_for_delivery", "Out for delivery"],
+  ["delivered", "Delivered"],
+  ["ndr", "Delivery attempt failed"],
+  ["rto", "Returning to us (RTO)"],
+  ["rto_delivered", "Returned to us"],
+];
+
+function ShipmentRow({ shipment: sh, selected, onToggle, onChanged }) {
+  const [panel, setPanel] = useState(null); // "edit" | "update"
+  const [details, setDetails] = useState({ courier_name: sh.courier_name || "", awb: sh.awb || "", tracking_url: sh.tracking_url || "", shipping_charge: sh.shipping_charge ?? "" });
+  const [update, setUpdate] = useState({ status: "in_transit", description: "", location: "" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      setPanel(null);
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="border-b border-line pb-2">
+      <div className="flex items-start gap-2 flex-wrap">
+        <input type="checkbox" className="mt-1" checked={selected} onChange={onToggle} aria-label={`Select shipment for ${sh.customer}`} />
+        <div className="flex-1 min-w-0 text-xs">
+          <p className="text-sm">
+            <b>{sh.customer}</b> · {sh.pincode || "no PIN"} <span className="chip ml-1">{sh.status.replace(/_/g, " ")}</span>
+            {sh.cod_amount > 0 && <span className="chip ml-1">COD ₹{sh.cod_amount}</span>}
+          </p>
+          <p className="text-ink-soft">
+            {sh.courier_name || "Courier not set"} · {sh.awb ? `AWB ${sh.awb}` : <span className="text-red-700">no AWB yet</span>} · {(sh.weight_g / 1000).toFixed(2)} kg ·
+            booked {fmt(sh.created_at)}
+            {sh.label_url && (
+              <>
+                {" · "}
+                <a href={sh.label_url} target="_blank" rel="noopener noreferrer" className="underline">courier label</a>
+              </>
+            )}
+            {sh.shipping_charge != null && ` · courier ₹${sh.shipping_charge}`}
+            {sh.cod_remitted_at && ` · COD remitted (${sh.cod_remittance_ref})`}
+          </p>
+          {sh.status === "ndr" && (
+            <p className="text-red-700">
+              Failed attempt #{sh.ndr_attempts}{sh.ndr_note ? ` (${sh.ndr_note})` : ""} ·{" "}
+              {sh.ndr_status === "open" ? "waiting for the customer" : `${sh.ndr_action?.replace("_", " ")} (${sh.ndr_status})`}
+              {sh.provider === "manual" && sh.ndr_status !== "open" && " - pass this on to the courier"}
+            </p>
+          )}
+          {["ndr", "rto", "rto_delivered"].includes(sh.status) && (
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {sh.status === "ndr" && ["open", "answered"].includes(sh.ndr_status) && (
+                <>
+                  <button className="underline" disabled={busy} onClick={() => run(() => api.post(`/admin/shipping/shipments/${sh.id}/ndr-action`, { action: "reattempt" }))}>Ask courier to retry</button>
+                  <button className="underline text-red-700" disabled={busy} onClick={() => window.confirm("Ask the courier to return this parcel?") && run(() => api.post(`/admin/shipping/shipments/${sh.id}/ndr-action`, { action: "cancel" }))}>Return to us</button>
+                </>
+              )}
+              <span className="text-ink-soft">Parcel back?</span>
+              <button className="underline" disabled={busy} onClick={() => window.confirm("Received back in good condition? Items go back into stock" + (sh.cod_amount ? "." : " and the customer is refunded.")) && run(() => api.post(`/admin/shipping/shipments/${sh.id}/receive-return`, { condition: "good" }))}>Received – good</button>
+              <button className="underline text-red-700" disabled={busy} onClick={() => window.confirm("Received back damaged? Items are not restocked" + (sh.cod_amount ? "." : "; the customer is refunded.")) && run(() => api.post(`/admin/shipping/shipments/${sh.id}/receive-return`, { condition: "damaged" }))}>Received – damaged</button>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-secondary text-xs" onClick={() => setPanel(panel === "update" ? null : "update")}>Tracking update</button>
+          <button className="text-xs underline" onClick={() => setPanel(panel === "edit" ? null : "edit")}>Edit</button>
+        </div>
+      </div>
+      {panel === "edit" && (
+        <form
+          className="grid sm:grid-cols-5 gap-2 mt-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(() => api.put(`/admin/shipping/shipments/${sh.id}`, { ...details, shipping_charge: details.shipping_charge === "" ? null : Number(details.shipping_charge) }));
+          }}
+        >
+          <input className="input text-xs" type="number" min="0" step="0.01" placeholder="Courier charge ₹" value={details.shipping_charge}
+            onChange={(e) => setDetails({ ...details, shipping_charge: e.target.value })} />
+          <input className="input text-xs" placeholder="Courier" value={details.courier_name} onChange={(e) => setDetails({ ...details, courier_name: e.target.value })} />
+          <input className="input text-xs" placeholder="AWB / tracking no." value={details.awb} onChange={(e) => setDetails({ ...details, awb: e.target.value })} />
+          <input className="input text-xs" placeholder="Tracking link (https://…)" value={details.tracking_url} onChange={(e) => setDetails({ ...details, tracking_url: e.target.value })} />
+          <button className="btn-primary text-xs" disabled={busy}>Save</button>
+        </form>
+      )}
+      {panel === "update" && (
+        <form className="grid sm:grid-cols-4 gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/admin/shipping/shipments/${sh.id}/events`, update)); }}>
+          <select className="input text-xs" value={update.status} onChange={(e) => setUpdate({ ...update, status: e.target.value })}>
+            {SHIPMENT_UPDATE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <input className="input text-xs" placeholder="Note (optional)" value={update.description} onChange={(e) => setUpdate({ ...update, description: e.target.value })} />
+          <input className="input text-xs" placeholder="Location (optional)" value={update.location} onChange={(e) => setUpdate({ ...update, location: e.target.value })} />
+          <button className="btn-primary text-xs" disabled={busy}>Add update & notify</button>
+        </form>
+      )}
+      {error && <p className="text-xs text-red-700 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function ReturnsQueue({ onChanged }) {
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("open");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/returns", { status_filter: filter }).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+      onChanged();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function approve(r) {
+    const courier = window.prompt("Courier for the pickup (optional)", "") ?? null;
+    if (courier === null) return;
+    const awb = window.prompt("Pickup AWB (optional - add later in Shipments)", "") || null;
+    run(() => api.post(`/admin/returns/${r.id}/approve`, { courier_name: courier || null, awb }));
+  }
+
+  function reject(r) {
+    const note = window.prompt("Why can't we accept it? (sent to the customer)");
+    if (note) run(() => api.post(`/admin/returns/${r.id}/reject`, { note }));
+  }
+
+  function receive(r) {
+    const good = window.confirm("Items back in good condition?\n\nOK = good (back into stock)\nCancel = damaged (not restocked)");
+    let upi_reference = null;
+    if (r.payment_method === "cod") {
+      upi_reference = window.prompt(`Send ₹${r.refund_amount} to ${r.refund_upi}, then enter the UPI reference (UTR):`);
+      if (!upi_reference) return;
+    } else if (!window.confirm(`Refund ₹${r.refund_amount} to the customer's original payment?`)) {
+      return;
+    }
+    run(() => api.post(`/admin/returns/${r.id}/receive`, { condition: good ? "good" : "damaged", upi_reference }));
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h2 className="font-semibold">Returns</h2>
+        <select className="input w-auto text-xs" aria-label="Return filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="open">Open</option>
+          <option value="requested">New</option>
+          <option value="refunded">Refunded</option>
+          <option value="rejected">Rejected</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-2 text-xs">
+        {rows.map((r) => (
+          <div key={r.id} className="border-b border-line pb-2 flex justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-sm">
+                <b>{r.customer}</b> · {r.reason_code.replace("_", " ")} · ₹{r.refund_amount} <span className="chip ml-1">{r.status}</span>
+                {r.payment_method === "cod" && <span className="chip ml-1">COD → {r.refund_upi}</span>}
+              </p>
+              <p className="text-ink-soft">{r.items.map((i) => `${i.quantity} item(s)`).join(", ")} · {fmt(r.created_at)}{r.details ? ` · "${r.details}"` : ""}</p>
+              {r.photo_urls && (
+                <div className="flex gap-1 mt-1">
+                  {r.photo_urls.split(",").map((u) => (
+                    <a key={u} href={u} target="_blank" rel="noopener noreferrer"><img src={u} alt="Return photo" className="h-12 w-12 object-cover rounded border border-line" /></a>
+                  ))}
+                </div>
+              )}
+              {r.admin_note && <p className="text-ink-soft">Note: {r.admin_note}</p>}
+            </div>
+            <div className="flex gap-2 items-start">
+              {r.status === "requested" && (
+                <>
+                  <button className="btn-primary text-xs" disabled={busy} onClick={() => approve(r)}>Approve & book pickup</button>
+                  <button className="text-xs text-red-700 underline" disabled={busy} onClick={() => reject(r)}>Reject</button>
+                </>
+              )}
+              {r.status === "approved" && <button className="btn-primary text-xs" disabled={busy} onClick={() => receive(r)}>Received – refund</button>}
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No returns here.</p>}
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+function CodRemittances({ onChanged }) {
+  const [rows, setRows] = useState([]);
+  const [pick, setPick] = useState({});
+  const [reference, setReference] = useState("");
+  const [report, setReport] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    Promise.all([api.get("/admin/shipping/cod-unremitted"), api.get("/admin/shipping/report", { months: 6 })])
+      .then(([unremitted, rep]) => {
+        setRows(unremitted);
+        setReport(rep);
+      })
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  const picked = rows.filter((r) => pick[r.id]);
+  const total = picked.reduce((sum, r) => sum + r.cod_amount, 0);
+  const overdue = (r) => r.delivered_at && Date.now() - new Date(r.delivered_at + "Z").getTime() > 10 * 86400000;
+
+  async function record(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api.post("/admin/shipping/cod-remittances", { shipment_ids: picked.map((r) => r.id), reference: reference.trim() });
+      setPick({});
+      setReference("");
+      load();
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Cash on Delivery owed by couriers ({rows.length})</h2>
+      <p className="text-xs text-ink-soft">
+        Delivered COD parcels count as collected only once the courier pays the cash over. Tick the parcels on their remittance statement and
+        enter the bank reference (UTR). Parcels unpaid after 10 days are flagged in the daily reconciliation.
+      </p>
+      <div className="flex flex-col gap-1 text-xs">
+        {rows.map((r) => (
+          <label key={r.id} className={`flex gap-2 items-center border-b border-line pb-1 ${overdue(r) ? "text-red-700" : ""}`}>
+            <input type="checkbox" checked={!!pick[r.id]} onChange={(e) => setPick({ ...pick, [r.id]: e.target.checked })} />
+            ₹{r.cod_amount} · {r.customer} · {r.courier_name || "courier"} {r.awb || ""} · delivered {fmt(r.delivered_at)}
+            {overdue(r) && " · overdue"}
+          </label>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">Nothing outstanding.</p>}
+      </div>
+      {rows.length > 0 && (
+        <form onSubmit={record} className="flex gap-2 flex-wrap items-center">
+          <input className="input text-sm w-auto" placeholder="Bank UTR / courier batch id" required minLength={3} value={reference} onChange={(e) => setReference(e.target.value)} />
+          <button className="btn-primary text-sm" disabled={busy || picked.length === 0}>
+            Record ₹{total.toFixed(2)} received ({picked.length})
+          </button>
+        </form>
+      )}
+      {error && <p className="text-sm text-red-700">{error}</p>}
+
+      {report.length > 0 && (
+        <div className="overflow-x-auto">
+          <h3 className="font-semibold text-sm mt-2 mb-1">Shipping cost vs. fees collected</h3>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left border-b border-line">
+                <th className="py-1">Month</th><th className="text-right">Parcels</th><th className="text-right">Fees collected</th>
+                <th className="text-right">Courier charges</th><th className="text-right">Margin</th><th className="text-right">Charge missing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.map((m) => (
+                <tr key={m.month} className="border-b border-line">
+                  <td className="py-1">{m.month}</td><td className="text-right">{m.parcels}</td><td className="text-right">₹{m.fees_collected}</td>
+                  <td className="text-right">₹{m.courier_charges}</td>
+                  <td className={`text-right ${m.margin < 0 ? "text-red-700" : ""}`}>₹{m.margin}</td>
+                  <td className="text-right">{m.parcels_without_charge}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShippingTab() {
+  const [ready, setReady] = useState([]);
+  const [pick, setPick] = useState({});
+  const [courier, setCourier] = useState("");
+  const [results, setResults] = useState(null);
+  const [shipments, setShipments] = useState([]);
+  const [filter, setFilter] = useState("active");
+  const [selected, setSelected] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    Promise.all([
+      api.get("/admin/shop-orders", { status_filter: "confirmed", limit: 200 }),
+      api.get("/admin/shipping/shipments", { status_filter: filter, limit: 200 }),
+    ])
+      .then(([orders, ships]) => {
+        setReady(orders);
+        setShipments(ships);
+      })
+      .catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const picked = Object.keys(pick).filter((k) => pick[k]);
+  const chosen = Object.keys(selected).filter((k) => selected[k]);
+
+  async function bookSelected() {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post("/admin/shipping/bulk-book", { order_ids: picked, courier_name: courier.trim() || null });
+      setResults(res);
+      setPick({});
+      // Select what was just booked, ready for labels and the manifest.
+      setSelected(Object.fromEntries(res.filter((r) => r.shipment_id).map((r) => [r.shipment_id, true])));
+      setFilter("active");
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function download(kind) {
+    downloadFile(`/admin/shipping/${kind}.pdf?ids=${chosen.join(",")}`, `${kind}-${new Date().toISOString().slice(0, 10)}.pdf`).catch((e) => setError(e.message));
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="card p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="font-semibold">Ready to ship ({ready.length})</h2>
+          <button className="text-xs underline" onClick={() => setPick(Object.fromEntries(ready.map((o) => [o.id, !picked.length])))}>
+            {picked.length ? "Clear" : "Select all"}
+          </button>
+        </div>
+        <p className="text-xs text-ink-soft">
+          Booking ships the order: the GST invoice is issued and the customer is notified. Add AWB numbers afterwards in Shipments if the courier gives them at pickup.
+        </p>
+        <div className="flex flex-col gap-1 text-sm">
+          {ready.map((o) => (
+            <label key={o.id} className="flex items-start gap-2 border-b border-line pb-1">
+              <input type="checkbox" className="mt-1" checked={!!pick[o.id]} onChange={(e) => setPick({ ...pick, [o.id]: e.target.checked })} />
+              <span>
+                <b>{o.shipping_name}</b> · {o.shipping_pincode || "no PIN"} · ₹{o.total_amount}
+                {o.payment_method === "cod" && <span className="chip ml-1">COD</span>}
+                <span className="block text-xs text-ink-soft">
+                  {o.items.map((i) => `${i.product_name}${i.variant_label ? ` (${i.variant_label})` : ""} ×${i.quantity}`).join(", ")} · {fmt(o.confirmed_at)}
+                </span>
+              </span>
+            </label>
+          ))}
+          {ready.length === 0 && <p className="text-ink-soft text-sm">Nothing waiting — all confirmed orders are shipped.</p>}
+        </div>
+        {ready.length > 0 && (
+          <div className="flex gap-2 flex-wrap items-center">
+            <input className="input text-sm w-auto" placeholder="Courier (e.g. Delhivery)" value={courier} onChange={(e) => setCourier(e.target.value)} />
+            <button className="btn-primary text-sm" disabled={busy || picked.length === 0} onClick={bookSelected}>
+              {busy ? "Booking…" : `Book ${picked.length || ""} shipment${picked.length === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        )}
+        {results && (
+          <ul className="text-xs">
+            {results.map((r) => (
+              <li key={r.order_id} className={r.error ? "text-red-700" : "text-leaf"}>
+                Order {r.order_id.slice(0, 8)}: {r.error || "booked"}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <ReturnsQueue onChanged={load} />
+
+      <CodRemittances onChanged={load} />
+
+      <div className="card p-5 flex flex-col gap-3">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <h2 className="font-semibold">Shipments</h2>
+          <div className="flex gap-2 items-center flex-wrap">
+            <select className="input w-auto text-xs" aria-label="Shipment filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="active">In progress</option>
+              <option value="ndr">Failed attempts</option>
+              <option value="rto">Returning</option>
+              <option value="delivered">Delivered</option>
+              <option value="all">All</option>
+            </select>
+            <button className="btn-secondary text-xs" disabled={!chosen.length} onClick={() => download("labels")}>Labels ({chosen.length})</button>
+            <button className="btn-secondary text-xs" disabled={!chosen.length} onClick={() => download("manifest")}>Manifest</button>
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-700">{error}</p>}
+        <div className="flex flex-col gap-2">
+          {shipments.map((sh) => (
+            <ShipmentRow key={sh.id} shipment={sh} selected={!!selected[sh.id]} onToggle={() => setSelected({ ...selected, [sh.id]: !selected[sh.id] })} onChanged={load} />
+          ))}
+          {shipments.length === 0 && <p className="text-ink-soft text-sm">No shipments here.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_OCCASION = { name: "", occasion_date: "", lead_days: 12, message: "", is_active: true };
+
+function OccasionCalendar() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_OCCASION);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/growth/occasions").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function run(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">Occasion reminders</h2>
+      <p className="text-xs text-ink-soft">
+        Before each occasion, past customers who opted in get one reminder (app + WhatsApp) with a link to book their last artist again.
+      </p>
+      <form
+        className="grid sm:grid-cols-5 gap-2 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => {
+            await api.post("/admin/growth/occasions", { ...form, lead_days: Number(form.lead_days), message: form.message || null });
+            setForm(EMPTY_OCCASION);
+          });
+        }}
+      >
+        <input className="input" placeholder="Occasion (e.g. Karva Chauth)" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className="input" type="date" required value={form.occasion_date} onChange={(e) => setForm({ ...form, occasion_date: e.target.value })} />
+        <label className="text-xs flex items-center gap-1">
+          Send
+          <input className="input !w-16" type="number" min="1" max="60" value={form.lead_days} onChange={(e) => setForm({ ...form, lead_days: e.target.value })} />
+          days before
+        </label>
+        <input className="input" placeholder="Extra line (optional)" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+        <button className="btn-primary" disabled={busy}>Add</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((o) => (
+          <div key={o.id} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <b>{o.name}</b> · {new Date(o.occasion_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · {o.lead_days} days before
+              {o.sent_at ? <span className="chip ml-1">sent · {o.reached} reached</span> : !o.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            {!o.sent_at && (
+              <span className="flex gap-2 text-xs">
+                <button className="underline" disabled={busy} onClick={() => run(() => api.put(`/admin/growth/occasions/${o.id}`, { ...o, is_active: !o.is_active }))}>
+                  {o.is_active ? "Turn off" : "Turn on"}
+                </button>
+                <button className="underline" disabled={busy} onClick={() => window.confirm(`Send the ${o.name} reminder now?`) && run(() => api.post(`/admin/growth/occasions/${o.id}/send-now`, {}))}>
+                  Send now
+                </button>
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No occasions yet — add Karva Chauth, Teej, Eid, Diwali and the wedding season.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ReviewModeration() {
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("published");
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/product-reviews", { status: filter }).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, [filter]);
+
+  async function setStatus(review, status) {
+    try {
+      await api.post(`/admin/product-reviews/${review.id}/status`, { status });
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Product reviews</h2>
+        <select className="input !w-auto text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <option value="published">Live</option>
+          <option value="hidden">Hidden</option>
+        </select>
+      </div>
+      <p className="text-xs text-ink-soft">Only customers with a delivered order can review. Hide spam or abuse — never a review just because it&apos;s negative.</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-2 text-sm">
+        {rows.map((r) => (
+          <div key={r.id} className="border-b border-line pb-2 flex flex-col gap-1">
+            <div className="flex justify-between gap-2 flex-wrap">
+              <span>
+                <b>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</b> · {r.product_name} · {r.author}
+              </span>
+              <button className="underline text-xs" onClick={() => setStatus(r, r.status === "published" ? "hidden" : "published")}>
+                {r.status === "published" ? "Hide" : "Restore"}
+              </button>
+            </div>
+            {r.title && <span className="font-semibold">{r.title}</span>}
+            {r.body && <span className="text-ink-soft">{r.body}</span>}
+            {r.photo_urls && (
+              <span className="flex gap-1">
+                {r.photo_urls.split(",").map((u) => <img key={u} src={u} alt="" className="h-12 w-12 object-cover rounded" />)}
+              </span>
+            )}
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No reviews here.</p>}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_LANDING = { slug: "", title: "", heading: "", intro: "", city: "", occasion: "", meta_description: "", is_active: true };
+
+function LandingPagesEditor() {
+  const [rows, setRows] = useState([]);
+  const [form, setForm] = useState(EMPTY_LANDING);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  function load() {
+    api.get("/admin/landing-pages").then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(load, []);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const { slug, ...body } = form;
+      await api.put(`/admin/landing-pages/${encodeURIComponent(slug.trim())}`, {
+        ...body,
+        intro: body.intro || null,
+        city: body.city || null,
+        occasion: body.occasion || null,
+        meta_description: body.meta_description || null,
+      });
+      setForm(EMPTY_LANDING);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(slug) {
+    if (!window.confirm(`Delete /mehndi/${slug}?`)) return;
+    await api.del(`/admin/landing-pages/${slug}`).catch((e) => setError(e.message));
+    load();
+  }
+
+  const field = (key) => ({ value: form[key] ?? "", onChange: (e) => setForm({ ...form, [key]: e.target.value }) });
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <h2 className="font-semibold">City &amp; occasion pages</h2>
+      <p className="text-xs text-ink-soft">
+        Search landing pages at /mehndi/&lt;slug&gt;. Each one lists verified artists in the city and designs for the occasion, and goes into the sitemap.
+      </p>
+      <form className="grid sm:grid-cols-2 gap-2 text-sm" onSubmit={save}>
+        <input className="input" placeholder="slug, e.g. bridal-mehndi-artist-jaipur" required pattern="[a-z0-9]+(-[a-z0-9]+)*" {...field("slug")} />
+        <input className="input" placeholder="Page title (browser tab / Google)" required minLength={3} {...field("title")} />
+        <input className="input" placeholder="Heading on the page" required minLength={3} {...field("heading")} />
+        <input className="input" placeholder="City (matches artists' city)" {...field("city")} />
+        <select className="input" {...field("occasion")}>
+          <option value="">Any occasion</option>
+          {OCCASIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        </select>
+        <input className="input" placeholder="Meta description (≤ 160 chars ideal)" maxLength={300} {...field("meta_description")} />
+        <textarea className="input sm:col-span-2" rows={4} placeholder="Intro copy — write it for people, mention the area and what's included" {...field("intro")} />
+        <label className="text-xs flex items-center gap-2">
+          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Live
+        </label>
+        <button className="btn-primary sm:justify-self-end" disabled={busy}>Save page</button>
+      </form>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex flex-col gap-1 text-sm">
+        {rows.map((p) => (
+          <div key={p.slug} className="flex justify-between items-center gap-2 border-b border-line pb-1 flex-wrap">
+            <span>
+              <a className="underline" href={`/mehndi/${p.slug}`} target="_blank" rel="noopener noreferrer">/mehndi/{p.slug}</a> · {p.heading}
+              {!p.is_active && <span className="chip ml-1">off</span>}
+            </span>
+            <span className="flex gap-2 text-xs">
+              <button className="underline" onClick={() => setForm({ ...EMPTY_LANDING, ...Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v ?? ""])) })}>Edit</button>
+              <button className="underline text-red-700" onClick={() => remove(p.slug)}>Delete</button>
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-ink-soft">No pages yet — start with your top cities × bridal, Karva Chauth and Eid.</p>}
+      </div>
+    </div>
+  );
+}
+
+// Common sources; any utm_source can be typed in.
+const SOURCES = ["direct", "referral", "abandoned_cart", "google_ads", "meta_ads", "instagram", "facebook", "whatsapp", "google"];
+
+/** "Where it came from" filter for order and booking lists. */
+function SourceFilter({ value, onChange }) {
+  return (
+    <>
+      <input
+        className="input w-auto text-sm"
+        list="admin-sources"
+        aria-label="Source"
+        placeholder="Any source"
+        defaultValue={value === "all" ? "" : value}
+        onKeyDown={(e) => e.key === "Enter" && onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+        onBlur={(e) => onChange(e.currentTarget.value.trim().toLowerCase() || "all")}
+      />
+      <datalist id="admin-sources">
+        {SOURCES.map((s) => <option key={s} value={s} />)}
+      </datalist>
+    </>
+  );
+}
+
+const DASHBOARD_COLUMNS = [
+  ["new_customers", "New customers"],
+  ["shop_orders", "Shop orders"],
+  ["shop_revenue", "Shop revenue (₹)"],
+  ["avg_order_value", "Avg order (₹)"],
+  ["repeat_orders", "Repeat orders"],
+  ["carts_reminded", "Carts reminded"],
+  ["cart_recovered", "Carts recovered"],
+  ["cart_recovery_rate", "Recovery %"],
+  ["coupon_cost", "Coupon cost (₹)"],
+  ["referral_orders", "Referral orders"],
+  ["referral_discounts", "Referral discounts (₹)"],
+  ["bookings", "Bookings"],
+  ["bookings_completed", "Completed"],
+  ["bulk_requests", "Event requests"],
+  ["referral_signups", "Referral sign-ups"],
+  ["referral_rewards", "Rewards paid (₹)"],
+  ["wallet_spent", "Wallet used (₹)"],
+];
+
+function GrowthDashboard() {
+  const [weeks, setWeeks] = useState(8);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.get("/admin/growth/dashboard", { weeks }).then(setData).catch((e) => setError(e.message));
+  }, [weeks]);
+
+  const sources = {};
+  for (const w of data?.weeks || []) for (const [k, n] of Object.entries(w.sources)) sources[k] = (sources[k] || 0) + n;
+  return (
+    <div className="card p-5 flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="font-semibold">Weekly growth</h2>
+        <span className="flex gap-2 items-center text-sm">
+          <select className="input !w-auto text-sm" value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+            {[4, 8, 12, 26].map((n) => <option key={n} value={n}>Last {n} weeks</option>)}
+          </select>
+          <button className="btn-secondary text-sm" onClick={() => downloadFile(`/admin/growth/dashboard.csv?weeks=${weeks}`, "aryaveda-growth-weekly.csv").catch((e) => setError(e.message))}>
+            Download CSV
+          </button>
+        </span>
+      </div>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      {data && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full">
+              <thead>
+                <tr className="text-left text-ink-soft">
+                  <th className="pr-3 py-1 font-semibold">Week of</th>
+                  {DASHBOARD_COLUMNS.map(([k, label]) => <th key={k} className="pr-3 py-1 font-semibold whitespace-nowrap">{label}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[...data.weeks].reverse().map((w) => (
+                  <tr key={w.week_start} className="border-t border-line">
+                    <td className="pr-3 py-1 whitespace-nowrap">{new Date(w.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    {DASHBOARD_COLUMNS.map(([k]) => <td key={k} className="pr-3 py-1">{w[k]}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-ink-soft">
+            Where orders came from:{" "}
+            {Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(" · ") || "no orders yet"}
+          </p>
+          <p className="text-xs text-ink-soft">
+            Referrals: {Object.entries(data.totals.referrals).map(([k, n]) => `${n} ${k}`).join(", ") || "none yet"} · wallet credit outstanding ₹{data.totals.wallet_outstanding} ·
+            server-side purchase events: Meta {data.server_conversions.meta ? "on" : "off"}, GA4 {data.server_conversions.ga4 ? "on" : "off"}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function GrowthTab() {
+  return (
+    <div className="flex flex-col gap-4">
+      <GrowthDashboard />
+      <OccasionCalendar />
+      <ReviewModeration />
+      <LandingPagesEditor />
+    </div>
+  );
+}
+
 function BulkOrdersTab() {
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("requested");
@@ -2127,6 +3182,17 @@ function BulkOrderRow({ order, onChanged }) {
     );
   }
 
+  function shipGoods() {
+    const description = window.prompt("What are you sending? (e.g. 50 mehndi cones, return favours)");
+    if (!description) return;
+    const courier = window.prompt("Courier (optional)", "") || null;
+    const awb = window.prompt("AWB / tracking number (optional)", "") || null;
+    act(async () => {
+      await api.post(`/admin/shipping/bulk-orders/${order.id}/shipments`, { description, courier_name: courier, awb });
+      return api.get(`/admin/bulk-orders/${order.id}`).catch(() => order);
+    });
+  }
+
   function cancel() {
     const reason = window.prompt("Reason for cancelling (sent to the customer). Any paid deposit is refunded in full.");
     if (reason !== null) act(() => api.post(`/admin/bulk-orders/${order.id}/cancel`, { reason: reason || null }));
@@ -2147,6 +3213,7 @@ function BulkOrderRow({ order, onChanged }) {
         </div>
         <div className="flex gap-1 flex-wrap">
           <span className="chip">{BULK_STATUS_LABELS[order.status]}</span>
+          {order.source && <span className="chip">from {order.source.replace(/_/g, " ")}</span>}
           {order.advance_amount > 0 && <span className="chip">{DEPOSIT_LABELS[order.advance_status]} {formatInr(order.advance_amount)}</span>}
         </div>
       </div>
@@ -2210,7 +3277,13 @@ function BulkOrderRow({ order, onChanged }) {
             Cancel order
           </button>
         )}
+        {["confirmed", "completed"].includes(order.status) && (
+          <button className="btn-secondary text-sm" disabled={busy} onClick={shipGoods}>
+            Ship goods…
+          </button>
+        )}
       </div>
+      <AdminNotes targetType="bulk_order" targetId={order.id} />
     </div>
   );
 }

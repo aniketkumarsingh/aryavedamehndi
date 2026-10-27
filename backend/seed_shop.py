@@ -32,7 +32,10 @@ for order, spec in enumerate(data["products"]):
     assert spec["category"] in SHOP_CATEGORIES, spec["slug"]
     product = db.query(ShopProduct).filter(ShopProduct.slug == spec["slug"]).first()
     if product is None:
-        product = ShopProduct(slug=spec["slug"], is_active=False, stock_quantity=0, price=0)
+        # Henna, hair and skin products: returns only if damaged or wrong
+        # (refund policy); set once, then it's the admin's to change.
+        product = ShopProduct(slug=spec["slug"], is_active=False, stock_quantity=0, price=0,
+                              returnable=spec.get("returnable", spec["category"] not in ("body-art", "hair", "skin")))
         db.add(product)
         stats["created"] += 1
     changed = False

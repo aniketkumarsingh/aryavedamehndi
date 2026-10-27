@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.services.storage import sign_media_url
 
@@ -19,6 +19,8 @@ class UserOut(BaseModel):
     anniversary_date: date | None
     consent_given: bool
     consent_given_at: datetime | None
+    marketing_opt_in: bool = False
+    admin_role: str | None = None  # admins only: owner | ops | support
     created_at: datetime
 
     class Config:
@@ -51,6 +53,7 @@ class ArtistProfileIn(BaseModel):
     bio: str | None = None
     service_radius_km: float = 10
     address_text: str | None = None
+    city: str | None = Field(default=None, max_length=60)  # shown on the public portfolio page
     base_lat: float
     base_lng: float
 
@@ -89,6 +92,8 @@ class ConsentIn(BaseModel):
 
 class ArtistProfileOut(BaseModel):
     user_id: uuid.UUID
+    slug: str | None = None  # public page: /artists/<slug>
+    city: str | None = None
 
     # About Me
     profile_photo_url: str | None

@@ -13,7 +13,10 @@ from app.models.review import Report
 from app.models.user import ArtistProfile, User
 from app.models.shop import SHOP_ORDER_TRANSITIONS, ShopOrder
 from app.services.refunds import RefundError
-from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, mark_shipped, refund_order
+from app.models.shipping import TERMINAL_SHIPMENT_STATUSES
+from app.services.shipping import ShippingError
+from app.services.shipping.service import active_shipment, book_shipment, receive_return, record_manual_update
+from app.services.shop_orders import cancel_order, mark_delivered, mark_returned, refund_order
 from app.schemas.admin import (
     AdminArtistOut,
     AdminBookingOut,
@@ -66,6 +69,7 @@ def list_all_bookings(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     flagged_only: bool = False,
+    source: str = "all",
     db: Session = Depends(get_db),
 ):
     query = db.query(Booking, Package.name).join(Package, Package.id == Booking.package_id).order_by(Booking.created_at.desc())
@@ -73,6 +77,8 @@ def list_all_bookings(
         query = query.filter(Booking.status == status_filter)
     if flagged_only:
         query = query.filter(Booking.arrival_flagged.is_(True))
+    if source != "all":
+        query = query.filter(Booking.source == source)
     query = query.offset(offset).limit(limit)
     return [_admin_booking_out(db, booking, package_name) for booking, package_name in query.all()]
 
@@ -92,6 +98,7 @@ def _admin_booking_out(db: Session, booking: Booking, package_name: str) -> Admi
         total_amount=booking.total_amount,
         arrival_distance_m=booking.arrival_distance_m,
         arrival_flagged=booking.arrival_flagged,
+        source=booking.source,
         created_at=booking.created_at,
     )
 
@@ -319,7 +326,7 @@ def approve_kyc(artist_id: uuid.UUID, db: Session = Depends(get_db)):
     profile = db.get(ArtistProfile, artist_id)
     if profile is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Artist not found")
-    profile.kyc_status = "approved"
+    profile.kyc_status, profile.kyc_reviewed_at = "approved", utcnow()
     notify(db, artist_id, "kyc", "KYC approved", "You're now visible to consumers searching nearby.", "/artist/profile")
     db.commit()
     db.refresh(profile)
@@ -331,7 +338,7 @@ def reject_kyc(artist_id: uuid.UUID, db: Session = Depends(get_db)):
     profile = db.get(ArtistProfile, artist_id)
     if profile is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Artist not found")
-    profile.kyc_status = "rejected"
+    profile.kyc_status, profile.kyc_reviewed_at = "rejected", utcnow()
     notify(db, artist_id, "kyc", "KYC rejected", "Please review and re-upload your documents.", "/artist/profile")
     db.commit()
     db.refresh(profile)
@@ -383,6 +390,7 @@ def list_shop_orders(
     status_filter: str = "all",
     payment_status: str = "all",
     payment_method: str = "all",
+    source: str = "all",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -396,6 +404,8 @@ def list_shop_orders(
         query = query.filter(ShopOrder.payment_status == payment_status)
     if payment_method != "all":
         query = query.filter(ShopOrder.payment_method == payment_method)
+    if source != "all":
+        query = query.filter(ShopOrder.source == source)
     orders = query.offset(offset).limit(limit).all()
     return [_order_out(db, o) for o in orders]
 
@@ -422,11 +432,27 @@ def update_shop_order_status(
             message += " Your payment is being refunded in full."
         notify(db, order.consumer_id, "shop", "Order cancelled", message, f"/shop/orders/{order.id}")
     elif payload.status == "shipped":
-        mark_shipped(db, order, payload.courier_name, payload.tracking_number, payload.tracking_url)
+        # One path for dispatch: book a shipment (manual provider by default).
+        try:
+            book_shipment(db, order, {"courier_name": payload.courier_name, "awb": payload.tracking_number, "tracking_url": payload.tracking_url},
+                          created_by=admin.id)
+        except ShippingError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     elif payload.status == "delivered":
-        mark_delivered(db, order)
+        shipment = active_shipment(db, order.id)
+        if shipment and shipment.status not in TERMINAL_SHIPMENT_STATUSES:
+            record_manual_update(db, shipment, "delivered", "Marked delivered by AryaVeda", None)
+        if order.status == "shipped":
+            mark_delivered(db, order)
     elif payload.status == "returned":
-        mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id)
+        shipment = active_shipment(db, order.id)
+        try:
+            if shipment:
+                receive_return(db, shipment, payload.condition, payload.reason, admin.id)
+            else:
+                mark_returned(db, order, payload.reason or "Returned by the courier", initiated_by=admin.id, condition=payload.condition)
+        except ShippingError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     db.commit()
     db.refresh(order)
     return _order_out(db, order)

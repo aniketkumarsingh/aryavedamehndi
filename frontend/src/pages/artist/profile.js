@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AccountData from "@/components/AccountData";
 import { api } from "@/lib/api";
 import ArtistDesignsManager from "@/components/ArtistDesignsManager";
 import CameraCapture from "@/components/CameraCapture";
@@ -32,6 +33,8 @@ export default function ArtistProfilePage() {
   const [bio, setBio] = useState("");
   const [radius, setRadius] = useState(10);
   const [addressText, setAddressText] = useState("");
+  const [city, setCity] = useState("");
+  const [slug, setSlug] = useState("");
   const [coords, setCoords] = useState(null);
   const [locLabel, setLocLabel] = useState("");
   const [locAddress, setLocAddress] = useState("");
@@ -60,6 +63,8 @@ export default function ArtistProfilePage() {
         setBio(p.bio || "");
         setRadius(p.service_radius_km);
         setAddressText(p.address_text || "");
+        setCity(p.city || "");
+        setSlug(p.slug || "");
         setIdProofType(p.id_proof_type || "aadhaar");
         setIdProofNumber(p.id_proof_number || "");
         setPanNumber(p.pan_number || "");
@@ -111,6 +116,7 @@ export default function ArtistProfilePage() {
         bio,
         service_radius_km: Number(radius),
         address_text: addressText || null,
+        city: city.trim(),
         base_lat: coords.lat,
         base_lng: coords.lng,
         pan_number: panNumber || null,
@@ -288,6 +294,14 @@ export default function ArtistProfilePage() {
               <label className="text-sm">Bio</label>
               <textarea className="input" value={bio} onChange={(e) => setBio(e.target.value)} />
 
+              <label className="text-sm">City (shown on your public page)</label>
+              <input className="input" maxLength={60} placeholder="e.g. Jaipur" value={city} onChange={(e) => setCity(e.target.value)} />
+              {slug && profile?.kyc_status === "approved" && (
+                <p className="text-xs text-ink-soft">
+                  Your public page: <a className="underline" href={`/artists/${slug}`} target="_blank" rel="noopener noreferrer">/artists/{slug}</a> — share it on Instagram and WhatsApp.
+                </p>
+              )}
+
               <label className="text-sm">Service radius (km)</label>
               <input className="input" type="number" value={radius} onChange={(e) => setRadius(e.target.value)} />
 
@@ -461,6 +475,8 @@ export default function ArtistProfilePage() {
         onClose={() => setLightbox(null)}
         onIndexChange={(i) => setLightbox((prev) => ({ ...prev, index: i }))}
       />
+
+      <AccountData />
     </div>
   );
 }
